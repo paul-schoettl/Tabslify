@@ -2353,4 +2353,26 @@
     <string name="textaktion_denkt">Thinking…</string>
     <string name="im_chat_oeffnen">Open in AI chat</string>
     <string name="chat_geoeffnet">Opening in the AI chat</string>
+
+    <string name="commandcode_widget_title">CommandCode</string>
+    <string name="commandcode_widget_label">CommandCode monthly limit</string>
+    <string name="commandcode_widget_description">Monthly CommandCode usage with pace line</string>
+    <string name="commandcode_widget_amount">%1$s / %2$s · %3$s</string>
+    <string name="commandcode_widget_pace_max">Pace max %1$s</string>
+    <string name="commandcode_widget_over">%1$s over pace</string>
+    <string name="commandcode_widget_under">%1$s under pace</string>
+    <string name="commandcode_widget_reset">Reset in %1$s</string>
+    <string name="commandcode_widget_offline" tools:ignore="PluralsCandidate">%1$d days offline</string>
+    <string name="commandcode_widget_no_cookie">Tap to set up</string>
+    <string name="commandcode_widget_error">Not available</string>
+    <string name="commandcode_config_title">CommandCode widget</string>
+    <string name="commandcode_config_hint">Cookie (from commandcode.ai)</string>
+    <string name="commandcode_config_help">Open the browser dev tools, network tab, any api.commandcode.ai request and copy the full Cookie request header.</string>
+    <string name="commandcode_config_save">Save</string>
+    <string name="commandcode_config_test">Test</string>
+    <string name="commandcode_config_cancel">Cancel</string>
+    <string name="commandcode_config_empty">Please enter the cookie.</string>
+    <string name="commandcode_config_testing">Checking…</string>
+    <string name="commandcode_config_ok">%1$s of %2$s · %3$s</string>
+    <string name="commandcode_config_failed">Failed: %1$s</string>
 </resources>
