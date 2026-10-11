@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <style name="Theme.Tabslify.WidgetConfig" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#121212</item>
+    </style>
+
     <style name="Theme.Tabslify.ProcessText" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowIsTranslucent">true</item>
