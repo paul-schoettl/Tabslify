@@ -3067,4 +3067,26 @@
     <string name="textaktion_denkt">Denkt nach…</string>
     <string name="im_chat_oeffnen">Im AI-Chat öffnen</string>
     <string name="chat_geoeffnet">Wird im AI-Chat geöffnet</string>
+
+    <string name="commandcode_widget_title">CommandCode</string>
+    <string name="commandcode_widget_label">CommandCode Monatslimit</string>
+    <string name="commandcode_widget_description">Monatlicher CommandCode-Verbrauch mit Pace-Linie</string>
+    <string name="commandcode_widget_amount">%1$s / %2$s · %3$s</string>
+    <string name="commandcode_widget_pace_max">Pace max %1$s</string>
+    <string name="commandcode_widget_over">%1$s über Pace</string>
+    <string name="commandcode_widget_under">%1$s unter Pace</string>
+    <string name="commandcode_widget_reset">Reset in %1$s</string>
+    <string name="commandcode_widget_offline" tools:ignore="PluralsCandidate">%1$d Tage offline</string>
+    <string name="commandcode_widget_no_cookie">Tippen zum Einrichten</string>
+    <string name="commandcode_widget_error">Nicht verfügbar</string>
+    <string name="commandcode_config_title">CommandCode-Widget</string>
+    <string name="commandcode_config_hint">Cookie (aus commandcode.ai)</string>
+    <string name="commandcode_config_help">Browser, Entwicklertools, Netzwerk, eine api.commandcode.ai-Anfrage öffnen und den kompletten Cookie-Request-Header kopieren.</string>
+    <string name="commandcode_config_save">Speichern</string>
+    <string name="commandcode_config_test">Testen</string>
+    <string name="commandcode_config_cancel">Abbrechen</string>
+    <string name="commandcode_config_empty">Bitte Cookie eingeben.</string>
+    <string name="commandcode_config_testing">Prüfe…</string>
+    <string name="commandcode_config_ok">%1$s von %2$s · %3$s</string>
+    <string name="commandcode_config_failed">Fehlgeschlagen: %1$s</string>
 </resources>
