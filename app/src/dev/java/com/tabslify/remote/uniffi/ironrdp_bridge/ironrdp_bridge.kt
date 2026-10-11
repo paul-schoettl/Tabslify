@@ -678,9 +678,6 @@ object FfiConverterBoolean: FfiConverter<Boolean, Byte> {
  * @suppress
  */
 object FfiConverterString: FfiConverter<String, RustBuffer.ByValue> {
-    // Note: we don't inherit from FfiConverterRustBuffer, because we use a
-    // special encoding when lowering/lifting.  We can use `RustBuffer.len` to
-    // store our length and avoid writing it out to the buffer.
     override fun lift(value: RustBuffer.ByValue): String {
         try {
             val byteArr = ByteArray(value.len.toInt())
