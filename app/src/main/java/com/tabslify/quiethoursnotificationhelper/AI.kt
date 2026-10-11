@@ -232,6 +232,40 @@ private fun buildChatCompletionsMessages(
     })
 }
 
+private fun proxyErrorMessage(body: String): String? {
+    val jsonObj = try {
+        JSONObject(body)
+    } catch (_: Exception) {
+        return null
+    }
+
+    val err = jsonObj.opt("error")
+    val base = when {
+        err is JSONObject && err.has("message") -> err.getString("message")
+        err is String -> err
+        err != null -> err.toString()
+        else -> null
+    } ?: return null
+
+    val detail = jsonObj.optString("details", "").trim()
+    if (detail.isEmpty() || detail == base) return base
+
+    val extracted = try {
+        val detailJson = JSONObject(detail)
+        val detailErr = detailJson.opt("error")
+        when {
+            detailErr is JSONObject && detailErr.has("message") -> detailErr.getString("message")
+            detailErr is String -> detailErr
+            detailJson.has("message") -> detailJson.getString("message")
+            else -> detail
+        }
+    } catch (_: Exception) {
+        detail
+    }
+
+    return if (extracted.isBlank() || extracted == base) base else "$base ($extracted)"
+}
+
 private suspend fun sendChatCompletionsMessage(
     ctx: Context,
     history: List<ChatMessage>,
@@ -274,18 +308,9 @@ private suspend fun sendChatCompletionsMessage(
                     "$logTag proxy failed with code ${connection.responseCode}: $errorText"
                 )
                 
-                try {
-                    val jsonObj = JSONObject(errorText)
-                    if (jsonObj.has("error")) {
-                        val err = jsonObj.get("error")
-                        if (err is JSONObject && err.has("message")) {
-                            return@withContext "API Error: " + err.getString("message")
-                        } else if (err is String) {
-                            return@withContext "API Error: $err"
-                        }
-                    }
-                } catch (_: Exception) {}
-                
+                val message = proxyErrorMessage(errorText)
+                if (message != null) return@withContext "API Error: $message"
+
                 return@withContext "Error ${connection.responseCode}: $errorText"
             }
 
