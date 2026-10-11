@@ -351,5 +351,28 @@
             </intent-filter>
         </receiver>
 
+        <receiver
+            android:name=".widget.CommandCodeUsageWidget"
+            android:exported="false"
+            android:label="@string/commandcode_widget_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/commandcode_usage_widget_info" />
+        </receiver>
+
+        <activity
+            android:name=".widget.CommandCodeWidgetConfigActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:theme="@style/Theme.Tabslify.WidgetConfig">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
     </application>
 </manifest>
