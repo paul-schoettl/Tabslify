@@ -1933,6 +1933,11 @@
     <string name="gemischtes_set">Gemischtes Set %1$s</string> <!-- app/src/main/java/com/tabslify/tabs/school/VocabTab.kt:1891  ||  %1$s=(System.currentTimeMillis() % 1000) -->
     <string name="vokabel_sets_mischen">Vokabel-Sets mischen</string> <!-- app/src/main/java/com/tabslify/tabs/school/VocabTab.kt:1899 -->
     <string name="sets_auswahlen_min_2">Sets auswählen (min. 2):</string> <!-- app/src/main/java/com/tabslify/tabs/school/VocabTab.kt:1921 -->
+    <plurals name="schwerpunkt_hinweis"> <!-- VocabTab.kt:2092  ||  %1$d=schwerpunkt.anzahl -->
+        <item quantity="one">%1$d schwache Vokabel kommt öfter</item>
+        <item quantity="other">%1$d schwache Vokabeln kommen öfter</item>
+    </plurals>
+    <string name="falsch_zaehler">%1$d× falsch</string> <!-- VocabTab.kt:2549  ||  %1$d=wrongCount -->
     <string name="mischen">Mischen (%1$d)</string> <!-- app/src/main/java/com/tabslify/tabs/school/VocabTab.kt:2007  ||  %1$s=selectedSets.size -->
     <string name="heute_due">Heute fällig</string> <!-- VocabTab.kt:737 -->
     <plurals name="faellige_vokabeln"> <!-- VocabTab.kt:744  ||  %1$d=faelligGesamt -->
@@ -3068,25 +3073,16 @@
     <string name="im_chat_oeffnen">Im AI-Chat öffnen</string>
     <string name="chat_geoeffnet">Wird im AI-Chat geöffnet</string>
 
-    <string name="commandcode_widget_title">CommandCode</string>
     <string name="commandcode_widget_label">CommandCode Monatslimit</string>
     <string name="commandcode_widget_description">Monatlicher CommandCode-Verbrauch mit Pace-Linie</string>
-    <string name="commandcode_widget_amount">%1$s / %2$s · %3$s</string>
-    <string name="commandcode_widget_pace_max">Pace max %1$s</string>
     <string name="commandcode_widget_over">%1$s über Pace</string>
     <string name="commandcode_widget_under">%1$s unter Pace</string>
-    <string name="commandcode_widget_reset">Reset in %1$s</string>
-    <string name="commandcode_widget_offline" tools:ignore="PluralsCandidate">%1$d Tage offline</string>
-    <string name="commandcode_widget_no_cookie">Tippen zum Einrichten</string>
+    <string name="commandcode_widget_no_cookie">PC nicht erreichbar</string>
     <string name="commandcode_widget_error">Nicht verfügbar</string>
-    <string name="commandcode_config_title">CommandCode-Widget</string>
-    <string name="commandcode_config_hint">Cookie (aus commandcode.ai)</string>
-    <string name="commandcode_config_help">Browser, Entwicklertools, Netzwerk, eine api.commandcode.ai-Anfrage öffnen und den kompletten Cookie-Request-Header kopieren.</string>
-    <string name="commandcode_config_save">Speichern</string>
-    <string name="commandcode_config_test">Testen</string>
-    <string name="commandcode_config_cancel">Abbrechen</string>
-    <string name="commandcode_config_empty">Bitte Cookie eingeben.</string>
-    <string name="commandcode_config_testing">Prüfe…</string>
-    <string name="commandcode_config_ok">%1$s von %2$s · %3$s</string>
-    <string name="commandcode_config_failed">Fehlgeschlagen: %1$s</string>
+    <string name="commandcode_widget_expired">Cookie abgelaufen</string>
+    <string name="commandcode_widget_blocked">Server blockiert die Anfrage</string>
+    <string name="lamp_widget_label">Lampe</string>
+    <string name="lamp_widget_description">Lampe an/aus schalten</string>
+    <string name="home_bar_widget_label">CommandCode + Lampe</string>
+    <string name="home_bar_widget_description">Leiste mit CommandCode-Verbrauch und Lampen-Schalter</string>
 </resources>
