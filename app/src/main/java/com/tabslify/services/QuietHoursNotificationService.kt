@@ -138,6 +138,7 @@ import com.tabslify.quiethoursnotificationhelper.timeChangeReceiver
 import com.tabslify.quiethoursnotificationhelper.updateNotification
 import com.tabslify.quiethoursnotificationhelper.updateSingleSenderNotification
 import com.tabslify.tabs.audiorecordertab.AudioForegroundService
+import com.tabslify.widget.CommandCodeUsageWidget
 import com.tabslify.tabs.exploretab.ExploreLocationTracker
 import com.tabslify.tabs.mediaplayer.MediaAnalyticsManager
 import com.tabslify.tabs.mediaplayer.MediaAnalyticsManager.getSessions
@@ -210,6 +211,7 @@ class QuietHoursNotificationService : Service() {
     companion object {
         const val CHANNEL_ID = "quiet_hours_channel"
         const val NOTIFICATION_ID = 999999
+        const val WIDGET_REFRESH_MS = 3 * 60 * 1000L
 
         private val WHATSAPP_PACKAGES = setOf("com.whatsapp", "com.whatsapp.w4b")
         private val TELEGRAM_PACKAGES =
@@ -326,6 +328,36 @@ class QuietHoursNotificationService : Service() {
                     "ERROR"
                 )
             }
+        }
+
+        private var widgetRefreshContext: Context? = null
+
+        private val widgetRefreshRunnable: Runnable = object : Runnable {
+            override fun run() {
+                val ctx = widgetRefreshContext ?: return
+                try {
+                    CommandCodeUsageWidget.updateAll(ctx)
+                } catch (e: Exception) {
+                    errorInsert(
+                        "QuietHoursNotificationService:widgetRefresh",
+                        e.stackTraceToString().take(8000),
+                        Instant.now().toString(),
+                        "ERROR"
+                    )
+                }
+                handler.postDelayed(this, WIDGET_REFRESH_MS)
+            }
+        }
+
+        fun startWidgetRefresh(context: Context) {
+            widgetRefreshContext = context.applicationContext
+            handler.removeCallbacks(widgetRefreshRunnable)
+            handler.post(widgetRefreshRunnable)
+        }
+
+        fun stopWidgetRefresh() {
+            handler.removeCallbacks(widgetRefreshRunnable)
+            widgetRefreshContext = null
         }
 
         fun startService(context: Context) {
@@ -467,6 +499,7 @@ class QuietHoursNotificationService : Service() {
         }
 
         handler.post(checkRunnable)
+        startWidgetRefresh(this)
         schedulePeriodicCleanup(this)
         scheduleSyncTriggerWorker(this)
         scheduleSchoolDaySummary(this)
@@ -1207,6 +1240,7 @@ class QuietHoursNotificationService : Service() {
         tearDownOverlay()
         dailyMusicSummaryJob?.cancel()
         podcastJob?.cancel()
+        stopWidgetRefresh()
 
         handler.removeCallbacksAndMessages(null)
         workerHandler.removeCallbacksAndMessages(null)
