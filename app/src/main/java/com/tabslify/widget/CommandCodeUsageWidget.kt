@@ -6,12 +6,17 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import android.widget.RemoteViews
 import com.tabslify.R
+import com.tabslify.core.functions.PcCommands
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.util.Locale
+import kotlin.math.abs
+
+private const val TAG = "CommandCodeWidget"
 
 class CommandCodeUsageWidget : AppWidgetProvider() {
 
@@ -19,11 +24,19 @@ class CommandCodeUsageWidget : AppWidgetProvider() {
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val usage = CommandCodeUsageRepository.load(context)
-                val views = buildViews(context, usage)
-                ids.forEach { manager.updateAppWidget(it, views) }
-            } catch (error: Exception) {
-                val views = buildErrorViews(context)
+                runCatching { HandyLampClient.refresh(context) }
+                val views = try {
+                    buildViews(context, CommandCodeUsageRepository.load(context))
+                } catch (error: CookieExpiredException) {
+                    Log.w(TAG, "Cookie abgelaufen: ${error.message}")
+                    buildErrorViews(context, ErrorState.EXPIRED)
+                } catch (error: CommandCodeBlockedException) {
+                    Log.w(TAG, "Server blockiert die Anfrage: ${error.message}")
+                    buildErrorViews(context, ErrorState.BLOCKED)
+                } catch (error: Exception) {
+                    Log.e(TAG, "Abruf fehlgeschlagen", error)
+                    buildErrorViews(context, ErrorState.UNKNOWN)
+                }
                 ids.forEach { manager.updateAppWidget(it, views) }
             } finally {
                 pendingResult?.finish()
@@ -31,79 +44,84 @@ class CommandCodeUsageWidget : AppWidgetProvider() {
         }
     }
 
+    private enum class ErrorState { EXPIRED, BLOCKED, UNKNOWN }
+
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action == ACTION_REFRESH) {
-            val manager = AppWidgetManager.getInstance(context)
-            val ids = manager.getAppWidgetIds(ComponentName(context, CommandCodeUsageWidget::class.java))
-            if (ids.isNotEmpty()) onUpdate(context, manager, ids)
-            return
+        when (intent.action) {
+            ACTION_REFRESH -> {
+                val manager = AppWidgetManager.getInstance(context)
+                val ids = manager.getAppWidgetIds(ComponentName(context, CommandCodeUsageWidget::class.java))
+                if (ids.isNotEmpty()) onUpdate(context, manager, ids)
+            }
+            ACTION_LAMP_TOGGLE -> {
+                val pendingResult = goAsync()
+                CoroutineScope(Dispatchers.IO).launch {
+                    try {
+                        toggleLamp(context)
+                        updateLampIcon(context)
+                    } catch (error: Exception) {
+                        Log.e(TAG, "Lampen-Befehl fehlgeschlagen", error)
+                    } finally {
+                        pendingResult?.finish()
+                    }
+                }
+            }
+            else -> super.onReceive(context, intent)
         }
-        super.onReceive(context, intent)
+    }
+
+    private fun toggleLamp(context: Context) {
+        val sentOverLan = HandyLampClient.toggle(context)
+        if (!sentOverLan) {
+            PcCommands.queue(PcCommands.LAMP_TOGGLE, source = "widget_lampe", cooldownMs = 0)
+            HandyLampClient.flipCached(context)
+        }
+    }
+
+    private fun updateLampIcon(context: Context) {
+        val manager = AppWidgetManager.getInstance(context)
+        val ids = manager.getAppWidgetIds(ComponentName(context, CommandCodeUsageWidget::class.java))
+        if (ids.isEmpty()) return
+        val views = RemoteViews(context.packageName, R.layout.home_bar_widget)
+        views.setImageViewResource(R.id.lamp_widget_icon, lampIcon(context))
+        manager.partiallyUpdateAppWidget(ids, views)
+    }
+
+    private fun baseViews(context: Context): RemoteViews {
+        val views = RemoteViews(context.packageName, R.layout.home_bar_widget)
+        views.setOnClickPendingIntent(R.id.home_bar_usage, refreshPendingIntent(context))
+        views.setOnClickPendingIntent(R.id.home_bar_lamp, lampPendingIntent(context))
+        views.setImageViewResource(R.id.lamp_widget_icon, lampIcon(context))
+        return views
     }
 
     private fun buildViews(context: Context, usage: CommandCodeUsage): RemoteViews {
-        val views = RemoteViews(context.packageName, R.layout.commandcode_usage_widget)
-        views.setOnClickPendingIntent(R.id.cc_widget_settings, configPendingIntent(context))
-        views.setOnClickPendingIntent(R.id.cc_widget_root, refreshPendingIntent(context))
-
-        val usedText = String.format(Locale.US, "\$%.2f", usage.used)
-        val capText = String.format(Locale.US, "\$%.2f", usage.cap)
-        val pctText = String.format(Locale.US, "%.1f%%", usage.pct)
-        val paceText = String.format(Locale.US, "%.1f%%", usage.pacePct)
-        val diffText = String.format(Locale.US, "%.1f%%", kotlin.math.abs(usage.pct - usage.pacePct))
-
-        val title = if (usage.planId.isNotEmpty()) {
-            "${context.getString(R.string.commandcode_widget_title)} · ${usage.planId}"
+        val views = baseViews(context)
+        val diffText = String.format(Locale.US, "%.2f %%", abs(usage.pct - usage.pacePct))
+        val paceLine = if (usage.overPace) {
+            context.getString(R.string.commandcode_widget_over, diffText)
         } else {
-            context.getString(R.string.commandcode_widget_title)
+            context.getString(R.string.commandcode_widget_under, diffText)
         }
-        val paceLine = context.getString(R.string.commandcode_widget_pace_max, paceText) + " · " +
-            if (usage.overPace) {
-                context.getString(R.string.commandcode_widget_over, diffText)
-            } else {
-                context.getString(R.string.commandcode_widget_under, diffText)
-            }
-        val resetLine = if (usage.periodEnd > 0L) {
-            val remaining = formatRemaining(usage.periodEnd - System.currentTimeMillis())
-            val base = context.getString(R.string.commandcode_widget_reset, remaining)
-            if (usage.offlineDays > 0) {
-                base + " · " + context.getString(R.string.commandcode_widget_offline, usage.offlineDays)
-            } else {
-                base
-            }
-        } else {
-            ""
-        }
-
-        views.setTextViewText(R.id.cc_widget_title, title)
         views.setImageViewBitmap(R.id.cc_widget_bar, CommandCodeBarRenderer.render(usage.pct, usage.pacePct))
-        views.setTextViewText(
-            R.id.cc_widget_amount,
-            context.getString(R.string.commandcode_widget_amount, usedText, capText, pctText)
-        )
         views.setTextViewText(R.id.cc_widget_pace, paceLine)
-        views.setTextViewText(R.id.cc_widget_reset, resetLine)
         return views
     }
 
-    private fun buildErrorViews(context: Context): RemoteViews {
-        val views = RemoteViews(context.packageName, R.layout.commandcode_usage_widget)
-        val hasCookie = CommandCodeUsageRepository.readCookie(context).isNotEmpty()
-        val target = if (hasCookie) refreshPendingIntent(context) else configPendingIntent(context)
-        views.setOnClickPendingIntent(R.id.cc_widget_root, target)
-        views.setOnClickPendingIntent(R.id.cc_widget_settings, configPendingIntent(context))
-        views.setTextViewText(R.id.cc_widget_title, context.getString(R.string.commandcode_widget_title))
+    private fun buildErrorViews(context: Context, state: ErrorState): RemoteViews {
+        val views = baseViews(context)
         views.setImageViewBitmap(R.id.cc_widget_bar, CommandCodeBarRenderer.render(0.0, 0.0))
-        views.setTextViewText(
-            R.id.cc_widget_amount,
-            context.getString(
-                if (hasCookie) R.string.commandcode_widget_error else R.string.commandcode_widget_no_cookie
-            )
-        )
-        views.setTextViewText(R.id.cc_widget_pace, "")
-        views.setTextViewText(R.id.cc_widget_reset, "")
+        val text = when (state) {
+            ErrorState.EXPIRED -> context.getString(R.string.commandcode_widget_expired)
+            ErrorState.BLOCKED -> context.getString(R.string.commandcode_widget_blocked)
+            ErrorState.UNKNOWN -> context.getString(R.string.commandcode_widget_error)
+        }
+        views.setTextViewText(R.id.cc_widget_pace, text)
         return views
     }
+
+    private fun lampIcon(context: Context): Int =
+        if (HandyLampClient.cachedOn(context) == true) R.drawable.ic_lightbulb_on else R.drawable.ic_lightbulb_off
 
     private fun refreshPendingIntent(context: Context): PendingIntent =
         PendingIntent.getBroadcast(
@@ -113,24 +131,17 @@ class CommandCodeUsageWidget : AppWidgetProvider() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-    private fun configPendingIntent(context: Context): PendingIntent =
-        PendingIntent.getActivity(
+    private fun lampPendingIntent(context: Context): PendingIntent =
+        PendingIntent.getBroadcast(
             context,
             1,
-            Intent(context, CommandCodeWidgetConfigActivity::class.java),
+            Intent(context, CommandCodeUsageWidget::class.java).setAction(ACTION_LAMP_TOGGLE),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-    private fun formatRemaining(millis: Long): String {
-        if (millis <= 0L) return "0h"
-        val totalMinutes = millis / 60_000L
-        val days = totalMinutes / (60L * 24L)
-        val hours = (totalMinutes % (60L * 24L)) / 60L
-        return if (days > 0L) "${days}d ${hours}h" else "${hours}h"
-    }
-
     companion object {
         const val ACTION_REFRESH = "com.tabslify.widget.COMMANDCODE_REFRESH"
+        const val ACTION_LAMP_TOGGLE = "com.tabslify.widget.LAMP_TOGGLE"
 
         fun updateAll(context: Context) {
             val manager = AppWidgetManager.getInstance(context)
