@@ -296,7 +296,7 @@ private suspend fun sendChatCompletionsMessage(
 
     return withContext(Dispatchers.IO) {
         val connection = Config.openApiProxyConnection(ctx, 60_000)
-            ?: return@withContext "Proxy Connection Setup Failed (Signature NULL)"
+            ?: return@withContext "[!ERROR] Proxy Connection Setup Failed (Signature NULL)"
         try {
             connection.outputStream.use { it.write(requestBody.toByteArray(Charsets.UTF_8)) }
 
@@ -309,9 +309,9 @@ private suspend fun sendChatCompletionsMessage(
                 )
                 
                 val message = proxyErrorMessage(errorText)
-                if (message != null) return@withContext "API Error: $message"
+                if (message != null) return@withContext "[!ERROR] $message"
 
-                return@withContext "Error ${connection.responseCode}: $errorText"
+                return@withContext "[!ERROR] Error ${connection.responseCode}: $errorText"
             }
 
             if (onToken != null) {
@@ -345,7 +345,7 @@ private suspend fun sendChatCompletionsMessage(
                         }
                     }
                 }
-                if (apiError != null) return@withContext "API Error: $apiError"
+                if (apiError != null) return@withContext "[!ERROR] $apiError"
                 sb.toString().ifBlank { "Stream returned 200 OK but was empty." }
             } else {
                 val response = JSONObject(connection.inputStream.bufferedReader().readText())
