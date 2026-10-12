@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/home_bar_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg"
+    android:baselineAligned="false"
+    android:orientation="horizontal">
+
+    <LinearLayout
+        android:id="@+id/home_bar_usage"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="1"
+        android:gravity="center_vertical"
+        android:orientation="vertical"
+        android:paddingStart="12dp"
+        android:paddingTop="10dp"
+        android:paddingEnd="10dp"
+        android:paddingBottom="10dp">
+
+        <ImageView
+            android:id="@+id/cc_widget_bar"
+            android:layout_width="match_parent"
+            android:layout_height="18dp"
+            android:contentDescription="@string/commandcode_widget_label"
+            android:scaleType="fitXY" />
+
+        <TextView
+            android:id="@+id/cc_widget_pace"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:gravity="center_horizontal"
+            android:maxLines="1"
+            android:textColor="#E6E6E6"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+    <FrameLayout
+        android:id="@+id/home_bar_lamp"
+        android:layout_width="72dp"
+        android:layout_height="match_parent">
+
+        <TextView
+            android:id="@+id/home_bar_divider"
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:layout_gravity="start"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="12dp"
+            android:background="#33FFFFFF" />
+
+        <ImageView
+            android:id="@+id/lamp_widget_icon"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_gravity="center"
+            android:contentDescription="@string/lamp_widget_label"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_lightbulb_off" />
+    </FrameLayout>
+</LinearLayout>
