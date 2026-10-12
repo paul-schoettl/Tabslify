@@ -1,7 +1,5 @@
 package com.tabslify.tabs.aitab
 
-import com.tabslify.quiethoursnotificationhelper.OPENROUTER_DEFAULT_MODEL
-
 data class Model(
     val realname: String,
     val vision: Boolean = false,
@@ -28,9 +26,10 @@ val nvidiaModels = listOf(
 )
 
 val openrouterModels = listOf(
-    Model(OPENROUTER_DEFAULT_MODEL, weight = 1, name = "Nemotron 3 Ultra 550B"),
-    Model("nvidia/nemotron-3.5-lightning:free", weight = 1, name = "Nemotron 3.5 Lightning"),
-    Model("google/gemma-4-31b-it:free", vision = true, weight = 1, name = "Gemma 4 31B")
+    Model("nvidia/nemotron-3.5-lightning:free", weight = 1, name = "Nemotron 3.5 Lightning (schnell)"),
+    Model("google/gemma-4-26b-a4b-it:free", vision = true, weight = 1, name = "Gemma 4 26B A4B"),
+    Model("google/gemma-4-31b-it:free", vision = true, weight = 1, name = "Gemma 4 31B"),
+    Model("thinkingmachines/inkling-small:free", vision = true, audio = true, weight = 1, name = "Inkling Small")
 )
 
 val serverModels = listOf(
