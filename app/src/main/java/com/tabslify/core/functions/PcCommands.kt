@@ -13,6 +13,7 @@ import java.util.concurrent.ConcurrentHashMap
 object PcCommands {
 
     const val LAMP_OFF = "lamp_off"
+    const val LAMP_TOGGLE = "lamp_toggle"
 
     private const val RESEND_COOLDOWN_MS = 15 * 60_000L
 
@@ -22,10 +23,11 @@ object PcCommands {
         command: String,
         source: String,
         payload: JsonObject = buildJsonObject {},
+        cooldownMs: Long = RESEND_COOLDOWN_MS,
     ) {
         val now = System.currentTimeMillis()
         val previous = lastQueuedAt[command] ?: 0L
-        if (now - previous < RESEND_COOLDOWN_MS) {
+        if (now - previous < cooldownMs) {
             return
         }
         lastQueuedAt[command] = now
