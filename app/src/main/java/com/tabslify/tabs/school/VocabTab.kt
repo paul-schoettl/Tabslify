@@ -163,6 +163,8 @@ data class LernErgebnis(
 
 data class AntwortFeedback(val karte: LernKarte, val gewaehlt: String, val korrekt: Boolean)
 
+data class Schwerpunkt(val karten: List<LernKarte>, val anzahl: Int)
+
 data class SessionState(
     val cards: List<KartenVerweis>,
     val currentIndex: Int,
@@ -180,6 +182,10 @@ enum class VokabelTabScreen { DASHBOARD, HOME, UPLOAD, REVIEW, LEARN, MATERIALIE
 private val LEITNER_INTERVALLE = intArrayOf(0, 1, 2, 4, 8, 16, 32)
 
 private const val SITZT_STREAK = 2
+
+private const val GEWICHT_MAX = 3
+
+private const val NACHTRAG_MAX = 3
 
 private const val TAG_MS = 24L * 60L * 60L * 1000L
 
@@ -212,6 +218,48 @@ fun vergleicheAntwort(eingabe: String, korrekt: String): Boolean {
     if (a.isEmpty()) return false
     if (a == b) return true
     return falteDiakritika(a) == falteDiakritika(b)
+}
+
+fun gewichtFuer(progress: VokabelProgress?): Int {
+    if (progress == null) return 1
+    if (progress.streak > 0 || progress.wrongCount == 0) return 1
+    return if (progress.wrongCount >= 2) GEWICHT_MAX else 2
+}
+
+fun schwerpunktKarten(karten: List<LernKarte>, prefs: SharedPreferences): Schwerpunkt {
+    val fortschritt = karten.map { it.setId }.distinct()
+        .associateWith { loadSetProgress(prefs, it) }
+    val basis = mutableListOf<LernKarte>()
+    val zusatz = mutableListOf<LernKarte>()
+    var anzahl = 0
+    karten.forEach { karte ->
+        val gewicht = gewichtFuer(
+            fortschritt[karte.setId]?.vokabelProgress?.get(karte.vokabel.id)
+        )
+        if (gewicht > 1) anzahl++
+        basis.add(karte)
+        repeat(gewicht - 1) { zusatz.add(karte) }
+    }
+    return Schwerpunkt(spreize(basis, zusatz), anzahl)
+}
+
+private fun spreize(basis: List<LernKarte>, zusatz: List<LernKarte>): List<LernKarte> {
+    if (zusatz.isEmpty()) return basis
+    val ergebnis = mutableListOf<LernKarte>()
+    val proBlock = basis.size.toFloat() / (zusatz.size + 1)
+    var naechster = 0
+    basis.forEachIndexed { i, karte ->
+        ergebnis.add(karte)
+        while (naechster < zusatz.size && (i + 1) >= ((naechster + 1) * proBlock).toInt()) {
+            ergebnis.add(zusatz[naechster])
+            naechster++
+        }
+    }
+    while (naechster < zusatz.size) {
+        ergebnis.add(zusatz[naechster])
+        naechster++
+    }
+    return ergebnis
 }
 
 private const val LERNMODUS_KEY = "lern_modus"
@@ -280,6 +328,7 @@ fun VocabTab(paddingValues: PaddingValues) {
     var saveNameInput by remember { mutableStateOf("") }
     var lernKarten by remember { mutableStateOf<List<LernKarte>>(emptyList()) }
     var lernZurueck by remember { mutableStateOf(VokabelTabScreen.HOME) }
+    var lernGewichten by remember { mutableStateOf(false) }
     var showMergeDialog by remember { mutableStateOf(false) }
     var extractionJob by remember { mutableStateOf<Job?>(null) }
     var comingFromScan by remember { mutableStateOf(false) }
@@ -301,12 +350,14 @@ fun VocabTab(paddingValues: PaddingValues) {
         set: VokabelSet?,
         karten: List<LernKarte>,
         name: String? = set?.name,
-        zurueck: VokabelTabScreen = VokabelTabScreen.HOME
+        zurueck: VokabelTabScreen = VokabelTabScreen.HOME,
+        gewichten: Boolean = false
     ) {
         activeSet = set
         cachedSetName = name
         lernKarten = karten
         lernZurueck = zurueck
+        lernGewichten = gewichten
         screen = VokabelTabScreen.LEARN
     }
 
@@ -315,7 +366,8 @@ fun VocabTab(paddingValues: PaddingValues) {
         savedSets = saveVokabelSet(prefs, updatedSet)
         starteLernen(
             set = updatedSet,
-            karten = updatedSet.vokabeln.map { LernKarte(it, updatedSet.createdAt, false) }
+            karten = updatedSet.vokabeln.map { LernKarte(it, updatedSet.createdAt, false) },
+            gewichten = true
         )
     }
 
@@ -579,6 +631,7 @@ fun VocabTab(paddingValues: PaddingValues) {
                 onStartLearning = {
                     lernKarten = vokabeln.map { LernKarte(it, 0L, false) }
                     lernZurueck = VokabelTabScreen.REVIEW
+                    lernGewichten = false
                     screen = VokabelTabScreen.LEARN
                 },
                 onSave = { saveNameInput = activeSet?.name ?: ""; showSaveDialog = true },
@@ -601,6 +654,7 @@ fun VocabTab(paddingValues: PaddingValues) {
                 karten = lernKarten,
                 prefs = prefs,
                 sessionKey = eigeneSetId ?: 0L,
+                gewichten = lernGewichten,
                 onBack = {
                     screen = lernZurueck
                     activeSet = null
@@ -1707,6 +1761,7 @@ fun LearnScreen(
     setName: String?,
     onVokabelnUpdated: ((List<Vokabel>) -> Unit)? = null,
     onRenameRequest: () -> Unit = {},
+    gewichten: Boolean = false,
     paddingValues: PaddingValues
 ) {
     val context = LocalContext.current
@@ -1716,6 +1771,9 @@ fun LearnScreen(
     var shuffleOrder by remember { mutableStateOf(prefs.getBoolean(SHUFFLE_KEY, true)) }
     var basis by remember { mutableStateOf(karten) }
     val savedSession = remember { if (sessionKey > 0L) loadSessionState(prefs, sessionKey) else null }
+    val schwerpunkt = remember(karten, gewichten) {
+        if (gewichten) schwerpunktKarten(karten, prefs) else Schwerpunkt(karten, 0)
+    }
 
     var queue by remember {
         mutableStateOf(
@@ -1726,7 +1784,7 @@ fun LearnScreen(
                     }?.copy(richtung = verweis.richtung)
                 }
                 ?.takeIf { it.size >= 3 }
-                ?: ordneKarten(karten, shuffleOrder)
+                ?: ordneKarten(schwerpunkt.karten, shuffleOrder)
         )
     }
     var index by remember { mutableIntStateOf(savedSession?.currentIndex ?: 0) }
@@ -1805,11 +1863,11 @@ fun LearnScreen(
             schonGelistet -> falscheKarten
             else -> falscheKarten + aktuelle
         }
-        if (!richtig) {
-            val versuch = (wiederholungen[aktuelle.verweis] ?: 0) + 1
-            wiederholungen[aktuelle.verweis] = versuch
+        val auftritte = (wiederholungen[aktuelle.verweis] ?: 0) + 1
+        wiederholungen[aktuelle.verweis] = auftritte
+        if (!richtig && auftritte < NACHTRAG_MAX) {
             val offen = queue.size - index - 1
-            if (versuch <= 2 && offen >= 3) {
+            if (offen >= 3) {
                 queue = queue.toMutableList().also {
                     it.add(index + 4, aktuelle.copy(richtung = !aktuelle.richtung))
                 }
@@ -1896,7 +1954,7 @@ fun LearnScreen(
         pendingShuffle = null
         prefs.edit { putBoolean(SHUFFLE_KEY, value) }
         clearSessionState(prefs, sessionKey)
-        queue = ordneKarten(basis, value)
+        queue = ordneKarten(schwerpunkt.karten, value)
         index = 0
         ergebnisse = emptyList()
         falscheKarten = emptyList()
@@ -2037,10 +2095,27 @@ fun LearnScreen(
                     .align(Alignment.CenterHorizontally)
                     .padding(top = 4.dp)
             )
+            if (schwerpunkt.anzahl > 0) {
+                Text(
+                    pluralStringResource(
+                        R.plurals.schwerpunkt_hinweis, schwerpunkt.anzahl, schwerpunkt.anzahl
+                    ),
+                    color = AccentViolet,
+                    fontSize = 11.sp,
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(top = 2.dp)
+                )
+            }
 
             Spacer(Modifier.height(16.dp))
 
             val stand = feedback
+            val angezeigt = stand?.karte ?: karte
+            val fehlerZahl = remember(angezeigt.verweis) {
+                loadSetProgress(prefs, angezeigt.setId)
+                    .vokabelProgress[angezeigt.vokabel.id]?.wrongCount ?: 0
+            }
 
             if (modus == LernModus.AUFECKEN && stand == null) {
                 Box(
@@ -2073,6 +2148,10 @@ fun LearnScreen(
                                     color = TextPrimary,
                                     modifier = Modifier.padding(horizontal = 24.dp)
                                 )
+                                if (fehlerZahl > 0) {
+                                    Spacer(Modifier.height(10.dp))
+                                    FehlerAbzeichen(fehlerZahl)
+                                }
                                 if (index == 0) {
                                     Spacer(Modifier.height(20.dp))
                                     Text(
@@ -2202,12 +2281,17 @@ fun LearnScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            stand?.karte?.frage ?: karte.frage,
+                            angezeigt.frage,
                             fontSize = 26.sp,
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center,
                             color = TextPrimary
                         )
+                        if (fehlerZahl > 0) {
+                            Box(modifier = Modifier.align(Alignment.TopEnd)) {
+                                FehlerAbzeichen(fehlerZahl)
+                            }
+                        }
                     }
                     Spacer(Modifier.height(14.dp))
                     if (modus == LernModus.TIPPEN && stand == null) {
@@ -2439,7 +2523,7 @@ fun LearnScreen(
                             .background(MaterialTheme.colorScheme.primary)
                             .clickable {
                                 clearSessionState(prefs, sessionKey)
-                                queue = ordneKarten(basis, shuffleOrder)
+                                queue = ordneKarten(schwerpunkt.karten, shuffleOrder)
                                 index = 0
                                 ergebnisse = emptyList()
                                 falscheKarten = emptyList()
@@ -2543,6 +2627,23 @@ fun LearnScreen(
             confirmText = stringResource(R.string.neu_starten),
             onConfirm = { applyShuffleOrder(value) },
             onDismiss = { pendingShuffle = null }
+        )
+    }
+}
+
+@Composable
+private fun FehlerAbzeichen(anzahl: Int) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color(0xFFB71C1C).copy(alpha = 0.35f))
+            .padding(horizontal = 8.dp, vertical = 3.dp)
+    ) {
+        Text(
+            stringResource(R.string.falsch_zaehler, anzahl),
+            color = Color(0xFFEF9A9A),
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Medium
         )
     }
 }
