@@ -139,6 +139,7 @@ import java.net.ServerSocket
 import java.net.Socket
 import java.net.SocketException
 import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import java.nio.ByteBuffer
 import java.security.SecureRandom
 import java.text.SimpleDateFormat
@@ -2896,26 +2897,31 @@ private suspend fun insertMobileIpToSupabase(ipAddress: String): Boolean =
     withContext(Dispatchers.IO) {
         if (!Config.realDevice) return@withContext true
         if (ipAddress == lastInsertedMobileIp) return@withContext true
-        try {
-            Config.safeCall {
-                Config.client
-                    .from("device_ips")
-                    .update(buildJsonObject {
-                        put("ip_address", ipAddress)
-                        put("last_seen", Instant.now().toString())
-                    }) {
-                        filter { eq("device_id", "handy") }
-                    }
+        repeat(3) { attempt ->
+            try {
+                Config.safeCall {
+                    Config.client
+                        .from("device_ips")
+                        .update(buildJsonObject {
+                            put("ip_address", ipAddress)
+                            put("last_seen", Instant.now().toString())
+                        }) {
+                            filter { eq("device_id", "handy") }
+                        }
+                }
+                lastInsertedMobileIp = ipAddress
+                return@withContext true
+            } catch (_: HttpRequestTimeoutException) {
+                if (attempt == 2) Log.w("CLOUDSA", "[SUPABASE] Insert Timeout fuer $ipAddress")
+            } catch (e: UnknownHostException) {
+                if (attempt == 2) Log.w("CLOUDSA", "[SUPABASE] DNS nicht aufloesbar fuer $ipAddress: ${e.message}")
+            } catch (e: Exception) {
+                if (attempt == 2) logError("SupabaseInsert", e)
             }
-            lastInsertedMobileIp = ipAddress
-            true
-        } catch (_: HttpRequestTimeoutException) {
-            false
+
+            if (attempt < 2) delay((1000L * (attempt + 1)).milliseconds)
         }
-        catch (e: Exception) {
-            logError("SupabaseInsert", e)
-            false
-        }
+        false
     }
 
 fun getHotspotIp(): String? {
