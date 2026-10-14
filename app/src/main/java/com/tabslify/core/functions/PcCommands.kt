@@ -1,14 +1,17 @@
 package com.tabslify.core.functions
 
+import android.util.Log
 import com.tabslify.core.activities.Tabslify.Companion.serviceScope
 import com.tabslify.core.objects.Config
 import io.github.jan.supabase.postgrest.from
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.time.Duration.Companion.milliseconds
 
 object PcCommands {
 
@@ -33,19 +36,32 @@ object PcCommands {
         lastQueuedAt[command] = now
 
         serviceScope.launch {
-            try {
-                Config.client.from("pc_commands").insert(
-                    buildJsonObject {
-                        put("command", command)
-                        put("source", source)
-                        put("payload", payload)
-                    }
-                )
-            } catch (e: Exception) {
-                lastQueuedAt.remove(command)
+            var failure: Exception? = null
+            for (attempt in 0 until 3) {
+                try {
+                    Config.client.from("pc_commands").insert(
+                        buildJsonObject {
+                            put("command", command)
+                            put("source", source)
+                            put("payload", payload)
+                        }
+                    )
+                    return@launch
+                } catch (e: Exception) {
+                    failure = e
+                    if (!neverReachedServer(e)) break
+                    if (attempt < 2) delay((1000L * (attempt + 1)).milliseconds)
+                }
+            }
+
+            val error = failure ?: return@launch
+            lastQueuedAt.remove(command)
+            if (isNetworkFailure(error)) {
+                Log.w("PcCommands", "$command nicht gesendet: ${error.message}")
+            } else {
                 errorInsert(
                     "PcCommands",
-                    "PC-Befehl $command nicht gesendet: ${e.message}",
+                    "PC-Befehl $command nicht gesendet: ${error.message}",
                     Instant.now().toString(),
                     "ERROR"
                 )

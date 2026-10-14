@@ -2,8 +2,13 @@ package com.tabslify.core.functions
 
 import com.tabslify.core.activities.Tabslify.Companion.serviceScope
 import com.tabslify.core.objects.Config
+import io.github.jan.supabase.exceptions.HttpRequestException as SupabaseHttpRequestException
 import io.github.jan.supabase.functions.functions
+import io.ktor.client.plugins.HttpRequestTimeoutException
 import kotlinx.coroutines.launch
+import java.net.ConnectException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 
 fun errorInsert(serviceName: String, errorMessage: String, createdAt: String, severity: String) {
     if (!Config.realDevice) {
@@ -31,3 +36,14 @@ fun errorInsert(serviceName: String, errorMessage: String, createdAt: String, se
         }
     }
 }
+
+fun isNetworkFailure(e: Throwable): Boolean =
+    e is HttpRequestTimeoutException ||
+        e is SupabaseHttpRequestException ||
+        e is UnknownHostException ||
+        e is ConnectException ||
+        e is SocketTimeoutException
+
+fun neverReachedServer(e: Throwable): Boolean =
+    e is UnknownHostException ||
+        e.message?.contains("Unable to resolve host", ignoreCase = true) == true

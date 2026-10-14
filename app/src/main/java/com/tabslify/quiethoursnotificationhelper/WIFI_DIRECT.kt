@@ -81,6 +81,7 @@ import com.google.firebase.ai.type.GenerativeBackend
 import com.google.firebase.ai.type.content
 import com.tabslify.core.activities.Tabslify.Companion.coroutineExceptionHandler
 import com.tabslify.core.functions.errorInsert
+import com.tabslify.core.functions.isNetworkFailure
 import com.tabslify.core.functions.showSimpleNotificationExtern
 import com.tabslify.core.objects.Config
 import com.tabslify.core.objects.Config.FLASHCARD_RECEIVE_PORT
@@ -106,7 +107,6 @@ import com.tabslify.tabs.mediaplayer.ListenSession
 import com.tabslify.tabs.mediaplayer.MediaAnalyticsManager
 import com.tabslify.tabs.mediaplayer.MediaAnalyticsManager.getSessions
 import com.tabslify.tabs.school.Vokabel
-import io.ktor.client.plugins.HttpRequestTimeoutException
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.CompletableDeferred
@@ -139,7 +139,6 @@ import java.net.ServerSocket
 import java.net.Socket
 import java.net.SocketException
 import java.net.SocketTimeoutException
-import java.net.UnknownHostException
 import java.nio.ByteBuffer
 import java.security.SecureRandom
 import java.text.SimpleDateFormat
@@ -2911,12 +2910,12 @@ private suspend fun insertMobileIpToSupabase(ipAddress: String): Boolean =
                 }
                 lastInsertedMobileIp = ipAddress
                 return@withContext true
-            } catch (_: HttpRequestTimeoutException) {
-                if (attempt == 2) Log.w("CLOUDSA", "[SUPABASE] Insert Timeout fuer $ipAddress")
-            } catch (e: UnknownHostException) {
-                if (attempt == 2) Log.w("CLOUDSA", "[SUPABASE] DNS nicht aufloesbar fuer $ipAddress: ${e.message}")
             } catch (e: Exception) {
-                if (attempt == 2) logError("SupabaseInsert", e)
+                if (!isNetworkFailure(e)) {
+                    logError("SupabaseInsert", e)
+                    return@withContext false
+                }
+                if (attempt == 2) Log.w("CLOUDSA", "[SUPABASE] Insert fehlgeschlagen fuer $ipAddress: ${e.message}")
             }
 
             if (attempt < 2) delay((1000L * (attempt + 1)).milliseconds)
