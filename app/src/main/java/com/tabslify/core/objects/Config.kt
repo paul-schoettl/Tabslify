@@ -18,6 +18,7 @@ import androidx.core.content.edit
 import androidx.core.net.toUri
 import com.tabslify.BuildConfig
 import com.tabslify.R
+import com.tabslify.core.functions.ExactAlarms
 import com.tabslify.core.functions.canNotify
 import com.tabslify.core.functions.getAppCheckToken
 import com.tabslify.core.ui.MenuItem
@@ -268,7 +269,8 @@ object Config {
         "REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
         "MANAGE_EXTERNAL_STORAGE",
         "ACCESS_NOTIFICATION_POLICY",
-        "PACKAGE_USAGE_STATS"
+        "PACKAGE_USAGE_STATS",
+        "SCHEDULE_EXACT_ALARM"
     )
 
     fun isPermissionRequestable(key: String): Boolean =
@@ -339,6 +341,8 @@ object Config {
                 Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
                     .apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
             )
+
+            "SCHEDULE_EXACT_ALARM" -> ExactAlarms.requestPermission(context)
         }
     }
 

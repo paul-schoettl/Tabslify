@@ -238,8 +238,7 @@ fun handleMessageSent(sender: String, messageText: String, context: Context) {
                     )
                 )
             }
-            if (list.size > MAX_MESSAGES_PER_CONTACT)
-                list.subList(0, list.size - MAX_MESSAGES_PER_CONTACT).clear()
+            pruneContactMessages(list)
             updateChatNotification(key, context)
 
             val appContext = context.applicationContext
@@ -264,8 +263,7 @@ fun handleMessageSent(sender: String, messageText: String, context: Context) {
                             false
                         )
                     )
-                    if (list.size > MAX_MESSAGES_PER_CONTACT)
-                        list.subList(0, list.size - MAX_MESSAGES_PER_CONTACT).clear()
+                    pruneContactMessages(list)
                     withContext(Dispatchers.Main) { updateChatNotification(key, appContext) }
                 } else {
                     withContext(Dispatchers.Main) {
@@ -357,11 +355,21 @@ fun handleMessageSent(sender: String, messageText: String, context: Context) {
 
         updateChatNotification(key, context)
 
-        if (list.size > MAX_MESSAGES_PER_CONTACT)
-            list.subList(0, list.size - MAX_MESSAGES_PER_CONTACT).clear()
+        pruneContactMessages(list)
 
     } catch (e: Exception) {
         Log.e("Messages", "handleMessageSent error: ${e.message}")
+    }
+}
+
+fun pruneContactMessages(
+    list: MutableList<WhatsAppNotificationListener.Companion.ChatMessage>,
+    maxMessages: Int = MAX_MESSAGES_PER_CONTACT
+) {
+    val cutoff = System.currentTimeMillis() - 24 * 60 * 60 * 1000
+    list.removeAll { it.timestamp < cutoff }
+    if (list.size > maxMessages) {
+        list.subList(0, list.size - maxMessages).clear()
     }
 }
 

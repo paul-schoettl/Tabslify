@@ -144,6 +144,7 @@
     <string name="bootreceiver_starten_von_quiethoursnotificationservice_beim">BootReceiver: Starten von QuietHoursNotificationService beim Gerätestart</string> <!-- app/src/main/java/com/tabslify/core/ui/LandingPage.kt:1041 -->
     <string name="audiorecordertab_audioforegroundservice_audioaufnahmen_mit_mikrofon">AudioRecorderTab &amp; AudioForegroundService: Audioaufnahmen mit Mikrofon</string> <!-- app/src/main/java/com/tabslify/core/ui/LandingPage.kt:1044 -->
     <string name="quiethoursnotificationservice_anfrage_zum_ignorieren_von">QuietHoursNotificationService: Anfrage zum Ignorieren von Batterieoptimierungen für zuverlässige Hintergrunddienste</string> <!-- app/src/main/java/com/tabslify/core/ui/LandingPage.kt:1047 -->
+    <string name="exactalarms_planung_exakter_und_inexakter_alarme">ExactAlarms: Zeitgesteuerte Benachrichtigungen zu festen Uhrzeiten (Ruhezeiten-Wechsel, Tagesberichte, Podcast-Check, zurückgehaltene Nachrichten). Ohne die Berechtigung werden die Alarme ersetzt durch ein Zeitfenster von 15 Minuten.</string> <!-- app/src/main/java/com/tabslify/core/functions/ExactAlarms.kt -->
     <string name="authenticator_scannen_von_qr_codes">Authenticator: Scannen von QR Codes für 2FA</string> <!-- app/src/main/java/com/tabslify/core/ui/LandingPage.kt:1050 -->
     <string name="reportdeviceinformation_bluetooth_verbindungsstatus">reportDeviceInformation: Bluetooth-Verbindungsstatus für das gekoppelte Notebook</string> <!-- app/src/main/java/com/tabslify/core/ui/LandingPage.kt (nur Debug-Build) -->
     <string name="reportdeviceinformation_ismobiledataactive_mobilfunk_datenstatus">reportDeviceInformation &amp; isMobileDataActive: Mobilfunk-Datenstatus für das gekoppelte Notebook</string> <!-- app/src/main/java/com/tabslify/core/ui/LandingPage.kt (nur Debug-Build) -->
@@ -218,6 +219,7 @@
     <string name="notizen">Notizen</string> <!-- app/src/main/java/com/tabslify/core/ui/PrivateTabslifyApp.kt:301 | Passwordmanagerscreen.kt:1064 -->
     <string name="media_player">Media Player</string> <!-- app/src/main/java/com/tabslify/core/ui/PrivateTabslifyApp.kt:306 | Mediaplayerservice.kt:2310 -->
     <string name="gmail">Gmail</string> <!-- app/src/main/java/com/tabslify/core/ui/PrivateTabslifyApp.kt:311 | BrowserTab.kt:127 -->
+    <string name="tiktok">TikTok</string> <!-- app/src/main/java/com/tabslify/core/ui/PrivateTabslifyApp.kt | TikTokTab.kt -->
     <string name="vokabeln">Schule</string> <!-- app/src/main/java/com/tabslify/core/ui/PrivateTabslifyApp.kt:316 | VocabTab.kt:541 | VocabTab.kt:644 -->
     <string name="explore">Explore</string> <!-- app/src/main/java/com/tabslify/core/ui/PrivateTabslifyApp.kt:321 -->
     <string name="kalender">Kalender</string> <!-- app/src/main/java/com/tabslify/core/ui/PrivateTabslifyApp.kt:328 -->
@@ -1886,6 +1888,8 @@
     <string name="loschen_3">🗑  Löschen</string> <!-- app/src/main/java/com/tabslify/tabs/school/VocabTab.kt:852 -->
     <string name="sets_mischen">Sets mischen</string> <!-- app/src/main/java/com/tabslify/tabs/school/VocabTab.kt:946 -->
     <string name="bild_auswahlen">Bild auswählen</string> <!-- app/src/main/java/com/tabslify/tabs/school/VocabTab.kt:1014 -->
+    <string name="foto_aufnehmen">Foto aufnehmen</string> <!-- app/src/main/java/com/tabslify/tabs/school/VocabTab.kt -->
+    <string name="vocab_kamera_verweigert">Ohne Kamerazugriff ist kein Foto möglich.</string> <!-- app/src/main/java/com/tabslify/tabs/school/VocabTab.kt -->
     <string name="erkennung_ueber">Erkennung über: %1$s</string> <!-- app/src/main/java/com/tabslify/tabs/school/VocabTab.kt:1168  ||  %1$s=label -->
     <string name="engine_laptop">Laptop (lokal)</string> <!-- app/src/main/java/com/tabslify/tabs/school/VocabTab.kt:1180 -->
     <string name="engine_nvidia">NVIDIA</string> <!-- app/src/main/java/com/tabslify/tabs/school/VocabTab.kt:1181 -->
@@ -1900,6 +1904,9 @@
     <string name="text_erkennen">Text erkennen</string> <!-- app/src/main/java/com/tabslify/tabs/school/VocabTab.kt:1064 -->
     <string name="erkennung_abbrechen">Erkennung abbrechen?</string> <!-- app/src/main/java/com/tabslify/tabs/school/VocabTab.kt:1164 -->
     <string name="die_ki_erkennt_noch_vokabeln">Die KI erkennt noch Vokabeln. Wirklich abbrechen?</string> <!-- app/src/main/java/com/tabslify/tabs/school/VocabTab.kt:1171 -->
+    <string name="vocab_scan_verwerfen_titel">Scan verwerfen?</string> <!-- app/src/main/java/com/tabslify/tabs/school/VocabTab.kt -->
+    <string name="vocab_scan_verwerfen_text">Beim Verlassen gehen die gescannten Vokabeln verloren.</string> <!-- app/src/main/java/com/tabslify/tabs/school/VocabTab.kt -->
+    <string name="vocab_scan_verwerfen_bestaetigen">Verwerfen</string> <!-- app/src/main/java/com/tabslify/tabs/school/VocabTab.kt -->
     <string name="neue_vokabeln">Neue Vokabeln</string> <!-- app/src/main/java/com/tabslify/tabs/school/VocabTab.kt:1218 -->
     <plurals name="vokabeln_2"> <!-- app/src/main/java/com/tabslify/tabs/school/VocabTab.kt:1223 | VocabTab.kt:1975  ||  %1$s=currentVokabeln.size -->
         <item quantity="one">%1$d Vokabel</item>
@@ -3085,4 +3092,8 @@
     <string name="lamp_widget_description">Lampe an/aus schalten</string>
     <string name="home_bar_widget_label">CommandCode + Lampe</string>
     <string name="home_bar_widget_description">Leiste mit CommandCode-Verbrauch und Lampen-Schalter</string>
+    <string name="home_bar_widget_charging">Laden…</string>
+    <string name="home_bar_widget_eta_h_min">%1$dh %2$dmin</string>
+    <string name="home_bar_widget_eta_min">%1$d min</string>
+    <string name="home_bar_widget_charging_eta">~%1$s bis 95 %%</string>
 </resources>

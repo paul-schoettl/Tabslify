@@ -6,7 +6,6 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.kotlin.serialization)
     id("kotlin-parcelize")
-    id("com.autonomousapps.dependency-analysis")
     id("com.google.gms.google-services")
 }
 

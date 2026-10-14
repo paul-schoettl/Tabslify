@@ -4,8 +4,13 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
-import android.os.Handler
-import android.os.Looper
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
 
 object ExploreNetworkWatcher {
 
@@ -14,10 +19,13 @@ object ExploreNetworkWatcher {
     @Volatile
     private var callback: ConnectivityManager.NetworkCallback? = null
 
-    private val handler = Handler(Looper.getMainLooper())
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     @Volatile
-    private var pendingToken = 0L
+    private var recheckJob: Job? = null
+
+    @Volatile
+    private var pendingLabel: String? = null
 
     @Synchronized
     fun arm(context: Context) {
@@ -45,15 +53,12 @@ object ExploreNetworkWatcher {
     }
 
     private fun scheduleRecheck(appCtx: Context, cm: ConnectivityManager, network: Network) {
-        val label = transportLabel(cm, network)
-        pendingToken++
-        val token = pendingToken
-        handler.removeCallbacksAndMessages(null)
-        handler.postDelayed({
-            if (token == pendingToken) {
-                ExploreLocationTracker.recheck(appCtx, label)
-            }
-        }, RECHECK_DEBOUNCE_MS)
+        pendingLabel = transportLabel(cm, network)
+        recheckJob?.cancel()
+        recheckJob = scope.launch {
+            delay(RECHECK_DEBOUNCE_MS.milliseconds)
+            ExploreLocationTracker.recheck(appCtx, pendingLabel)
+        }
     }
 
     private fun transportLabel(cm: ConnectivityManager, network: Network): String {

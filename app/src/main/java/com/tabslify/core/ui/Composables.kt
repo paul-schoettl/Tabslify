@@ -95,12 +95,12 @@ import com.tabslify.tabs.mediaplayer.PodcastFeed
 import kotlinx.coroutines.launch
 import java.util.Calendar
 
-enum class AppBgScrim { STRONG, MEDIUM, LIGHT }
+enum class AppBgScrim { STRONG, MEDIUM, LIGHT, NONE }
 
 @Composable
 fun AppBackground(
     modifier: Modifier = Modifier,
-    scrim: AppBgScrim = AppBgScrim.MEDIUM,
+    scrim: AppBgScrim = AppBgScrim.NONE,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val isDay = remember { Calendar.getInstance().get(Calendar.HOUR_OF_DAY) in 11..16 }
@@ -124,6 +124,8 @@ fun AppBackground(
             } else {
                 Brush.verticalGradient(listOf(APP_COLOR.copy(alpha = 0.55f), Color(0xFF001A93).copy(alpha = 0.75f)))
             }
+
+            AppBgScrim.NONE -> Brush.verticalGradient(listOf(Color.Transparent, Color.Transparent))
         }
     }
 

@@ -6,8 +6,6 @@ import android.util.Log
 import androidx.core.content.edit
 import com.tabslify.core.objects.Config
 import com.tabslify.privatetabslifyapp.isOnline
-import com.tabslify.quiethoursnotificationhelper.AiTarget
-import com.tabslify.quiethoursnotificationhelper.aiSystemPrompt
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -26,13 +24,20 @@ object SongHashtags {
     private const val LEGACY_PREFS = "spotify_hashtags"
     private const val STATE_PREFS = "song_hashtag_status"
     private const val KEY_TAGGED = "tagged_paths"
-    private const val MODEL = "gemini-2.5-flash"
     private const val LOG_TAG = "SongHashtags"
-    private const val REQUEST_TIMEOUT_MS = 25_000L
-    private const val PREPARE_TIMEOUT_MS = 180_000L
-    private const val BATCH_SIZE = 15
-    private const val MAX_TAGS = 8
     private const val SERVICE_NAME = "songHashtags"
+    private const val ANALYZE_TIMEOUT_MS = 90_000L
+    private const val TEXT_TIMEOUT_MS = 25_000L
+    private const val MAX_TAGS = 8
+
+    data class TrackInfo(
+        val trackId: String,
+        val title: String,
+        val artist: String,
+        val album: String,
+        val cover: String,
+        val previewUrl: String
+    )
 
     data class SongRef(
         val path: String,
@@ -51,129 +56,6 @@ object SongHashtags {
 
     data class BatchProgress(val done: Int, val total: Int)
 
-    data class PreparedSong(
-        val url: String,
-        val title: String,
-        val artist: String,
-        val album: String,
-        val hashtags: String,
-        val analysisError: String
-    )
-
-    data class PrepareOutcome(
-        val prepared: PreparedSong?,
-        val reason: String?
-    )
-
-    suspend fun prepareSong(context: Context, trackId: String): PrepareOutcome {
-        if (!isOnline(context)) return PrepareOutcome(null, "Offline")
-        if (trackId.isBlank()) return PrepareOutcome(null, "Ungültige Track-ID")
-
-        val body = JSONObject().apply {
-            put("action", "song_prepare")
-            put("payload", JSONObject().apply { put("trackId", trackId) })
-        }
-
-        val response = try {
-            withTimeoutOrNull(PREPARE_TIMEOUT_MS.milliseconds) {
-                Config.apiProxyPost(context, body, LOG_TAG, PREPARE_TIMEOUT_MS.toInt())
-            }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            errorInsert(
-                SERVICE_NAME,
-                "song_prepare fehlgeschlagen: ${e.message}",
-                Instant.now().toString(),
-                "ERROR"
-            )
-            null
-        }
-
-        if (response == null) return PrepareOutcome(null, "Server antwortet nicht")
-        return readPrepareOutcome(response)
-    }
-
-    suspend fun releaseSong(context: Context, trackId: String) {
-        if (trackId.isBlank()) return
-        try {
-            val body = JSONObject().apply {
-                put("action", "song_release")
-                put("payload", JSONObject().apply { put("trackId", trackId) })
-            }
-            Config.apiProxyPost(context, body, LOG_TAG, 15_000)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Log.w(LOG_TAG, "song_release fehlgeschlagen: ${e.message}")
-        }
-    }
-
-    private fun readPrepareOutcome(response: String): PrepareOutcome {
-        return try {
-            val json = JSONObject(response)
-            when (json.optString("status")) {
-                "ready" -> {
-                    val url = json.optString("url")
-                    if (url.isBlank()) {
-                        PrepareOutcome(null, "Server lieferte keine URL")
-                    } else {
-                        PrepareOutcome(
-                            prepared = PreparedSong(
-                                url = url,
-                                title = json.optString("title", "Track"),
-                                artist = json.optString("artist", "Unknown"),
-                                album = json.optString("album", ""),
-                                hashtags = json.optString("hashtags"),
-                                analysisError = json.optString("analysisError")
-                            ),
-                            reason = null
-                        )
-                    }
-                }
-
-                "too_large" -> {
-                    val megabytes = json.optLong("bytes", 0L) / (1024L * 1024L)
-                    PrepareOutcome(
-                        null,
-                        if (megabytes > 0) "zu groß (${megabytes} MB) – ohne KI-Analyse"
-                        else "zu groß – ohne KI-Analyse"
-                    )
-                }
-
-                else -> PrepareOutcome(null, json.optString("error").ifBlank { "Serverfehler" })
-            }
-        } catch (e: Exception) {
-            Log.w(LOG_TAG, "Antwort nicht lesbar: ${e.message}")
-            PrepareOutcome(null, "Serverantwort unlesbar")
-        }
-    }
-
-    suspend fun requestHashtags(
-        context: Context,
-        title: String,
-        artist: String,
-        album: String
-    ): String? {
-        if (!isOnline(context)) return null
-        val prompt = "Erstelle 5 passende Hashtags für diesen Song.\n" +
-            "Titel: $title\nKünstler: $artist\nAlbum: $album\n\n" +
-            "Antworte nur mit den Hashtags, jeweils mit # davor und durch Leerzeichen getrennt."
-        return try {
-            parseHashtags(geminiText(context, "gemini", prompt, json = false))
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            errorInsert(
-                SERVICE_NAME,
-                "Hashtag-Abfrage fehlgeschlagen: ${e.message}",
-                Instant.now().toString(),
-                "ERROR"
-            )
-            null
-        }
-    }
-
     fun readHashtags(context: Context, uri: Uri, filePath: String?): String? =
         Id3Tags.readHashtags(context, uri, filePath)
 
@@ -189,12 +71,151 @@ object SongHashtags {
 
     fun markTagged(context: Context, path: String) {
         val prefs = context.getSharedPreferences(STATE_PREFS, Context.MODE_PRIVATE)
-        prefs.edit { putStringSet(KEY_TAGGED, taggedPaths(context) + path) }
+        prefs.edit().putStringSet(KEY_TAGGED, taggedPaths(context) + path).apply()
     }
 
     fun taggedPaths(context: Context): Set<String> =
         context.getSharedPreferences(STATE_PREFS, Context.MODE_PRIVATE)
             .getStringSet(KEY_TAGGED, emptySet())?.toSet() ?: emptySet()
+
+    suspend fun fetchTrack(context: Context, trackId: String): TrackInfo? {
+        if (!isOnline(context) || trackId.isBlank()) return null
+        val body = JSONObject().apply {
+            put("action", "spotify_tracks")
+            put("apiKey", Config.userApiKey(context, "rapidapi"))
+            put("payload", JSONObject().apply { put("ids", trackId) })
+        }
+        val response = withTimeoutOrNull(ANALYZE_TIMEOUT_MS.milliseconds) {
+            postProxy(context, body, ANALYZE_TIMEOUT_MS.toInt())
+        } ?: return null
+
+        return try {
+            val tracks = JSONObject(response).optJSONObject("data")?.optJSONArray("tracks")
+            val first = tracks?.optJSONObject(0) ?: return null
+            val artists = first.optJSONArray("artists")
+            val artistName = if (artists != null && artists.length() > 0) {
+                artists.optJSONObject(0)?.optString("name").orEmpty()
+            } else {
+                ""
+            }
+            val albumObject = first.optJSONObject("album")
+            val images = albumObject?.optJSONArray("images")
+            TrackInfo(
+                trackId = first.optString("id", trackId),
+                title = first.optString("name", "Track"),
+                artist = artistName.ifBlank { "Unknown" },
+                album = albumObject?.optString("name").orEmpty(),
+                cover = if (images != null && images.length() > 0) {
+                    images.optJSONObject(0)?.optString("url").orEmpty()
+                } else {
+                    ""
+                },
+                previewUrl = first.optString("preview_url")
+            )
+        } catch (e: Exception) {
+            Log.w(LOG_TAG, "Track-Antwort nicht lesbar: ${e.message}")
+            null
+        }
+    }
+
+    suspend fun analyzeTrack(context: Context, trackId: String): String? {
+        val track = fetchTrack(context, trackId) ?: return null
+        val preview = track.previewUrl
+        if (preview.isBlank()) return requestTextHashtags(context, track.title, track.artist, track.album)
+
+        val analyzed = analyzePreview(
+            context = context,
+            previewUrl = preview,
+            details = "Titel: ${track.title}\nKünstler: ${track.artist}\nAlbum: ${track.album}"
+        )
+        return analyzed ?: requestTextHashtags(context, track.title, track.artist, track.album)
+    }
+
+    suspend fun analyzePreview(
+        context: Context,
+        previewUrl: String,
+        details: String
+    ): String? {
+        if (!isOnline(context) || previewUrl.isBlank()) return null
+        val body = JSONObject().apply {
+            put("action", "song_analyze")
+            put("payload", JSONObject().apply {
+                put("previewUrl", previewUrl)
+                put("details", details)
+            })
+        }
+        val response = try {
+            withTimeoutOrNull(ANALYZE_TIMEOUT_MS.milliseconds) {
+                postProxy(context, body, ANALYZE_TIMEOUT_MS.toInt())
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            errorInsert(
+                SERVICE_NAME,
+                "Vorschau-Analyse fehlgeschlagen: ${e.message}",
+                Instant.now().toString(),
+                "ERROR"
+            )
+            return null
+        }
+        if (response == null) return null
+        return parseHashtags(readAnalysis(response))
+    }
+
+    suspend fun requestTextHashtags(
+        context: Context,
+        title: String,
+        artist: String,
+        album: String
+    ): String? {
+        if (!isOnline(context)) return null
+        val prompt = "Erstelle 5 passende Hashtags für diesen Song.\n" +
+            "Titel: $title\nKünstler: $artist\nAlbum: $album\n\n" +
+            "Antworte nur mit den Hashtags, jeweils mit # davor und durch Leerzeichen getrennt."
+        val body = JSONObject().apply {
+            put("action", "gemini")
+            put("payload", JSONObject().apply {
+                put("model", "gemini-2.5-flash")
+                put("system", "Du bist ein Musik-Metadaten-Dienst. Du antwortest auf Deutsch und gibst ausschließlich Hashtags zurück.")
+                put("parts", JSONArray().put(JSONObject().put("text", prompt)))
+            })
+        }
+        val response = try {
+            withTimeoutOrNull(TEXT_TIMEOUT_MS.milliseconds) {
+                postProxy(context, body, TEXT_TIMEOUT_MS.toInt())
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            errorInsert(
+                SERVICE_NAME,
+                "Text-Analyse fehlgeschlagen: ${e.message}",
+                Instant.now().toString(),
+                "ERROR"
+            )
+            return null
+        }
+        if (response == null) return null
+        return parseHashtags(readGeminiText(response))
+    }
+
+    suspend fun analyzeAndStore(context: Context, song: SongRef): TagResult {
+        val known = readStored(context, song)
+        if (known != null) return TagResult(song.path, known, written = false, skipped = true)
+
+        val trackId = Id3Tags.readSpotifyTrackId(context, song.uri, song.path)
+        val analyzed = if (trackId != null) {
+            analyzeTrack(context, trackId)
+        } else {
+            requestTextHashtags(context, song.title, song.artist, song.album)
+        }
+        if (analyzed == null) return TagResult(song.path, null, written = false)
+
+        val written = writeFileHashtags(context, song, analyzed)
+        if (written) markTagged(context, song.path)
+        return TagResult(song.path, analyzed, written = written)
+    }
 
     suspend fun tagSongs(
         context: Context,
@@ -202,7 +223,7 @@ object SongHashtags {
         onProgress: suspend (BatchProgress) -> Unit = {}
     ): List<TagResult> = withContext(Dispatchers.IO) {
         val results = mutableListOf<TagResult>()
-        val pending = mutableListOf<SongRef>()
+        var done = 0
 
         songs.forEach { song ->
             if (readHashtags(context, song.uri, song.path) != null ||
@@ -210,32 +231,10 @@ object SongHashtags {
             ) {
                 results.add(TagResult(song.path, null, written = false, skipped = true))
             } else {
-                pending.add(song)
+                results.add(analyzeAndStore(context, song))
             }
-        }
-        var done = results.size
-        onProgress(BatchProgress(done, songs.size))
-
-        pending.chunked(BATCH_SIZE).forEach { chunk ->
-            val ready = mutableMapOf<String, String>()
-            val needsAi = mutableListOf<SongRef>()
-            chunk.forEach { song ->
-                val stored = readStored(context, song)
-                if (stored != null) ready[song.path] = stored else needsAi.add(song)
-            }
-
-            val fromAi = requestBatch(context, needsAi)
-
-            chunk.forEach { song ->
-                val stored = ready[song.path] ?: fromAi[song.path]
-                if (stored != null) {
-                    val written = writeFileHashtags(context, song, stored)
-                    if (written) markTagged(context, song.path)
-                    results.add(TagResult(song.path, stored, written = written))
-                }
-                done++
-                onProgress(BatchProgress(done, songs.size))
-            }
+            done++
+            onProgress(BatchProgress(done, songs.size))
         }
 
         results
@@ -247,129 +246,50 @@ object SongHashtags {
         return legacyTrackId?.let { parseHashtags(readLegacyHashtags(context, it)) }
     }
 
-    private suspend fun requestBatch(
-        context: Context,
-        songs: List<SongRef>
-    ): Map<String, String> {
-        if (songs.isEmpty()) return emptyMap()
-        if (!isOnline(context)) return emptyMap()
-
-        val input = JSONArray()
-        songs.forEach { song ->
-            input.put(
-                JSONObject().apply {
-                    put("title", song.title)
-                    put("artist", song.artist)
-                    put("album", song.album)
-                }
-            )
-        }
-        val prompt = "Erstelle für jeden Song 5 passende Hashtags.\n" +
-            "Die Songs liegen als JSON-Array vor und die Reihenfolge muss erhalten bleiben.\n" +
-            "Antworte ausschließlich als JSON-Array mit einem Objekt pro Song: " +
-            "{\"hashtags\": [\"#genre\", ...]}. Kein Text, kein Codeblock.\n" +
-            "Eingabe: " + input.toString()
-
-        val parsed = try {
-            parseBatchResponse(geminiText(context, "gemini_batch", prompt, json = true), songs.size)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (_: Exception) {
+    private fun readAnalysis(response: String): String? = try {
+        val json = JSONObject(response)
+        if (json.optString("status") == "ready") {
+            json.optString("hashtags").ifBlank { null }
+        } else {
+            Log.w(LOG_TAG, "song_analyze: ${json.optString("error").ifBlank { "unbekannt" }}")
             null
         }
-
-        val mapped = mutableMapOf<String, String>()
-        if (parsed != null) {
-            songs.forEachIndexed { index, song ->
-                parseHashtags(parsed[index])?.let { mapped[song.path] = it }
-            }
-        }
-        if (mapped.size == songs.size) return mapped
-
-        songs.forEach { song ->
-            if (mapped.containsKey(song.path)) return@forEach
-            requestHashtags(context, song.title, song.artist, song.album)
-                ?.let { mapped[song.path] = it }
-        }
-        return mapped
+    } catch (e: Exception) {
+        Log.w(LOG_TAG, "Analyse-Antwort nicht lesbar: ${e.message}")
+        null
     }
 
-    private fun parseBatchResponse(raw: String?, expected: Int): List<String>? {
-        if (raw == null) return null
-        return try {
-            val text = raw.trim()
-                .removePrefix("```json")
-                .removePrefix("```")
-                .removeSuffix("```")
-                .trim()
-            val array = JSONArray(text)
-            if (array.length() != expected) return null
-            (0 until expected).map { index ->
-                when (val entry = array.opt(index)) {
-                    is JSONArray -> entry.toString()
-                    is JSONObject -> entry.optString("hashtags")
-                    else -> ""
-                }
-            }
-        } catch (_: Exception) {
+    private fun readGeminiText(response: String): String? = try {
+        val candidates = JSONObject(response).optJSONArray("candidates")
+        if (candidates == null || candidates.length() == 0) {
             null
-        }
-    }
-
-    private suspend fun geminiText(
-        context: Context,
-        action: String,
-        prompt: String,
-        json: Boolean
-    ): String? {
-        val body = JSONObject().apply {
-            put("action", action)
-            put("apiKey", Config.userApiKey(context, "gemini"))
-            put("payload", JSONObject().apply {
-                put("model", MODEL)
-                put("system", aiSystemPrompt(AiTarget.SongHashtags))
-                put("parts", JSONArray().put(JSONObject().put("text", prompt)))
-                put("temperature", 0.2)
-                put("maxOutputTokens", if (json) 2048 else 256)
-                if (json) put("json", true)
-            })
-        }
-
-        val response = withTimeoutOrNull(REQUEST_TIMEOUT_MS.milliseconds) {
-            Config.apiProxyPost(context, body, LOG_TAG, REQUEST_TIMEOUT_MS.toInt())
-        }
-        if (response == null) {
-            errorInsert(
-                SERVICE_NAME,
-                "Keine Antwort von api-proxy ($action)",
-                Instant.now().toString(),
-                "ERROR"
-            )
-            return null
-        }
-        return extractText(response)
-    }
-
-    private fun extractText(response: String): String? {
-        return try {
-            val candidates = JSONObject(response).optJSONArray("candidates") ?: return null
-            if (candidates.length() == 0) return null
-            val parts = candidates.getJSONObject(0).optJSONObject("content")
-                ?.optJSONArray("parts") ?: return null
+        } else {
+            val parts = candidates.getJSONObject(0).optJSONObject("content")?.optJSONArray("parts")
             val text = buildString {
-                for (index in 0 until parts.length()) {
-                    parts.optJSONObject(index)?.optString("text")?.let { append(it) }
+                if (parts != null) {
+                    for (index in 0 until parts.length()) {
+                        parts.optJSONObject(index)?.optString("text")?.let { append(it) }
+                    }
                 }
             }
-            text.trim().takeIf { it.isNotEmpty() }
-        } catch (e: Exception) {
-            errorInsert(
-                SERVICE_NAME,
-                "Antwort nicht lesbar: ${e.message}",
-                Instant.now().toString(),
-                "ERROR"
-            )
-            null
+            text.trim().ifBlank { null }
+        }
+    } catch (e: Exception) {
+        Log.w(LOG_TAG, "Gemini-Antwort nicht lesbar: ${e.message}")
+        null
+    }
+
+    private suspend fun postProxy(context: Context, body: JSONObject, timeoutMs: Int): String? {
+        val connection = Config.openApiProxyConnection(context, timeoutMs) ?: return null
+        return try {
+            connection.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
+            val code = connection.responseCode
+            val stream = if (code == 200) connection.inputStream else connection.errorStream
+            val text = stream?.bufferedReader()?.use { it.readText() }
+            if (code != 200) Log.w(LOG_TAG, "api-proxy HTTP $code: ${text?.take(200)}")
+            text
+        } finally {
+            connection.disconnect()
         }
     }
 

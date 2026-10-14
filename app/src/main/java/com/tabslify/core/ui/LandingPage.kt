@@ -1308,6 +1308,8 @@ fun PermissionInfoScreen(onboarding: Boolean = false, onClose: (() -> Unit)? = n
         stringResource(R.string.audiorecordertab_audioforegroundservice_audioaufnahmen_mit_mikrofon)
     val ignoreBattery1 =
         stringResource(R.string.quiethoursnotificationservice_anfrage_zum_ignorieren_von)
+    val exactAlarm1 =
+        stringResource(R.string.exactalarms_planung_exakter_und_inexakter_alarme)
     val camera1 = stringResource(R.string.authenticator_scannen_von_qr_codes)
     val camera2 = stringResource(R.string.fitnesstab_zahlen_von_push_ups)
     val keineAngabenHinterlegt = stringResource(R.string.keine_angaben_hinterlegt)
@@ -1348,6 +1350,7 @@ fun PermissionInfoScreen(onboarding: Boolean = false, onClose: (() -> Unit)? = n
         bootCompleted1,
         recordAudio1,
         ignoreBattery1,
+        exactAlarm1,
         camera1,
         camera2,
         bluetoothConnect1,
@@ -1414,6 +1417,9 @@ fun PermissionInfoScreen(onboarding: Boolean = false, onClose: (() -> Unit)? = n
             "REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" to listOf(
                 ignoreBattery1
             ),
+            "SCHEDULE_EXACT_ALARM" to listOf(
+                exactAlarm1
+            ),
             "CAMERA" to listOf(
                 camera1,
                 camera2
@@ -1479,6 +1485,7 @@ fun PermissionInfoScreen(onboarding: Boolean = false, onClose: (() -> Unit)? = n
                 add("RECEIVE_BOOT_COMPLETED")
                 add("RECORD_AUDIO")
                 add("REQUEST_IGNORE_BATTERY_OPTIMIZATIONS")
+                add("SCHEDULE_EXACT_ALARM")
                 if (prvt()) {
                     add("BLUETOOTH_CONNECT")
                     add("READ_PHONE_STATE / READ_BASIC_PHONE_STATE")

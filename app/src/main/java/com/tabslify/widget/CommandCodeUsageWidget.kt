@@ -7,6 +7,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import android.view.View
 import android.widget.RemoteViews
 import com.tabslify.R
 import com.tabslify.core.functions.PcCommands
@@ -87,15 +88,26 @@ class CommandCodeUsageWidget : AppWidgetProvider() {
         manager.partiallyUpdateAppWidget(ids, views)
     }
 
-    private fun baseViews(context: Context): RemoteViews {
+    private suspend fun baseViews(context: Context): RemoteViews {
         val views = RemoteViews(context.packageName, R.layout.home_bar_widget)
         views.setOnClickPendingIntent(R.id.home_bar_usage, refreshPendingIntent(context))
         views.setOnClickPendingIntent(R.id.home_bar_lamp, lampPendingIntent(context))
         views.setImageViewResource(R.id.lamp_widget_icon, lampIcon(context))
+        applyChargeFooter(context, views)
         return views
     }
 
-    private fun buildViews(context: Context, usage: CommandCodeUsage): RemoteViews {
+    private suspend fun applyChargeFooter(context: Context, views: RemoteViews) {
+        val text = footerText(context, readChargeEstimate(context))
+        if (text == null) {
+            views.setViewVisibility(R.id.home_bar_footer, View.GONE)
+        } else {
+            views.setTextViewText(R.id.home_bar_footer, text)
+            views.setViewVisibility(R.id.home_bar_footer, View.VISIBLE)
+        }
+    }
+
+    private suspend fun buildViews(context: Context, usage: CommandCodeUsage): RemoteViews {
         val views = baseViews(context)
         val diffText = String.format(Locale.US, "%.2f %%", abs(usage.pct - usage.pacePct))
         val paceLine = if (usage.overPace) {
@@ -108,7 +120,7 @@ class CommandCodeUsageWidget : AppWidgetProvider() {
         return views
     }
 
-    private fun buildErrorViews(context: Context, state: ErrorState): RemoteViews {
+    private suspend fun buildErrorViews(context: Context, state: ErrorState): RemoteViews {
         val views = baseViews(context)
         views.setImageViewBitmap(R.id.cc_widget_bar, CommandCodeBarRenderer.render(0.0, 0.0))
         val text = when (state) {
@@ -152,6 +164,27 @@ class CommandCodeUsageWidget : AppWidgetProvider() {
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
             }
             context.sendBroadcast(intent)
+        }
+
+        fun updateChargeFooter(context: Context) {
+            val manager = AppWidgetManager.getInstance(context)
+            val ids = manager.getAppWidgetIds(ComponentName(context, CommandCodeUsageWidget::class.java))
+            if (ids.isEmpty()) return
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    val views = RemoteViews(context.packageName, R.layout.home_bar_widget)
+                    val text = footerText(context, readChargeEstimate(context))
+                    if (text == null) {
+                        views.setViewVisibility(R.id.home_bar_footer, View.GONE)
+                    } else {
+                        views.setTextViewText(R.id.home_bar_footer, text)
+                        views.setViewVisibility(R.id.home_bar_footer, View.VISIBLE)
+                    }
+                    manager.partiallyUpdateAppWidget(ids, views)
+                } catch (error: Exception) {
+                    Log.e(TAG, "Footer-Aktualisierung fehlgeschlagen", error)
+                }
+            }
         }
     }
 }

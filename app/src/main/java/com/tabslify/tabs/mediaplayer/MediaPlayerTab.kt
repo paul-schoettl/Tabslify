@@ -14,10 +14,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -59,17 +56,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalBottomSheetProperties
 import androidx.compose.material3.NavigationBarItem
@@ -177,7 +169,11 @@ fun formatMsMTB(ms: Long): String {
 }
 
 @Composable
-fun MediaTab(viewModel: MediaViewModel = viewModel(), onBack: () -> Unit) {
+fun MediaTab(
+    viewModel: MediaViewModel = viewModel(),
+    contentPadding: PaddingValues = PaddingValues(0.dp),
+    onBack: () -> Unit
+) {
     val state by viewModel.uiState.collectAsState()
     val searchResults by viewModel.searchResults.collectAsState()
     val context = LocalContext.current
@@ -237,70 +233,8 @@ fun MediaTab(viewModel: MediaViewModel = viewModel(), onBack: () -> Unit) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .statusBarsPadding()
+                    .padding(top = contentPadding.calculateTopPadding())
             ) {
-                Box(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                    )
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 30.dp, vertical = 16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = stringResource(R.string.media_player_2),
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 26.sp
-                        )
-
-                        Row {
-                            IconButton(onClick = {
-                                if (state.currentTab != MediaTab.DOWNLOADER) viewModel.setTab(
-                                    MediaTab.DOWNLOADER
-                                )
-                                else viewModel.setTab(MediaTab.HOME)
-                            }) {
-                                val color by animateColorAsState(
-                                    targetValue = if (state.currentTab == MediaTab.DOWNLOADER) MaterialTheme.colorScheme.primary else Color.White,
-                                    animationSpec = tween(durationMillis = 300),
-                                    label = "containerColor"
-                                )
-                                Icon(
-                                    Icons.Default.Download,
-                                    contentDescription = stringResource(R.string.open_downloader),
-                                    tint = color
-                                )
-                            }
-
-                            IconButton(onClick = {
-                                if (state.currentTab != MediaTab.RECORDER) viewModel.setTab(
-                                    MediaTab.RECORDER
-                                )
-                                else viewModel.setTab(MediaTab.HOME)
-                            }) {
-                                val color by animateColorAsState(
-                                    targetValue = if (state.currentTab == MediaTab.RECORDER) MaterialTheme.colorScheme.primary else Color.White,
-                                    animationSpec = tween(durationMillis = 300),
-                                    label = "containerColor"
-                                )
-                                Icon(
-                                    Icons.Default.Mic,
-                                    contentDescription = stringResource(R.string.open_recorder),
-                                    tint = color
-                                )
-                            }
-                        }
-                    }
-                }
-
                 if (state.permissionGranted == false) {
                     Box(
                         modifier = Modifier
@@ -357,7 +291,7 @@ fun MediaTab(viewModel: MediaViewModel = viewModel(), onBack: () -> Unit) {
                                 onSongClick = { song -> playSong(context, song) },
                                 onSongLongClick = { analyticsTarget = it },
                                 onEpisodeClick = { ep -> playEpisode(context, ep) },
-                                onRefresh = { viewModel.refresh() }
+                                onStatsRefresh = { viewModel.refreshStats() }
                             )
 
                             MediaTab.SEARCH -> SearchTab(
@@ -520,7 +454,7 @@ private fun HomeTab(
     onSongClick: (MediaPlayerService.Song) -> Unit,
     onSongLongClick: (MediaPlayerService.Song) -> Unit,
     onEpisodeClick: (PodcastEpisode) -> Unit,
-    onRefresh: () -> Unit
+    onStatsRefresh: () -> Unit
 ) {
     var showStatsSheet by remember { mutableStateOf(false) }
     var detailPlaylist by remember {
@@ -584,7 +518,7 @@ private fun HomeTab(
     LaunchedEffect(Unit) {
         while (true) {
             delay(1000.milliseconds)
-            onRefresh()
+            onStatsRefresh()
         }
     }
 
@@ -2852,16 +2786,6 @@ private fun MarqueeText(
     fontSize: TextUnit,
     fontWeight: FontWeight = FontWeight.Normal
 ) {
-    val scrollX = remember { Animatable(0f) }
-    LaunchedEffect(text) {
-        while (true) {
-            scrollX.animateTo(
-                -400f, animationSpec = tween(6000, easing = LinearEasing, delayMillis = 1500)
-            )
-            scrollX.snapTo(0f)
-            delay(500.milliseconds)
-        }
-    }
     Box(modifier = modifier.fillMaxWidth()) {
         Text(
             text = text,
@@ -3446,6 +3370,14 @@ class MediaViewModel(app: Application) : AndroidViewModel(app) {
                 userPlaylists = userPlaylists,
                 isLoading = false
             )
+        }
+    }
+
+    fun refreshStats() {
+        if (!hasAudioPermission()) return
+        viewModelScope.launch {
+            val globalStats = withContext(Dispatchers.IO) { MediaAnalyticsManager.getGlobalStats() }
+            _uiState.value = _uiState.value.copy(globalStats = globalStats)
         }
     }
 

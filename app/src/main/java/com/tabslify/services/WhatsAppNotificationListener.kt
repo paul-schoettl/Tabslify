@@ -10,6 +10,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.RemoteInput
 import com.tabslify.R
+import com.tabslify.core.functions.ExactAlarms
 import com.tabslify.core.objects.Config.BLOCKED_MESSAGES
 import com.tabslify.core.objects.Config.NOTIFICATION_PORT
 import com.tabslify.core.objects.NotificationRepository
@@ -19,6 +20,7 @@ import com.tabslify.quiethoursnotificationhelper.isLaptopConnected
 import com.tabslify.quiethoursnotificationhelper.laptopIp
 import com.tabslify.quiethoursnotificationhelper.onPcCallFailure
 import com.tabslify.quiethoursnotificationhelper.onPcCallSuccess
+import com.tabslify.quiethoursnotificationhelper.pruneContactMessages
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -45,6 +47,8 @@ private fun StatusBarNotification.hasContent(): Boolean {
     val text = extras.getCharSequence("android.text")?.toString().orEmpty()
     return title.isNotBlank() || text.isNotBlank()
 }
+
+private const val BLOCKED_WINDOW_MS = 10 * 60_000L
 
 class WhatsAppNotificationListener : NotificationListenerService() {
 
@@ -337,9 +341,7 @@ class WhatsAppNotificationListener : NotificationListenerService() {
 
             val messageList = messagesByContact.getOrPut(key) { mutableListOf() }
             messageList.add(ChatMessage(text, isOwnMessage = false))
-            while (messageList.size > 50) {
-                messageList.removeAt(0)
-            }
+            pruneContactMessages(messageList)
 
             forwardScope.launch {
                 val exists = getAll().any { it.sender == title && it.text == text }
@@ -478,7 +480,6 @@ class WhatsAppNotificationListener : NotificationListenerService() {
 
     private fun scheduleBlockedNotificationsAlarm() {
         val alarmManager = getSystemService(ALARM_SERVICE) as android.app.AlarmManager
-        if (!alarmManager.canScheduleExactAlarms()) return
 
         val cal = java.util.Calendar.getInstance().apply {
             set(java.util.Calendar.HOUR_OF_DAY, 14)
@@ -497,13 +498,7 @@ class WhatsAppNotificationListener : NotificationListenerService() {
             android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
         )
 
-        if (alarmManager.canScheduleExactAlarms()) {
-            alarmManager.setExactAndAllowWhileIdle(
-                android.app.AlarmManager.RTC_WAKEUP,
-                cal.timeInMillis,
-                pendingIntent
-            )
-        }
+        ExactAlarms.setExactOrWindow(alarmManager, cal.timeInMillis, pendingIntent, BLOCKED_WINDOW_MS)
         Log.d("BlockedSender", "Alarm gesetzt für 14:00 Uhr (${cal.time})")
     }
 }
@@ -558,32 +553,29 @@ class BlockedNotificationReceiver : android.content.BroadcastReceiver() {
             apply()
         }
 
-        rescheduleAlarm(context)
+        rescheduleAlarmFrom(context)
     }
 
-    private fun rescheduleAlarm(context: android.content.Context) {
-        val cal = java.util.Calendar.getInstance().apply {
-            add(java.util.Calendar.DAY_OF_YEAR, 1)
-            set(java.util.Calendar.HOUR_OF_DAY, 14)
-            set(java.util.Calendar.MINUTE, 0)
-            set(java.util.Calendar.SECOND, 0)
-            set(java.util.Calendar.MILLISECOND, 0)
+    companion object {
+        fun rescheduleAlarmFrom(context: android.content.Context) {
+            val cal = java.util.Calendar.getInstance().apply {
+                add(java.util.Calendar.DAY_OF_YEAR, 1)
+                set(java.util.Calendar.HOUR_OF_DAY, 14)
+                set(java.util.Calendar.MINUTE, 0)
+                set(java.util.Calendar.SECOND, 0)
+                set(java.util.Calendar.MILLISECOND, 0)
+            }
+
+            val rescheduleBase = Intent(context, BlockedNotificationReceiver::class.java)
+            rescheduleBase.setPackage(context.packageName)
+            val pendingIntent = android.app.PendingIntent.getBroadcast(
+                context, 0, rescheduleBase,
+                android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+            )
+
+            val alarmManager =
+                context.getSystemService(android.content.Context.ALARM_SERVICE) as android.app.AlarmManager
+            ExactAlarms.setExactOrWindow(alarmManager, cal.timeInMillis, pendingIntent, BLOCKED_WINDOW_MS)
         }
-
-        val rescheduleBase = Intent(context, BlockedNotificationReceiver::class.java)
-        rescheduleBase.setPackage(context.packageName)
-        val pendingIntent = android.app.PendingIntent.getBroadcast(
-            context, 0, rescheduleBase,
-            android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val alarmManager =
-            context.getSystemService(android.content.Context.ALARM_SERVICE) as android.app.AlarmManager
-        if (!alarmManager.canScheduleExactAlarms()) return
-        alarmManager.setExactAndAllowWhileIdle(
-            android.app.AlarmManager.RTC_WAKEUP,
-            cal.timeInMillis,
-            pendingIntent
-        )
     }
 }

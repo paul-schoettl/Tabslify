@@ -75,8 +75,10 @@ import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Laptop
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.QuestionMark
 import androidx.compose.material.icons.filled.Star
@@ -183,6 +185,7 @@ import com.tabslify.tabs.OtherBucketViewer
 import com.tabslify.tabs.PCManagerTab
 import com.tabslify.tabs.QuickSettingsTabContent
 import com.tabslify.tabs.WeatherTabContent
+import com.tabslify.tabs.tiktok.TikTokTabContent
 import com.tabslify.tabs.aitab.AITabContent
 import com.tabslify.tabs.audiorecordertab.AudioRecorderTab
 import com.tabslify.tabs.authenticator.AuthenticatorTab
@@ -192,6 +195,7 @@ import com.tabslify.tabs.focusguard.FocusGuardTabContent
 import com.tabslify.tabs.mediaplayer.AiResponseHistorySheet
 import com.tabslify.tabs.mediaplayer.MediaAnalyticsManager
 import com.tabslify.tabs.mediaplayer.MediaTab
+import com.tabslify.tabs.mediaplayer.MediaViewModel
 import com.tabslify.tabs.pendingApkmUri
 import com.tabslify.tabs.school.VocabTab
 import com.tabslify.tabs.virustotal.VirusTotalTabContent
@@ -316,6 +320,11 @@ enum class MenuItem(
         R.string.gmail,
         "️️✉️",
         { GmailTabContent() }
+    ),
+    TIKTOK(
+        R.string.tiktok,
+        "🎵",
+        { TikTokTabContent() }
     ),
     Vocabs(
         R.string.vokabeln,
@@ -529,59 +538,95 @@ fun PrivateTabslifyApp(
                         }
                     ),
                 topBar = {
-                    if (selectedMenuItem != MenuItem.MEDIAPLAYERTAB) {
-                        TopAppBar(
-                            title = {
-                                Text(
-                                    text = "${selectedMenuItem.icon} ${stringResource(selectedMenuItem.titleRes)}",
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            },
-                            actions = {
-                                IconButton(onClick = { isHelpOpen = true }) {
+                    TopAppBar(
+                        title = {
+                            Text(
+                                text = "${selectedMenuItem.icon} ${stringResource(selectedMenuItem.titleRes)}",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                        },
+                        actions = {
+                            if (selectedMenuItem == MenuItem.MEDIAPLAYERTAB) {
+                                val mediaViewModel: MediaViewModel = viewModel()
+                                val mediaState by mediaViewModel.uiState.collectAsState()
+                                IconButton(onClick = {
+                                    if (mediaState.currentTab != MediaTab.DOWNLOADER) mediaViewModel.setTab(
+                                        MediaTab.DOWNLOADER
+                                    )
+                                    else mediaViewModel.setTab(MediaTab.HOME)
+                                }) {
+                                    val color by animateColorAsState(
+                                        targetValue = if (mediaState.currentTab == MediaTab.DOWNLOADER) MaterialTheme.colorScheme.primary else Color.White,
+                                        animationSpec = tween(durationMillis = 300),
+                                        label = "containerColor"
+                                    )
                                     Icon(
-                                        imageVector = Icons.Default.QuestionMark,
-                                        contentDescription = stringResource(R.string.hilfe_offnen),
-                                        tint = Color.White
+                                        Icons.Default.Download,
+                                        contentDescription = stringResource(R.string.open_downloader),
+                                        tint = color
                                     )
                                 }
-                            },
+                                IconButton(onClick = {
+                                    if (mediaState.currentTab != MediaTab.RECORDER) mediaViewModel.setTab(
+                                        MediaTab.RECORDER
+                                    )
+                                    else mediaViewModel.setTab(MediaTab.HOME)
+                                }) {
+                                    val color by animateColorAsState(
+                                        targetValue = if (mediaState.currentTab == MediaTab.RECORDER) MaterialTheme.colorScheme.primary else Color.White,
+                                        animationSpec = tween(durationMillis = 300),
+                                        label = "containerColor"
+                                    )
+                                    Icon(
+                                        Icons.Default.Mic,
+                                        contentDescription = stringResource(R.string.open_recorder),
+                                        tint = color
+                                    )
+                                }
+                            }
+                            IconButton(onClick = { isHelpOpen = true }) {
+                                Icon(
+                                    imageVector = Icons.Default.QuestionMark,
+                                    contentDescription = stringResource(R.string.hilfe_offnen),
+                                    tint = Color.White
+                                )
+                            }
+                        },
 
-                            navigationIcon = {
-                                if (onMenuClick != null) {
-                                    IconButton(onClick = { onMenuClick() }) {
-                                        Icon(
-                                            imageVector = Icons.Default.Menu,
-                                            contentDescription = stringResource(R.string.menu_offnen),
-                                            tint = Color.White
-                                        )
-                                    }
-                                } else {
+                        navigationIcon = {
+                            if (onMenuClick != null) {
+                                IconButton(onClick = { onMenuClick() }) {
                                     Icon(
                                         imageVector = Icons.Default.Menu,
                                         contentDescription = stringResource(R.string.menu_offnen),
-                                        tint = Color.White,
-                                        modifier = Modifier
-                                            .alpha(0f)
-                                            .size(48.dp)
+                                        tint = Color.White
                                     )
                                 }
-                            },
-                            colors = TopAppBarDefaults.topAppBarColors(
-                                containerColor = Color.Transparent,
-                                scrolledContainerColor = Color.Transparent
-                            ),
-                            windowInsets = WindowInsets.statusBars
-                        )
-                        Box(
-                            Modifier
-                                .alpha(overlayAlpha.value)
-                                .matchParentSize()
-                                .background(Black.copy(0.6f))
-                                .zIndex(10f)
-                        )
-                    }
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Menu,
+                                    contentDescription = stringResource(R.string.menu_offnen),
+                                    tint = Color.White,
+                                    modifier = Modifier
+                                        .alpha(0f)
+                                        .size(48.dp)
+                                )
+                            }
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = Color.Transparent,
+                            scrolledContainerColor = Color.Transparent
+                        ),
+                        windowInsets = WindowInsets.statusBars
+                    )
+                    Box(
+                        Modifier
+                            .alpha(overlayAlpha.value)
+                            .matchParentSize()
+                            .background(Black.copy(0.6f))
+                            .zIndex(10f)
+                    )
                 },
                 containerColor = Color.Transparent
             ) { paddingValues ->
@@ -615,7 +660,10 @@ fun PrivateTabslifyApp(
 
                         MenuItem.Vocabs -> VocabTab(paddingValues)
 
-                        MenuItem.MEDIAPLAYERTAB -> MediaTab(onBack = { onMenuClick?.invoke() })
+                        MenuItem.MEDIAPLAYERTAB -> MediaTab(
+                            contentPadding = paddingValues,
+                            onBack = { onMenuClick?.invoke() }
+                        )
 
                         MenuItem.AUTHENTICATOR -> AuthenticatorTab()
 

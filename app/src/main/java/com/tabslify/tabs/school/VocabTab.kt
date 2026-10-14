@@ -1,8 +1,10 @@
 package com.tabslify.tabs.school
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.SharedPreferences
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.ImageDecoder
 import android.net.Uri
@@ -49,13 +51,16 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -88,6 +93,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.core.content.edit
 import com.tabslify.R
 import com.tabslify.core.objects.Config
@@ -111,9 +118,11 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import kotlin.time.Duration.Companion.milliseconds
@@ -282,6 +291,8 @@ fun speichereHinweis(prefs: SharedPreferences, verweis: String, text: String) {
 
 enum class ExtractionEngine { LAPTOP, NVIDIA, GEMINI }
 
+private const val LOKALE_EXTRAKTION_TIMEOUT_MS = 45_000L
+
 private fun parseRecentMaterial(serialized: String): RecentMaterial? {
     val parts = serialized.split("\u001f")
     if (parts.size != 3) return null
@@ -332,6 +343,8 @@ fun VocabTab(paddingValues: PaddingValues) {
     var showMergeDialog by remember { mutableStateOf(false) }
     var extractionJob by remember { mutableStateOf<Job?>(null) }
     var comingFromScan by remember { mutableStateOf(false) }
+    var pendingCaptureFile by remember { mutableStateOf<File?>(null) }
+    var pendingCaptureUri by remember { mutableStateOf<Uri?>(null) }
     var rawRecentMaterials by remember {
         mutableStateOf(
             materialPrefs.getString("recent_materials", null)
@@ -342,9 +355,9 @@ fun VocabTab(paddingValues: PaddingValues) {
     }
     var recentMaterialPreviews by remember { mutableStateOf<List<RecentMaterial>>(emptyList()) }
 
-    val lokaleExtraktionLeer = stringResource(R.string.lokale_extraktion_leer)
     val keineVokabelnErkannt = stringResource(R.string.keine_vokabeln_erkannt)
     val fehlerMsgPattern = stringResource(R.string.fehler_msg)
+    val kameraZugriffVerweigert = stringResource(R.string.vocab_kamera_verweigert)
 
     fun starteLernen(
         set: VokabelSet?,
@@ -428,17 +441,42 @@ fun VocabTab(paddingValues: PaddingValues) {
         )
     }
 
+    fun applyUploadBitmap(uri: Uri) {
+        bitmap?.recycle()
+        bitmap = uriToBitmap(context, uri)
+        vokabeln = emptyList()
+        usedEngine = null
+        activeSet = null
+        cachedSetName = null
+        screen = VokabelTabScreen.UPLOAD
+    }
+
     val imagePicker =
         rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-            uri?.let {
-                bitmap?.recycle()
-                bitmap = uriToBitmap(context, it)
-                vokabeln = emptyList()
-                usedEngine = null
-                activeSet = null
-                cachedSetName = null
-                screen = VokabelTabScreen.UPLOAD
-            }
+            uri?.let { applyUploadBitmap(it) }
+        }
+
+    val takePictureLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+            val file = pendingCaptureFile
+            val uri = pendingCaptureUri
+            pendingCaptureFile = null
+            pendingCaptureUri = null
+            if (success && uri != null) applyUploadBitmap(uri)
+            file?.delete()
+        }
+
+    fun startCameraCapture() {
+        val file = File(context.cacheDir, "vocab_capture_${System.currentTimeMillis()}.jpg")
+        pendingCaptureFile = file
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+        pendingCaptureUri = uri
+        takePictureLauncher.launch(uri)
+    }
+
+    val cameraPermissionLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (granted) startCameraCapture() else errorMessage = kameraZugriffVerweigert
         }
 
     if (showSaveDialog) {
@@ -463,6 +501,42 @@ fun VocabTab(paddingValues: PaddingValues) {
             },
             onDismiss = { showSaveDialog = false }
         )
+    }
+
+    suspend fun runCloudExtraction(bmp: Bitmap) {
+        usedEngine = cloudEngine
+        callNvidiaVisionApi(
+            context = context,
+            bmp = bmp,
+            onError = { msg -> errorMessage = msg },
+            onVocabChange = { vocab -> vokabeln = vocab },
+            onProgress = { str ->
+                val lastBrace = str.lastIndexOf("},")
+                val jsonToParse = if (lastBrace >= 0) str.substring(
+                    0,
+                    lastBrace + 1
+                ) + "]" else null
+                if (jsonToParse != null) {
+                    try {
+                        val arr = JSONArray(jsonToParse)
+                        val parsed = (0 until arr.length()).map {
+                            val o = arr.getJSONObject(it)
+                            Vokabel(
+                                o.getString("latein"),
+                                o.getString("deutsch"),
+                                it
+                            )
+                        }
+                        if (parsed.isNotEmpty()) {
+                            vokabeln = parsed
+                            screen = VokabelTabScreen.REVIEW
+                        }
+                    } catch (_: Exception) {
+                    }
+                }
+            })
+        if (vokabeln.isNotEmpty()) screen = VokabelTabScreen.REVIEW
+        else errorMessage = keineVokabelnErkannt
     }
 
     Crossfade(
@@ -552,6 +626,17 @@ fun VocabTab(paddingValues: PaddingValues) {
                 isExtracting = isExtracting,
                 errorMessage = errorMessage,
                 onPickImage = { imagePicker.launch("image/*") },
+                onTakePhoto = {
+                    if (ContextCompat.checkSelfPermission(
+                            context,
+                            Manifest.permission.CAMERA
+                        ) == PackageManager.PERMISSION_GRANTED
+                    ) {
+                        startCameraCapture()
+                    } else {
+                        cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+                    }
+                },
                 onBack = { screen = VokabelTabScreen.HOME },
                 onExtract = {
                     bitmap?.let { bmp ->
@@ -567,46 +652,19 @@ fun VocabTab(paddingValues: PaddingValues) {
                                     Config.realDevice && trySendImageToLaptop(bytes)
                                 if (sent) {
                                     usedEngine = ExtractionEngine.LAPTOP
-                                    val result = flashcardVokabelnFlow.first { it != null }
-                                    vokabeln = result ?: emptyList()
-                                    if (vokabeln.isNotEmpty()) screen = VokabelTabScreen.REVIEW
-                                    else {
-                                        errorMessage = lokaleExtraktionLeer
+                                    val result = withTimeoutOrNull(
+                                        LOKALE_EXTRAKTION_TIMEOUT_MS
+                                    ) {
+                                        flashcardVokabelnFlow.first { it != null }
+                                    }
+                                    if (!result.isNullOrEmpty()) {
+                                        vokabeln = result
+                                        screen = VokabelTabScreen.REVIEW
+                                    } else {
+                                        runCloudExtraction(bmp)
                                     }
                                 } else {
-                                    usedEngine = cloudEngine
-                                    callNvidiaVisionApi(
-                                        context,
-                                        bmp,
-                                        onError = { msg -> errorMessage = msg },
-                                        onVocabChange = { vocab -> vokabeln = vocab },
-                                        onProgress = { str ->
-                                            val lastBrace = str.lastIndexOf("},")
-                                            val jsonToParse = if (lastBrace >= 0) str.substring(
-                                                0,
-                                                lastBrace + 1
-                                            ) + "]" else null
-                                            if (jsonToParse != null) {
-                                                try {
-                                                    val arr = JSONArray(jsonToParse)
-                                                    val parsed = (0 until arr.length()).map {
-                                                        val o = arr.getJSONObject(it)
-                                                        Vokabel(
-                                                            o.getString("latein"),
-                                                            o.getString("deutsch"),
-                                                            it
-                                                        )
-                                                    }
-                                                    if (parsed.isNotEmpty()) {
-                                                        vokabeln = parsed
-                                                        screen = VokabelTabScreen.REVIEW
-                                                    }
-                                                } catch (_: Exception) {
-                                                }
-                                            }
-                                        })
-                                    if (vokabeln.isNotEmpty()) screen = VokabelTabScreen.REVIEW
-                                    else errorMessage = keineVokabelnErkannt
+                                    runCloudExtraction(bmp)
                                 }
                             } catch (e: Exception) {
                                 errorMessage = String.format(fehlerMsgPattern, e.localizedMessage)
@@ -724,11 +782,12 @@ fun SchoolDashboard(
             paddingValues = paddingValues
         )
 
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 8.dp),
-            contentAlignment = Alignment.Center
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -1226,6 +1285,7 @@ fun UploadScreen(
     isExtracting: Boolean,
     errorMessage: String?,
     onPickImage: () -> Unit,
+    onTakePhoto: () -> Unit,
     onBack: () -> Unit,
     onExtract: () -> Unit,
     plannedEngine: ExtractionEngine,
@@ -1236,6 +1296,8 @@ fun UploadScreen(
     BackHandler {
         onBack()
     }
+
+    var showSourceSheet by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -1267,7 +1329,7 @@ fun UploadScreen(
                         .height(240.dp)
                         .clip(RoundedCornerShape(16.dp))
                         .background(BgSurface)
-                        .clickable { onPickImage() },
+                        .clickable { showSourceSheet = true },
                     contentAlignment = Alignment.Center
                 ) {
                     if (bitmap != null) {
@@ -1306,7 +1368,7 @@ fun UploadScreen(
                             .weight(1f)
                             .clip(RoundedCornerShape(12.dp))
                             .background(BgSurface)
-                            .clickable { onPickImage() }
+                            .clickable { showSourceSheet = true }
                             .padding(vertical = 14.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -1369,6 +1431,82 @@ fun UploadScreen(
                 }
             }
         }
+    }
+
+    if (showSourceSheet) {
+        VocabImageSourceSheet(
+            onTakePhoto = {
+                showSourceSheet = false
+                onTakePhoto()
+            },
+            onPickGallery = {
+                showSourceSheet = false
+                onPickImage()
+            },
+            onDismiss = { showSourceSheet = false }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun VocabImageSourceSheet(
+    onTakePhoto: () -> Unit,
+    onPickGallery: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = BgSurface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                stringResource(R.string.bild_auswahlen),
+                color = TextPrimary,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 4.dp)
+            )
+            ImageSourceRow(
+                emoji = "📷",
+                label = stringResource(R.string.foto_aufnehmen),
+                onClick = onTakePhoto
+            )
+            ImageSourceRow(
+                emoji = "🖼️",
+                label = stringResource(R.string.galerie),
+                onClick = onPickGallery
+            )
+            Spacer(Modifier.height(8.dp))
+        }
+    }
+}
+
+@Composable
+private fun ImageSourceRow(
+    emoji: String,
+    label: String,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(BgCard)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 18.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Text(emoji, fontSize = 22.sp)
+        Text(label, color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Medium)
     }
 }
 
@@ -1481,6 +1619,7 @@ fun ReviewScreen(
         else calculateChanges(initVocabs, currentVokabeln)
 
     var showCancelDialog by remember { mutableStateOf(false) }
+    var showDiscardDialog by remember { mutableStateOf(false) }
     var vokabelToDelete by remember { mutableStateOf<Vokabel?>(null) }
     var editingId by remember { mutableStateOf<Int?>(null) }
 
@@ -1536,8 +1675,25 @@ fun ReviewScreen(
         )
     }
 
+    if (showDiscardDialog) {
+        AlertDialogTabslify(
+            title = stringResource(R.string.vocab_scan_verwerfen_titel),
+            text = stringResource(R.string.vocab_scan_verwerfen_text),
+            confirmText = stringResource(R.string.vocab_scan_verwerfen_bestaetigen),
+            onConfirm = {
+                showDiscardDialog = false
+                onBack()
+            },
+            onDismiss = { showDiscardDialog = false }
+        )
+    }
+
     BackHandler {
-        if (isExtracting) showCancelDialog = true else onBack()
+        when {
+            isExtracting -> showCancelDialog = true
+            fromScan && currentVokabeln.isNotEmpty() -> showDiscardDialog = true
+            else -> onBack()
+        }
     }
 
     Column(
@@ -1549,7 +1705,10 @@ fun ReviewScreen(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(start = 4.dp, top = 8.dp, end = 16.dp)
         ) {
-            IconButton(onClick = onBack) {
+            IconButton(onClick = {
+                if (!isExtracting && fromScan && currentVokabeln.isNotEmpty()) showDiscardDialog = true
+                else onBack()
+            }) {
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = null,

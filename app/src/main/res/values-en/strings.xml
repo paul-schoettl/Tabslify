@@ -113,6 +113,7 @@
     <string name="bootreceiver_starten_von_quiethoursnotificationservice_beim">BootReceiver: starting QuietHoursNotificationService at device boot</string>
     <string name="audiorecordertab_audioforegroundservice_audioaufnahmen_mit_mikrofon">AudioRecorderTab &amp; AudioForegroundService: audio recordings with the microphone</string>
     <string name="quiethoursnotificationservice_anfrage_zum_ignorieren_von">QuietHoursNotificationService: request to ignore battery optimizations for reliable background services</string>
+    <string name="exactalarms_planung_exakter_und_inexakter_alarme">ExactAlarms: time-scheduled notifications at fixed times (quiet-hours switch, daily reports, podcast check, held-back messages). Without this permission the alarms are replaced by a 15-minute window.</string>
     <string name="authenticator_scannen_von_qr_codes">Authenticator: scanning QR codes for 2FA</string>
     <string name="reportdeviceinformation_bluetooth_verbindungsstatus">reportDeviceInformation: Bluetooth connection status for the paired laptop</string>
     <string name="reportdeviceinformation_ismobiledataactive_mobilfunk_datenstatus">reportDeviceInformation &amp; isMobileDataActive: mobile data status for the paired laptop</string>
@@ -181,6 +182,7 @@
     <string name="notizen">Notes</string>
     <string name="media_player">Media Player</string>
     <string name="gmail">Gmail</string>
+    <string name="tiktok">TikTok</string>
     <string name="vokabeln">School</string>
     <string name="explore">Explore</string>
     <string name="kalender">Calendar</string>
@@ -1183,6 +1185,8 @@
     <string name="loschen_3">🗑  Delete</string>
     <string name="sets_mischen">Mix sets</string>
     <string name="bild_auswahlen">Select image</string>
+    <string name="foto_aufnehmen">Take photo</string>
+    <string name="vocab_kamera_verweigert">A photo requires camera access.</string>
     <string name="erkennung_ueber">Recognition via: %1$s</string>
     <string name="engine_laptop">Laptop (local)</string>
     <string name="engine_nvidia">NVIDIA</string>
@@ -1197,6 +1201,9 @@
     <string name="text_erkennen">Recognize text</string>
     <string name="erkennung_abbrechen">Cancel recognition?</string>
     <string name="die_ki_erkennt_noch_vokabeln">The AI is still recognizing vocabulary. Really cancel?</string>
+    <string name="vocab_scan_verwerfen_titel">Discard scan?</string>
+    <string name="vocab_scan_verwerfen_text">The scanned vocabulary will be lost when you leave.</string>
+    <string name="vocab_scan_verwerfen_bestaetigen">Discard</string>
     <string name="neue_vokabeln">New vocabulary</string>
     <plurals name="vokabeln_2">
         <item quantity="one">%1$d vocabulary item</item>
@@ -2371,4 +2378,8 @@
     <string name="lamp_widget_description">Toggle lamp on/off</string>
     <string name="home_bar_widget_label">CommandCode + lamp</string>
     <string name="home_bar_widget_description">Bar with CommandCode usage and lamp switch</string>
+    <string name="home_bar_widget_charging">Charging…</string>
+    <string name="home_bar_widget_eta_h_min">%1$dh %2$dmin</string>
+    <string name="home_bar_widget_eta_min">%1$d min</string>
+    <string name="home_bar_widget_charging_eta">~%1$s to 95%%</string>
 </resources>

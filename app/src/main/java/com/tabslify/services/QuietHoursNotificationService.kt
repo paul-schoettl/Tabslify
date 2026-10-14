@@ -8,6 +8,7 @@ import android.app.DownloadManager
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -79,12 +80,14 @@ import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.tabslify.R
 import com.tabslify.core.activities.MainActivity
 import com.tabslify.core.activities.Tabslify.Companion.appScope
+import com.tabslify.core.functions.ExactAlarms
 import com.tabslify.core.functions.PODCAST_DOWNLOAD_PREFS
 import com.tabslify.core.functions.errorInsert
 import com.tabslify.core.functions.podcastDestDir
@@ -212,6 +215,7 @@ class QuietHoursNotificationService : Service() {
         const val CHANNEL_ID = "quiet_hours_channel"
         const val NOTIFICATION_ID = 999999
         const val WIDGET_REFRESH_MS = 3 * 60 * 1000L
+        const val SUMMARY_WINDOW_MS = 15 * 60 * 1000L
 
         private val WHATSAPP_PACKAGES = setOf("com.whatsapp", "com.whatsapp.w4b")
         private val TELEGRAM_PACKAGES =
@@ -331,6 +335,9 @@ class QuietHoursNotificationService : Service() {
         }
 
         private var widgetRefreshContext: Context? = null
+        private var screenOffSince: Long? = null
+        private var widgetScreenReceiver: BroadcastReceiver? = null
+        private var widgetPowerReceiver: BroadcastReceiver? = null
 
         private val widgetRefreshRunnable: Runnable = object : Runnable {
             override fun run() {
@@ -345,18 +352,93 @@ class QuietHoursNotificationService : Service() {
                         "ERROR"
                     )
                 }
-                handler.postDelayed(this, WIDGET_REFRESH_MS)
+                val delayMs = widgetRefreshDelayMs()
+                Log.i(
+                    "QuietHoursService",
+                    "Widget-Refresh geplant in ${delayMs / 1000}s (Bildschirm ${if (screenOffSince == null) "an" else "aus"})"
+                )
+                handler.postDelayed(this, delayMs)
+            }
+        }
+
+        private fun widgetRefreshDelayMs(): Long {
+            val context = widgetRefreshContext ?: return WIDGET_REFRESH_MS
+            val power = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+            if (power == null || power.isInteractive) return WIDGET_REFRESH_MS
+            val since = screenOffSince ?: return WIDGET_REFRESH_MS
+            val offMs = System.currentTimeMillis() - since
+            return when {
+                offMs < 5 * 60 * 1000L -> WIDGET_REFRESH_MS
+                offMs < 4 * 60 * 60 * 1000L -> 15 * 60 * 1000L
+                else -> 60 * 60 * 1000L
+            }
+        }
+
+        private fun registerWidgetReceivers(context: Context) {
+            if (widgetScreenReceiver == null) {
+                val receiver = object : BroadcastReceiver() {
+                    override fun onReceive(receiverContext: Context?, intent: Intent?) {
+                        when (intent?.action) {
+                            Intent.ACTION_SCREEN_OFF -> screenOffSince = System.currentTimeMillis()
+                            Intent.ACTION_SCREEN_ON -> {
+                                screenOffSince = null
+                                handler.removeCallbacks(widgetRefreshRunnable)
+                                handler.post(widgetRefreshRunnable)
+                            }
+                        }
+                    }
+                }
+                val filter = IntentFilter().apply {
+                    addAction(Intent.ACTION_SCREEN_ON)
+                    addAction(Intent.ACTION_SCREEN_OFF)
+                }
+                runCatching { context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED) }
+                widgetScreenReceiver = receiver
+            }
+            if (widgetPowerReceiver == null) {
+                val receiver = object : BroadcastReceiver() {
+                    override fun onReceive(receiverContext: Context?, intent: Intent?) {
+                        when (intent?.action) {
+                            Intent.ACTION_POWER_CONNECTED,
+                            Intent.ACTION_POWER_DISCONNECTED ->
+                                CommandCodeUsageWidget.updateChargeFooter(context)
+                        }
+                    }
+                }
+                val filter = IntentFilter().apply {
+                    addAction(Intent.ACTION_POWER_CONNECTED)
+                    addAction(Intent.ACTION_POWER_DISCONNECTED)
+                }
+                runCatching { context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED) }
+                widgetPowerReceiver = receiver
+            }
+            val power = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+            if (power != null && !power.isInteractive) {
+                screenOffSince = System.currentTimeMillis()
             }
         }
 
         fun startWidgetRefresh(context: Context) {
-            widgetRefreshContext = context.applicationContext
+            val app = context.applicationContext
+            widgetRefreshContext = app
+            runCatching { registerWidgetReceivers(app) }
             handler.removeCallbacks(widgetRefreshRunnable)
             handler.post(widgetRefreshRunnable)
         }
 
         fun stopWidgetRefresh() {
             handler.removeCallbacks(widgetRefreshRunnable)
+            widgetRefreshContext?.let { ctx ->
+                widgetScreenReceiver?.let { receiver ->
+                    runCatching { ctx.unregisterReceiver(receiver) }
+                }
+                widgetPowerReceiver?.let { receiver ->
+                    runCatching { ctx.unregisterReceiver(receiver) }
+                }
+            }
+            widgetScreenReceiver = null
+            widgetPowerReceiver = null
+            screenOffSince = null
             widgetRefreshContext = null
         }
 
@@ -420,37 +502,6 @@ class QuietHoursNotificationService : Service() {
             return nextChange
         }
 
-        fun scheduledailysummaryalarm(context: Context) {
-            val intent = Intent(context, QuietHoursNotificationService::class.java).apply {
-                action = SCHEDULE_DAILY_SUMMARY_ALARM
-            }
-            context.startService(intent)
-        }
-
-        fun schedulePodcastCheck(context: Context) {
-            val am = context.getSystemService(ALARM_SERVICE) as AlarmManager
-
-            if (!am.canScheduleExactAlarms()) return
-
-            val cal = Calendar.getInstance().apply {
-                set(Calendar.HOUR_OF_DAY, 15)
-                set(Calendar.MINUTE, 30)
-                set(Calendar.SECOND, 0)
-                set(Calendar.MILLISECOND, 0)
-                if (timeInMillis <= System.currentTimeMillis()) add(Calendar.DAY_OF_YEAR, 1)
-            }
-
-            val podcastCheckBase = Intent(context, QuietHoursNotificationService::class.java)
-            podcastCheckBase.action = ACTION_PODCAST_CHECK
-            podcastCheckBase.setPackage(context.packageName)
-            val pi = PendingIntent.getService(
-                context, 0,
-                podcastCheckBase,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-
-            am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, cal.timeInMillis, pi)
-        }
     }
 
     private val prefChangeListener =
@@ -502,12 +553,10 @@ class QuietHoursNotificationService : Service() {
         startWidgetRefresh(this)
         schedulePeriodicCleanup(this)
         scheduleSyncTriggerWorker(this)
-        scheduleSchoolDaySummary(this)
-        schedulePodcastCheck(this)
+        DailyDigestScheduler.schedule(this)
         restoreSyncIfNeeded(this)
         startTriggerListenerIfHomeWifi(this)
         startAiResponseListener(this)
-        scheduleDailySummaryAlarm()
 
         val filter = IntentFilter(ACTION_MESSAGE_SENT)
         try {
@@ -554,38 +603,14 @@ class QuietHoursNotificationService : Service() {
         }
     }
 
-    private fun scheduleDailySummaryAlarm() {
-        val am = getSystemService(ALARM_SERVICE) as AlarmManager
-
-        if (!am.canScheduleExactAlarms()) {
-            return
-        }
-
-        val cal = Calendar.getInstance().apply {
-            set(Calendar.HOUR_OF_DAY, 20)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-            if (timeInMillis <= System.currentTimeMillis()) {
-                add(Calendar.DAY_OF_YEAR, 1)
-            }
-        }
-
-        val summaryBase = Intent(this, DailySummaryReceiver::class.java)
-        summaryBase.setPackage(packageName)
-        val pi = PendingIntent.getBroadcast(
-            this, 0,
-            summaryBase,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, cal.timeInMillis, pi)
-    }
-
     private fun schedulePeriodicCleanup(context: Context) {
         val work = PeriodicWorkRequestBuilder<CleanupWorker>(
-            6, TimeUnit.HOURS
-        ).build()
+            24, TimeUnit.HOURS
+        )
+            .setConstraints(
+                Constraints.Builder().setRequiresBatteryNotLow(true).build()
+            )
+            .build()
 
         WorkManager.getInstance(context).enqueueUniquePeriodicWork(
             "periodic_cleanup",
@@ -606,33 +631,6 @@ class QuietHoursNotificationService : Service() {
         )
     }
 
-    private fun scheduleSchoolDaySummary(context: Context) {
-        if (!prvt()) return
-        val alarmManager = context.getSystemService(AlarmManager::class.java)
-        val schoolBase = Intent(context, QuietHoursNotificationService::class.java)
-        schoolBase.action = ACTION_SCHOOL_DAY_SUMMARY
-        schoolBase.setPackage(context.packageName)
-        val pending = PendingIntent.getService(
-            context, 9001, schoolBase,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val cal = Calendar.getInstance().apply {
-            set(Calendar.HOUR_OF_DAY, 20)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-            if (timeInMillis <= System.currentTimeMillis()) add(Calendar.DAY_OF_YEAR, 1)
-        }
-
-        alarmManager.setRepeating(
-            AlarmManager.RTC_WAKEUP,
-            cal.timeInMillis,
-            AlarmManager.INTERVAL_DAY,
-            pending
-        )
-    }
-
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         return try {
             when (intent?.action) {
@@ -642,7 +640,7 @@ class QuietHoursNotificationService : Service() {
                 }
 
                 SCHEDULE_DAILY_SUMMARY_ALARM -> {
-                    scheduleDailySummaryAlarm()
+                    scheduleDailySummaryAlarm(this)
                     if (prvt()) {
                         checkPermissionsForPrvt()
                     }
@@ -809,8 +807,15 @@ class QuietHoursNotificationService : Service() {
                             if (sessions.isEmpty()) return@launch
 
                             val stats = buildSessionStatsText(sessions)
-                            val result = sendAiRequest(this@QuietHoursNotificationService, userMessage = stats, target = AiTarget.MusicSummary, serviceKey = "music_summary", provider = AiProvider.NVIDIA, model = "openai/gpt-oss-20b")
-                                ?: return@launch
+                            val result = sendAiRequest(
+                                this@QuietHoursNotificationService,
+                                userMessage = stats,
+                                target = AiTarget.MusicSummary,
+                                serviceKey = "music_summary",
+                                provider = AiProvider.NVIDIA,
+                                model = "openai/gpt-oss-20b",
+                                onToken = {}
+                            ) ?: return@launch
                             val musicMs =
                                 sessions.filter { it.type == "music" }.sumOf { it.listenedMs }
                             val podcastMs =
@@ -1310,13 +1315,7 @@ class QuietHoursNotificationService : Service() {
             PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
         )
         val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
-        if (alarmManager.canScheduleExactAlarms()) {
-            alarmManager.setExactAndAllowWhileIdle(
-                AlarmManager.ELAPSED_REALTIME_WAKEUP,
-                now + delayMs,
-                pendingIntent
-            )
-        }
+        ExactAlarms.setExactElapsed(alarmManager, now + delayMs, pendingIntent)
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
@@ -1455,21 +1454,15 @@ class QuietHoursNotificationService : Service() {
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setGroup("group_info")
             .setGroupSummary(false)
+            .apply {
+                if (duration > Duration.ZERO) setTimeoutAfter(duration.inWholeMilliseconds)
+            }
             .build()
-
-        val notificationManager = getSystemService(NotificationManager::class.java)
 
         if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
             == PackageManager.PERMISSION_GRANTED
         ) {
             tNotify(this, cms(), notification)
-
-            if (duration > Duration.ZERO) {
-                Handler(Looper.getMainLooper()).postDelayed(
-                    { notificationManager.cancel(cms()) },
-                    duration.inWholeMilliseconds
-                )
-            }
         }
     }
 

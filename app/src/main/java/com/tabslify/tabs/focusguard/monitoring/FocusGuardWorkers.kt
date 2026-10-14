@@ -6,12 +6,15 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import androidx.core.content.edit
+import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.tabslify.core.activities.Tabslify.Companion.appScope
+import com.tabslify.core.functions.ExactAlarms
 import com.tabslify.tabs.focusguard.FocusGuardNotifications
 import com.tabslify.tabs.focusguard.data.FocusGuardConfig
 import com.tabslify.tabs.focusguard.data.FocusGuardDatabase
@@ -239,7 +242,6 @@ object FocusGuardSummaryRunner {
 fun scheduleFocusGuardDailySummary(context: Context) {
     FocusGuardConfig.init(context)
     val am = context.getSystemService(AlarmManager::class.java) ?: return
-    if (!am.canScheduleExactAlarms()) return
     val cal = Calendar.getInstance().apply {
         set(Calendar.HOUR_OF_DAY, FocusGuardConfig.dailySummaryHour)
         set(Calendar.MINUTE, 0)
@@ -256,7 +258,7 @@ fun scheduleFocusGuardDailySummary(context: Context) {
         summaryIntent,
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     )
-    am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, cal.timeInMillis, pi)
+    ExactAlarms.setExactOrWindow(am, cal.timeInMillis, pi, DAILY_SUMMARY_WINDOW_MS)
 }
 
 fun scheduleFocusGuardWorkers(context: Context) {
@@ -280,7 +282,14 @@ fun scheduleFocusGuardWorkers(context: Context) {
     WorkManager.getInstance(context).enqueueUniquePeriodicWork(
         "focusguard_sync",
         ExistingPeriodicWorkPolicy.KEEP,
-        PeriodicWorkRequestBuilder<FocusGuardSyncWorker>(6, TimeUnit.HOURS).build()
+        PeriodicWorkRequestBuilder<FocusGuardSyncWorker>(12, TimeUnit.HOURS)
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .setRequiresBatteryNotLow(true)
+                    .build()
+            )
+            .build()
     )
 }
 
@@ -292,3 +301,4 @@ fun cancelFocusGuardWorkers(context: Context) {
 }
 
 private const val DAILY_SUMMARY_REQUEST_CODE = 96000
+private const val DAILY_SUMMARY_WINDOW_MS = 10 * 60_000L

@@ -118,6 +118,7 @@ class VirusTotalRepository(private val httpClient: HttpClient) {
     }
 
     private suspend fun pollAnalysis(analysisId: String, permalinkFallback: String?): VirusTotalState {
+        var delayMs = 2000L
         repeat(15) {
             val response: HttpResponse = httpClient.get("$BASE_URL/analyses/$analysisId") {
                 headers { append("x-apikey", BuildConfig.VIRUSTOTAL_API_KEY) }
@@ -131,7 +132,8 @@ class VirusTotalRepository(private val httpClient: HttpClient) {
                     return parseStats(stats).let { VirusTotalState.Result(it, permalink) }
                 }
             }
-            delay(3000.milliseconds)
+            delay(delayMs.milliseconds)
+            delayMs = (delayMs * 2).coerceAtMost(8000L)
         }
         return VirusTotalState.Error("Analyse dauert zu lange, bitte später erneut versuchen")
     }

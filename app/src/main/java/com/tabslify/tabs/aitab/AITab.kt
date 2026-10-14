@@ -16,6 +16,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,6 +36,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -56,9 +58,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -76,12 +80,13 @@ import androidx.compose.ui.graphics.Color.Companion.Transparent
 import androidx.compose.ui.graphics.Color.Companion.White
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -92,7 +97,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.m3.markdownColor
@@ -115,6 +119,7 @@ import dev.chrisbanes.haze.blur.HazeBlurStyle
 import dev.chrisbanes.haze.blur.HazeColorEffect
 import dev.chrisbanes.haze.blur.hazeBlur
 import dev.chrisbanes.haze.hazeSource
+import kotlin.math.roundToInt
 
 @Composable
 fun AITabContent(
@@ -171,9 +176,6 @@ fun AITabContent(
         )
     )
 
-    val msgBounds = remember { HashMap<Int, Float>() }
-    var contextMenuY1 by remember { mutableIntStateOf(0) }
-    val view = LocalView.current
     val overlayAlpha = animateFloatAsState(
         targetValue = if (vm.selectedMsg != null) 1f else 0f,
         animationSpec = tween(400),
@@ -194,16 +196,6 @@ fun AITabContent(
     }
 
     val density = LocalDensity.current
-    val screenHeightPx = LocalWindowInfo.current.containerSize.height
-
-    val menuGoesUp = contextMenuY1 > screenHeightPx * 0.6f
-
-    fun selectMessage(index: Int) {
-        vm.selectedMsg = index
-        svm.fireEvent(true)
-        vm.lastSelectedMsg = vm.selectedMsg
-        msgBounds[index]?.let { contextMenuY1 = it.toInt() }
-    }
 
     BackHandler(vm.isEditMode) {
         vm.isEditMode = false
@@ -267,6 +259,31 @@ fun AITabContent(
     var headerHeightDp by remember { mutableStateOf(0.dp) }
     var inputBarHeightDp by remember { mutableStateOf(0.dp) }
 
+    val msgCoords = remember { HashMap<String, LayoutCoordinates>() }
+    var bubbleTopRoot by remember { mutableFloatStateOf(0f) }
+    var bubbleBottomRoot by remember { mutableFloatStateOf(0f) }
+    var overlayTopRoot by remember { mutableFloatStateOf(0f) }
+    var overlayHeightPx by remember { mutableIntStateOf(0) }
+
+    val menuHeightPx = with(density) { 150.dp.roundToPx() }
+    val gapPx = with(density) { 6.dp.roundToPx() }
+    val minYPx = with(density) { headerHeightDp.roundToPx() }
+    val bottomLimitPx = overlayHeightPx - with(density) { inputBarHeightDp.roundToPx() }
+    val menuGoesUp =
+        bubbleBottomRoot - overlayTopRoot + gapPx + menuHeightPx > bottomLimitPx
+
+    fun selectMessage(index: Int) {
+        val m = vm.history.getOrNull(index) ?: return
+        msgCoords["${m.ts}_${m.own}"]?.takeIf { it.isAttached }?.let {
+            val b = it.boundsInRoot()
+            bubbleTopRoot = b.top
+            bubbleBottomRoot = b.bottom
+        }
+        vm.selectedMsg = index
+        svm.fireEvent(true)
+        vm.lastSelectedMsg = vm.selectedMsg
+    }
+
     Box(
         Modifier
             .fillMaxSize()
@@ -294,19 +311,14 @@ fun AITabContent(
                     key = { index -> "${vm.history[index].ts}_${vm.history[index].own}" }) { index ->
                     val msg = vm.history[index]
                     val isUser = msg.own
+                    val msgKey = "${msg.ts}_${msg.own}"
+                    DisposableEffect(msgKey) { onDispose { msgCoords.remove(msgKey) } }
 
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .zIndex(1f)
-                            .onGloballyPositioned { coords ->
-                                val rootBounds = coords.boundsInRoot()
-                                val windowInsets =
-                                    WindowInsetsCompat.toWindowInsetsCompat(view.rootWindowInsets)
-                                val statusBarHeight =
-                                    windowInsets.getInsets(WindowInsetsCompat.Type.statusBars()).top
-                                msgBounds[index] = rootBounds.bottom - statusBarHeight
-                            },
+                            .onGloballyPositioned { msgCoords[msgKey] = it },
                         contentAlignment = if (isUser) Alignment.CenterEnd else Alignment.CenterStart
                     ) {
                         if (isUser) {
@@ -499,109 +511,117 @@ fun AITabContent(
                         ) {
                             val isPrivate = prvt()
 
-                            listOfNotNull(
-                                "Nvidia",
-                                "Gemini",
-                                "OpenRouter",
-                                if (isPrivate) "Server" else null
-                            ).forEachIndexed { index, mode ->
-                                val containerColor by animateColorAsState(
-                                    targetValue = if (vm.currentMode == mode) Color(0xFF555555) else Color(
-                                        0xFF333333
-                                    ),
-                                    animationSpec = tween(durationMillis = 300),
-                                    label = "containerColor"
-                                )
-                                Box {
-                                    PloppingButton(
-                                        onClick = {
-                                            if (vm.currentMode == mode) vm.showAiModels = true
-                                            vm.setMode(mode)
-                                        },
-                                        colors = buttonColors(containerColor = containerColor),
-                                        shape = RoundedCornerShape(8.dp)
-                                    ) {
-                                        Text(mode, color = White, fontSize = 13.sp)
-                                    }
-
-                                    if (index == 0) {
-                                        DropdownMenu(
-                                            expanded = vm.showAiModels,
-                                            onDismissRequest = { vm.showAiModels = false },
-                                            containerColor = Color(0xFF333333),
-                                            shape = RoundedCornerShape(30.dp),
-                                            modifier = Modifier.padding(10.dp, 0.dp)
+                            Row(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                listOfNotNull(
+                                    "Nvidia",
+                                    "Gemini",
+                                    "OpenRouter",
+                                    if (isPrivate) "Server" else null
+                                ).forEachIndexed { index, mode ->
+                                    val containerColor by animateColorAsState(
+                                        targetValue = if (vm.currentMode == mode) Color(0xFF555555) else Color(
+                                            0xFF333333
+                                        ),
+                                        animationSpec = tween(durationMillis = 300),
+                                        label = "containerColor"
+                                    )
+                                    Box {
+                                        PloppingButton(
+                                            onClick = {
+                                                if (vm.currentMode == mode) vm.showAiModels = true
+                                                vm.setMode(mode)
+                                            },
+                                            colors = buttonColors(containerColor = containerColor),
+                                            shape = RoundedCornerShape(8.dp)
                                         ) {
-                                            var showedDiv = false
-                                            vm.availableModels.forEach { model ->
-                                                if (model.vision && !showedDiv && !vm.availableModels[0].vision) {
-                                                    Row(
-                                                        modifier = Modifier
-                                                            .padding(vertical = 16.dp)
-                                                            .fillMaxWidth(),
-                                                        verticalAlignment = Alignment.CenterVertically
+                                            Text(mode, color = White, fontSize = 13.sp)
+                                        }
+
+                                        if (index == 0) {
+                                            DropdownMenu(
+                                                expanded = vm.showAiModels,
+                                                onDismissRequest = { vm.showAiModels = false },
+                                                containerColor = Color(0xFF333333),
+                                                shape = RoundedCornerShape(30.dp),
+                                                modifier = Modifier.padding(10.dp, 0.dp)
+                                            ) {
+                                                var showedDiv = false
+                                                vm.availableModels.forEach { model ->
+                                                    if (model.vision && !showedDiv && !vm.availableModels[0].vision) {
+                                                        Row(
+                                                            modifier = Modifier
+                                                                .padding(vertical = 16.dp)
+                                                                .fillMaxWidth(),
+                                                            verticalAlignment = Alignment.CenterVertically
+                                                        ) {
+                                                            HorizontalDivider(
+                                                                modifier = Modifier.weight(1f),
+                                                                thickness = 1.dp,
+                                                                color = White.copy(alpha = 0.3f)
+                                                            )
+
+                                                            Text(
+                                                                text = stringResource(R.string.vision_models),
+                                                                modifier = Modifier.padding(horizontal = 8.dp)
+                                                            )
+
+                                                            HorizontalDivider(
+                                                                modifier = Modifier.weight(1f),
+                                                                thickness = 1.dp,
+                                                                color = White.copy(alpha = 0.3f)
+                                                            )
+                                                        }
+                                                        showedDiv = true
+                                                    }
+                                                    val containerColorModel by animateColorAsState(
+                                                        targetValue = if (vm.selectedModel == model) Color(
+                                                            0xFF555555
+                                                        ) else Color(0xFF333333),
+                                                        animationSpec = tween(durationMillis = 300),
+                                                        label = "containerColor"
+                                                    )
+                                                    PloppingButton(
+                                                        onClick = {
+                                                            vm.selectModel(model)
+                                                        },
+                                                        onFinishedClick = { vm.showAiModels = false },
+                                                        colors = buttonColors(containerColor = containerColorModel),
+                                                        modifier = Modifier.fillMaxWidth()
                                                     ) {
-                                                        HorizontalDivider(
-                                                            modifier = Modifier.weight(1f),
-                                                            thickness = 1.dp,
-                                                            color = White.copy(alpha = 0.3f)
-                                                        )
+                                                        val sizeRegex = Regex("""-\d+b""")
+                                                        val sizeRegex1 = Regex("""\d+b""")
+                                                        val name = model.name
+                                                            .replace(sizeRegex, "")
+                                                            .replace("-", " ")
+                                                            .substringBeforeLast(":")
+                                                        val sizeString: String? =
+                                                            when (vm.currentMode) {
+                                                                "Nvidia" -> sizeRegex1.find(
+                                                                    model.name
+                                                                )?.value
 
+                                                                "Gemini" -> null
+                                                                "OpenRouter" -> null
+                                                                else -> model.name.substringAfter(":")
+                                                            }
+                                                        val size =
+                                                            if (sizeString != null && sizeString != "null") {
+                                                                " (${sizeString.replace("-", " ")})"
+                                                            } else ""
+                                                        val weightInfo =
+                                                            if (model.weight > 1 && !prvt()) " [${model.weight}x]" else ""
                                                         Text(
-                                                            text = stringResource(R.string.vision_models),
-                                                            modifier = Modifier.padding(horizontal = 8.dp)
-                                                        )
-
-                                                        HorizontalDivider(
-                                                            modifier = Modifier.weight(1f),
-                                                            thickness = 1.dp,
-                                                            color = White.copy(alpha = 0.3f)
+                                                            "$name$size$weightInfo",
+                                                            textAlign = TextAlign.Left,
+                                                            modifier = Modifier.fillMaxWidth()
                                                         )
                                                     }
-                                                    showedDiv = true
-                                                }
-                                                val containerColorModel by animateColorAsState(
-                                                    targetValue = if (vm.selectedModel == model) Color(
-                                                        0xFF555555
-                                                    ) else Color(0xFF333333),
-                                                    animationSpec = tween(durationMillis = 300),
-                                                    label = "containerColor"
-                                                )
-                                                PloppingButton(
-                                                    onClick = {
-                                                        vm.selectModel(model)
-                                                    },
-                                                    onFinishedClick = { vm.showAiModels = false },
-                                                    colors = buttonColors(containerColor = containerColorModel),
-                                                    modifier = Modifier.fillMaxWidth()
-                                                ) {
-                                                    val sizeRegex = Regex("""-\d+b""")
-                                                    val sizeRegex1 = Regex("""\d+b""")
-                                                    val name = model.name
-                                                        .replace(sizeRegex, "")
-                                                        .replace("-", " ")
-                                                        .substringBeforeLast(":")
-                                                    val sizeString: String? =
-                                                        when (vm.currentMode) {
-                                                            "Nvidia" -> sizeRegex1.find(
-                                                                model.name
-                                                            )?.value
-
-                                                            "Gemini" -> null
-                                                            "OpenRouter" -> null
-                                                            else -> model.name.substringAfter(":")
-                                                        }
-                                                    val size =
-                                                        if (sizeString != null && sizeString != "null") {
-                                                            " (${sizeString.replace("-", " ")})"
-                                                        } else ""
-                                                    val weightInfo =
-                                                        if (model.weight > 1 && !prvt()) " [${model.weight}x]" else ""
-                                                    Text(
-                                                        "$name$size$weightInfo",
-                                                        textAlign = TextAlign.Left,
-                                                        modifier = Modifier.fillMaxWidth()
-                                                    )
                                                 }
                                             }
                                         }
@@ -797,9 +817,11 @@ fun AITabContent(
                     .zIndex(2f)
                     .alpha(overlayAlpha.value)
                     .alpha(alpha.value)
+                    .onGloballyPositioned { overlayTopRoot = it.positionInRoot().y }
+                    .onSizeChanged { overlayHeightPx = it.height }
             ) {
                 var message: ChatMessage? by remember { mutableStateOf(null) }
-                message = vm.selectedMsg?.let { vm.history.getOrNull(it) }
+                vm.selectedMsg?.let { message = vm.history.getOrNull(it) }
 
                 Box(
                     Modifier
@@ -817,22 +839,21 @@ fun AITabContent(
                         )
                 )
 
-                val menuHeightPx = with(density) { 260.dp.roundToPx() }
-
                 Row(
                     Modifier
                         .offset {
-                            IntOffset(
-                                0,
-                                if (menuGoesUp) contextMenuY1 - menuHeightPx else contextMenuY1 - 150
-                            )
+                            val top = (bubbleTopRoot - overlayTopRoot).roundToInt()
+                            val bottom = (bubbleBottomRoot - overlayTopRoot).roundToInt()
+                            val y = if (menuGoesUp) top - menuHeightPx - gapPx else bottom + gapPx
+                            val maxY = (bottomLimitPx - menuHeightPx).coerceAtLeast(minYPx)
+                            IntOffset(0, y.coerceIn(minYPx, maxY))
                         }
                         .align(
-                            if (message?.own ?: return) Alignment.TopEnd else Alignment.TopStart
+                            if (message?.own == true) Alignment.TopEnd else Alignment.TopStart
                         )
                         .padding(
-                            end = if (message?.own ?: false) 10.dp else 0.dp,
-                            start = if (message?.own ?: false) 0.dp else 10.dp
+                            end = if (message?.own == true) 10.dp else 0.dp,
+                            start = if (message?.own == true) 0.dp else 10.dp
                         )
                         .width(200.dp)
                         .clip(
@@ -895,7 +916,7 @@ fun AITabContent(
                             )
                         }
 
-                        if (message?.own ?: false) {
+                        if (message?.own == true) {
                             Spacer(Modifier.height(12.dp))
 
                             Box(

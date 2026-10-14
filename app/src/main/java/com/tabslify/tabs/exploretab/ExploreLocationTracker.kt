@@ -8,9 +8,11 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
-import android.os.Handler
 import android.os.Looper
 import androidx.core.content.ContextCompat
+import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import com.google.android.gms.location.ActivityRecognition
 import com.google.android.gms.location.ActivityRecognitionResult
 import com.google.android.gms.location.CurrentLocationRequest
@@ -39,6 +41,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.time.Instant
+import java.util.concurrent.TimeUnit
 
 data class ExploreTrackerInfo(
     val homeLat: Double = 0.0,
@@ -95,6 +98,7 @@ object ExploreLocationTracker {
     private const val GEOFENCE_ID = "HOME"
     private const val GEOFENCE_RADIUS = 100f
     private const val GEOFENCE_TRANSITION_COOLDOWN_MS = 10 * 60_000L
+    private const val RECHECK_TAG = "explore_cooldown_recheck"
     const val HOME_WIFI_SSID = "FRITZ!Box 5590 XO"
     private const val NIGHT_START_HOUR = 0
     private const val NIGHT_END_HOUR = 5
@@ -134,16 +138,11 @@ object ExploreLocationTracker {
     @Volatile
     private var geofenceArmed = false
 
-    private val handler = Handler(Looper.getMainLooper())
-
     @Volatile
     private var lastGeofenceEnter = false
 
     @Volatile
     private var lastGeofenceTransitionAt = 0L
-
-    @Volatile
-    private var recheckToken = 0L
 
     private fun isNightTime(): Boolean {
         val hour = Instant.now().atZone(java.time.ZoneId.systemDefault()).hour
@@ -199,13 +198,13 @@ object ExploreLocationTracker {
         val appCtx = context.applicationContext
         val remaining = (GEOFENCE_TRANSITION_COOLDOWN_MS - (System.currentTimeMillis() - lastGeofenceTransitionAt))
             .coerceIn(1_000L, GEOFENCE_TRANSITION_COOLDOWN_MS)
-        recheckToken++
-        val token = recheckToken
-        handler.postDelayed({
-            if (token == recheckToken) {
-                recheck(appCtx)
-            }
-        }, remaining)
+
+        val req = OneTimeWorkRequestBuilder<ExploreRecheckWorker>()
+            .setInitialDelay(remaining, TimeUnit.MILLISECONDS)
+            .build()
+
+        WorkManager.getInstance(appCtx)
+            .enqueueUniqueWork(RECHECK_TAG, ExistingWorkPolicy.REPLACE, req)
     }
 
     private fun startTracking(context: Context) {
@@ -266,7 +265,8 @@ object ExploreLocationTracker {
             }
             evaluateCurrentLocation(appCtx) { distanceHome ->
                 if (distanceHome <= GEOFENCE_RADIUS) {
-                    _trackerStatus.value = "Zuhause"
+                    _trackerStatus.value = "Gestoppt (Zuhause)"
+                    stop(appCtx)
                     onArrivedHome(appCtx)
                 } else {
                     _trackerStatus.value = "Außerhalb"
@@ -357,7 +357,7 @@ object ExploreLocationTracker {
             return
         }
         ExploreNightRestartWorker.cancel(appCtx)
-        if (isEnabled) {
+        if (isEnabled && serviceRunning) {
             return
         }
         isEnabled = true

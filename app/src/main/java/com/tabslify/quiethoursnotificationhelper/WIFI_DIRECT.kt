@@ -1887,7 +1887,7 @@ suspend fun trySendImageToLaptop(imageBytes: ByteArray): Boolean {
             false
         } catch (e: Exception) {
             logError("trySendImageToLaptop", e)
-            flashcardVokabelnFlow.emit(null)
+            flashcardVokabelnFlow.emit(emptyList())
             false
         }
     }
@@ -1903,12 +1903,12 @@ private fun startFlashcardResponseListener(boundSocket: ServerSocket) {
             val vokabeln =
                 parseVokabelnFromJson(client.inputStream.readBytes().toString(Charsets.UTF_8))
             client.close()
-            flashcardVokabelnFlow.emit(vokabeln.ifEmpty { null })
+            flashcardVokabelnFlow.emit(vokabeln)
         } catch (_: SocketTimeoutException) {
-            flashcardVokabelnFlow.emit(null)
+            flashcardVokabelnFlow.emit(emptyList())
         } catch (e: Exception) {
             logError("startFlashcardResponseListener", e)
-            flashcardVokabelnFlow.emit(null)
+            flashcardVokabelnFlow.emit(emptyList())
         } finally {
             flashcardResponseSocket?.close()
             flashcardResponseSocket = null
@@ -2145,10 +2145,16 @@ private fun buildMediaStateJson(context: Context): String {
         val activePl = musicPrefs.getString("active_playlist_id", "") ?: ""
         val activeAlgoPl = musicPrefs.getString("active_algorithmic_playlist_id", "") ?: ""
         songIndex = musicPrefs.getInt("current_song_index", 0)
-        val favorites = musicPrefs.getString("favorite_songs", null)
-            ?.split("|||")
-            ?.mapNotNull { entry -> entry.split(":::").takeIf { it.isNotEmpty() }?.get(0) }
-            ?.toSet() ?: emptySet()
+        val favEntries = try {
+            musicPrefs.getStringSet("favorite_songs", null) ?: emptySet()
+        } catch (_: ClassCastException) {
+            musicPrefs.getString("favorite_songs", null)
+                ?.split("|||")?.toSet() ?: emptySet()
+        }
+        val favorites = favEntries
+            .map { it.substringBefore(":::") }
+            .filter { it.isNotEmpty() }
+            .toSet()
         isFavorite = favorites.contains(songName)
         activePlaylistId = activePl
         activeAlgoPlaylistId = activeAlgoPl

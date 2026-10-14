@@ -619,8 +619,7 @@ class ContactsRepository(private val context: Context) {
                 "ContactsTabContent",
                 "Fehler bei Löschen von Kontakten: ${e.message}",
                 Instant.now().toString(),
-                "Error"
-
+                "ERROR"
             )
             false
         }

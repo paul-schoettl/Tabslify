@@ -63,6 +63,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
@@ -71,6 +72,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.core.content.edit
 import com.tabslify.R
 import com.tabslify.core.ui.APP_COLOR
+import org.json.JSONArray
+import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -637,7 +640,7 @@ fun EditNoteDialog(
                             modifier = Modifier.weight(1f),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            itemsIndexed(checklistItems) { index, item ->
+                            itemsIndexed(checklistItems, key = { _, item -> item.id }) { index, item ->
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier.fillMaxWidth()
@@ -651,10 +654,19 @@ fun EditNoteDialog(
                                                 }
                                         }
                                     )
-                                    Text(
-                                        text = item.text,
+                                    OutlinedTextField(
+                                        value = item.text,
+                                        onValueChange = { neu ->
+                                            checklistItems =
+                                                checklistItems.toMutableList().apply {
+                                                    this[index] = item.copy(text = neu)
+                                                }
+                                        },
                                         modifier = Modifier.weight(1f),
-                                        textDecoration = if (item.isChecked) TextDecoration.LineThrough else null
+                                        singleLine = true,
+                                        textStyle = TextStyle(
+                                            textDecoration = if (item.isChecked) TextDecoration.LineThrough else null
+                                        )
                                     )
                                     IconButton(
                                         onClick = {
@@ -737,27 +749,38 @@ fun EditNoteDialog(
 fun saveNotes(context: Context, notes: List<Note>) {
     val prefs = context.getSharedPreferences("notes_prefs", Context.MODE_PRIVATE)
 
-    val serialized = notes.joinToString("||") { note ->
-        val typePart = when (val type = note.type) {
-            is NoteType.Text ->
-                "TEXT;;${type.content}"
+    val arr = JSONArray()
+    notes.forEach { note ->
+        val obj = JSONObject()
+        obj.put("id", note.id)
+        obj.put("title", note.title)
+        obj.put("timestamp", note.timestamp)
+        obj.put("color", note.color.name)
+        when (val type = note.type) {
+            is NoteType.Text -> {
+                obj.put("type", "TEXT")
+                obj.put("content", type.content)
+            }
 
-            is NoteType.Checklist ->
-                "CHECK;;" + type.items.joinToString(";;") {
-                    "${it.id},${it.text},${it.isChecked}"
+            is NoteType.Checklist -> {
+                obj.put("type", "CHECK")
+                val items = JSONArray()
+                type.items.forEach { item ->
+                    items.put(
+                        JSONObject().apply {
+                            put("id", item.id)
+                            put("text", item.text)
+                            put("isChecked", item.isChecked)
+                        }
+                    )
                 }
+                obj.put("items", items)
+            }
         }
-
-        listOf(
-            note.id,
-            note.title,
-            note.timestamp.toString(),
-            note.color.name,
-            typePart
-        ).joinToString("##")
+        arr.put(obj)
     }
 
-    prefs.edit(commit = true) { putString("notes", serialized) }
+    prefs.edit(commit = true) { putString("notes", arr.toString()) }
 }
 
 fun deleteNote(context: Context, notes: List<Note>, noteId: String): List<Note> {
@@ -772,6 +795,52 @@ fun loadNotes(context: Context): List<Note> {
     val prefs = context.getSharedPreferences("notes_prefs", Context.MODE_PRIVATE)
     val raw = prefs.getString("notes", null) ?: return emptyList()
 
+    return if (raw.trimStart().startsWith("[")) {
+        parseNotesFromJson(raw)
+    } else {
+        parseLegacyNotes(raw)
+    }
+}
+
+private fun parseNotesFromJson(raw: String): List<Note> =
+    runCatching {
+        val arr = JSONArray(raw)
+        (0 until arr.length()).mapNotNull { i ->
+            val obj = arr.optJSONObject(i) ?: return@mapNotNull null
+
+            val type = when (obj.optString("type")) {
+                "TEXT" -> NoteType.Text(obj.optString("content"))
+
+                "CHECK" -> {
+                    val itemsArr = obj.optJSONArray("items")
+                    val items = if (itemsArr == null) emptyList() else {
+                        (0 until itemsArr.length()).mapNotNull { j ->
+                            val itemObj = itemsArr.optJSONObject(j) ?: return@mapNotNull null
+                            ChecklistItem(
+                                id = itemObj.optString("id").ifBlank { UUID.randomUUID().toString() },
+                                text = itemObj.optString("text"),
+                                isChecked = itemObj.optBoolean("isChecked")
+                            )
+                        }
+                    }
+                    NoteType.Checklist(items)
+                }
+
+                else -> return@mapNotNull null
+            }
+
+            Note(
+                id = obj.optString("id").ifBlank { UUID.randomUUID().toString() },
+                title = obj.optString("title"),
+                timestamp = obj.optLong("timestamp", System.currentTimeMillis()),
+                color = runCatching { NoteColor.valueOf(obj.optString("color")) }
+                    .getOrDefault(NoteColor.DEFAULT),
+                type = type
+            )
+        }
+    }.getOrDefault(emptyList())
+
+private fun parseLegacyNotes(raw: String): List<Note> {
     return raw.split("||").mapNotNull { entry ->
         runCatching {
             val parts = entry.split("##")

@@ -1,16 +1,30 @@
 package com.tabslify.core
 
+import android.app.AlarmManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Context.MODE_PRIVATE
 import android.content.Intent
 import androidx.core.content.ContextCompat
+import com.tabslify.quiethoursnotificationhelper.schedulePodcastCheck
+import com.tabslify.services.BlockedNotificationReceiver
 import com.tabslify.services.QuietHoursNotificationService
 import com.tabslify.tabs.exploretab.ExploreLocationTracker
 import com.tabslify.tabs.focusguard.FocusGuardService
 
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        val action = intent?.action
+
+        if (action == AlarmManager.ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED) {
+            rescheduleAlarms(context)
+            return
+        }
+
+        if (action == Intent.ACTION_TIME_CHANGED || action == Intent.ACTION_TIMEZONE_CHANGED) {
+            rescheduleAlarms(context)
+        }
+
         val prefs = context.getSharedPreferences("app_prefs", MODE_PRIVATE)
         if (!prefs.getBoolean("services_master", true)) {
             return
@@ -25,6 +39,11 @@ class BootReceiver : BroadcastReceiver() {
                     context.startService(serviceIntent)
                 } catch (_: Exception) {
                 }
+            }
+            try {
+                schedulePodcastCheck(context)
+                QuietHoursNotificationService.scheduleDailySummaryAlarm(context)
+            } catch (_: Exception) {
             }
         }
 
@@ -49,6 +68,16 @@ class BootReceiver : BroadcastReceiver() {
 
         try {
             ExploreLocationTracker.start(context)
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun rescheduleAlarms(context: Context) {
+        try {
+            schedulePodcastCheck(context)
+            QuietHoursNotificationService.scheduleDailySummaryAlarm(context)
+            com.tabslify.tabs.focusguard.monitoring.scheduleFocusGuardDailySummary(context)
+            BlockedNotificationReceiver.rescheduleAlarmFrom(context)
         } catch (_: Exception) {
         }
     }

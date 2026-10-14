@@ -1,13 +1,10 @@
 package com.tabslify.tabs.exploretab
 
 import android.content.Context
+import androidx.work.CoroutineWorker
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
-import androidx.work.Worker
 import androidx.work.WorkerParameters
-import com.tabslify.core.functions.errorInsert
-import kotlinx.coroutines.runBlocking
-import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
@@ -15,28 +12,20 @@ import java.util.concurrent.TimeUnit
 
 private const val RAW_POINT_RETENTION_DAYS = 30L
 
-class ExploreNightRestartWorker(ctx: Context, params: WorkerParameters) : Worker(ctx, params) {
-    override fun doWork(): Result {
-        val ctx = applicationContext
-        errorInsert(
-            "ExploreTracker",
-            "NightRestartWorker - Starting tracker",
-            Instant.now().toString(),
-            "LOG"
-        )
-        ExploreLocationTracker.start(ctx)
-
-        runBlocking {
-            try {
-                ExploreSegmentBuilder.rebuildDay(ctx, LocalDate.now().minusDays(1))
-                val cutoff = System.currentTimeMillis() - RAW_POINT_RETENTION_DAYS * 24 * 60 * 60 * 1000
-                val repo = ExploreRepository(ctx)
-                repo.deleteRawPointsBefore(cutoff)
-                repo.deleteTrackerEventsBefore(cutoff)
-            } catch (_: Exception) {
-            }
+class ExploreNightRestartWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {
+    override suspend fun doWork(): Result {
+        val appCtx = applicationContext
+        try {
+            ExploreSegmentBuilder.rebuildDay(appCtx, LocalDate.now().minusDays(1))
+            val cutoff = System.currentTimeMillis() - RAW_POINT_RETENTION_DAYS * 24 * 60 * 60 * 1000
+            val repo = ExploreRepository(appCtx)
+            repo.deleteRawPointsBefore(cutoff)
+            repo.deleteTrackerEventsBefore(cutoff)
+        } catch (_: Exception) {
+            return if (runAttemptCount < MAX_ATTEMPTS) Result.retry() else Result.failure()
         }
 
+        ExploreLocationTracker.start(appCtx)
         return Result.success()
     }
 
@@ -45,6 +34,7 @@ class ExploreNightRestartWorker(ctx: Context, params: WorkerParameters) : Worker
         private const val RESTART_HOUR = 5
         private const val RESTART_MINUTE = 0
         private const val MIN_DELAY_MS = 60_000L
+        private const val MAX_ATTEMPTS = 3
 
         fun schedule(context: Context) {
             val appCtx = context.applicationContext
@@ -66,13 +56,6 @@ class ExploreNightRestartWorker(ctx: Context, params: WorkerParameters) : Worker
 
             WorkManager.getInstance(appCtx)
                 .enqueueUniqueWork(TAG, androidx.work.ExistingWorkPolicy.REPLACE, req)
-
-            errorInsert(
-                "ExploreTracker",
-                "NightRestartWorker - Scheduled for $nextRestart (delay=${delay / 1000}s)",
-                Instant.now().toString(),
-                "LOG"
-            )
         }
 
         fun cancel(context: Context) {

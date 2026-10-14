@@ -15,6 +15,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.RemoteInput
 import com.tabslify.core.activities.MainActivity
+import com.tabslify.core.functions.ExactAlarms
 import com.tabslify.core.functions.showSimpleNotificationExtern
 import com.tabslify.core.objects.prvt
 import com.tabslify.inactive.ChatService
@@ -90,17 +91,11 @@ fun scheduleNextCheck(context: Context) {
 
     val checkRunnable = QuietHoursNotificationService.getCheckRunnable(context)
 
+    workerHandler.removeCallbacksAndMessages(null)
     if (delayMinutes < THRESHOLD_MINUTES) {
-        workerHandler.removeCallbacksAndMessages(null)
         workerHandler.postDelayed(checkRunnable, maxOf(delayMillis, 30_000L))
-    } else {
-        workerHandler.removeCallbacksAndMessages(null)
-        val alarmManager = context.getSystemService(ALARM_SERVICE) as AlarmManager
-        if (alarmManager.canScheduleExactAlarms()) {
-            scheduleWithAlarmManager(nextChange.timeInMillis, context, checkRunnable)
-        } else {
-            workerHandler.postDelayed(checkRunnable, maxOf(delayMillis, 30_000L))
-        }
+    } else if (!scheduleWithAlarmManager(nextChange.timeInMillis, context, checkRunnable)) {
+        workerHandler.postDelayed(checkRunnable, maxOf(delayMillis, 30_000L))
     }
 }
 
@@ -108,10 +103,9 @@ private fun scheduleWithAlarmManager(
     triggerAtMillis: Long,
     context: Context,
     checkRunnable: Runnable
-) {
-    try {
+): Boolean {
+    return try {
         val alarmManager = context.getSystemService(ALARM_SERVICE) as AlarmManager
-        if (!alarmManager.canScheduleExactAlarms()) return
 
         handler.removeCallbacks(checkRunnable)
 
@@ -126,21 +120,26 @@ private fun scheduleWithAlarmManager(
 
         alarmManager.cancel(pendingIntent)
 
-        alarmManager.setExactAndAllowWhileIdle(
-            AlarmManager.RTC_WAKEUP,
+        val gesetzt = ExactAlarms.setExactOrWindow(
+            alarmManager,
             triggerAtMillis,
-            pendingIntent
+            pendingIntent,
+            QUIET_HOURS_WINDOW_MS
         )
 
         Log.d(
-            "QuietHoursService", "⏰ AlarmManager scheduled: ${
+            "QuietHoursService", "⏰ AlarmManager geplant: ${
                 SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date(triggerAtMillis))
             }"
         )
+        gesetzt
     } catch (e: Exception) {
-        Log.e("QuietHoursService", "AlarmManager failed: ", e)
+        Log.e("QuietHoursService", "AlarmManager fehlgeschlagen: ", e)
+        false
     }
 }
+
+private const val QUIET_HOURS_WINDOW_MS = 10 * 60_000L
 
 fun createNotificationChannel(context: Context) {
     val notificationManager = context.getSystemService(NotificationManager::class.java)

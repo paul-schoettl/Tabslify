@@ -1,29 +1,39 @@
 package com.tabslify.quiethoursnotificationhelper
 
-import android.content.BroadcastReceiver
 import android.content.Context
-import android.content.Intent
+import androidx.work.CoroutineWorker
 import androidx.work.Worker
 import androidx.work.WorkerParameters
 import com.tabslify.core.activities.Tabslify
+import com.tabslify.core.functions.errorInsert
 import com.tabslify.core.objects.CloudBackup
 import com.tabslify.services.QuietHoursNotificationService
-import com.tabslify.services.QuietHoursNotificationService.Companion.ACTION_DAILY_MUSIC_SUMMARY
 import com.tabslify.services.QuietHoursNotificationService.Companion.MAX_MESSAGES_PER_CONTACT
-import com.tabslify.services.QuietHoursNotificationService.Companion.scheduledailysummaryalarm
-import com.tabslify.services.QuietHoursNotificationService.Companion.workerHandler
 import com.tabslify.services.WhatsAppNotificationListener
+import com.tabslify.tabs.focusguard.monitoring.FocusGuardSummaryRunner
+import java.time.Instant
 
-class DailySummaryReceiver : BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent) {
-        context.startService(
-            Intent(context, QuietHoursNotificationService::class.java).apply {
-                action = ACTION_DAILY_MUSIC_SUMMARY
-            }
-        )
-        // Gleichzeitig mit der Music-AI-Summary: einmal täglich Cloud-Backup (Prefs + Batterie).
-        CloudBackup.backupNow(context.applicationContext, Tabslify.appScope)
-        scheduledailysummaryalarm(context)
+class DailyDigestWorker(
+    ctx: Context,
+    params: WorkerParameters
+) : CoroutineWorker(ctx, params) {
+    override suspend fun doWork(): Result {
+        val appCtx = applicationContext
+        try {
+            runDailyMusicSummary(appCtx)
+            CloudBackup.backupNow(appCtx, Tabslify.appScope)
+            postSchoolDaySummary(appCtx)
+            runCatching { FocusGuardSummaryRunner.run(appCtx) }
+        } catch (e: Exception) {
+            errorInsert(
+                "DailyDigestWorker",
+                e.stackTraceToString().take(8000),
+                Instant.now().toString(),
+                "ERROR"
+            )
+        }
+        DailyDigestScheduler.scheduleNext(appCtx)
+        return Result.success()
     }
 }
 
@@ -72,7 +82,7 @@ class SyncTriggerWorker(
         return try {
             val calendar = java.util.Calendar.getInstance()
             val hour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
-            
+
             if (hour in 21..22) {
                 if (!isTriggerPortOpen()) {
                     syncTodosWithLaptop(context)

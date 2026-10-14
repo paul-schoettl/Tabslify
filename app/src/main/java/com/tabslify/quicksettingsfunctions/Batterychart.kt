@@ -49,11 +49,14 @@ import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import androidx.core.content.edit
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
@@ -304,7 +307,7 @@ class BatterySamplingWorker(appContext: Context, workerParams: WorkerParameters)
 fun startBatteryWorker(context: Context) {
     WorkManager.getInstance(context).enqueueUniquePeriodicWork(
         "BatterySampling", ExistingPeriodicWorkPolicy.KEEP,
-        PeriodicWorkRequestBuilder<BatterySamplingWorker>(10, TimeUnit.MINUTES).build()
+        PeriodicWorkRequestBuilder<BatterySamplingWorker>(15, TimeUnit.MINUTES).build()
     )
 }
 
@@ -332,11 +335,13 @@ fun BatteryChartScreen(onDismiss: () -> Unit) {
             startBatteryWorker(context)
         }
     }
-    LaunchedEffect(Unit) {
-        while (true) {
-            readBatterySample(context)?.let { BatteryDataRepository.addSample(it) }; kotlinx.coroutines.delay(
-                10_000L.milliseconds
-            )
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(lifecycleOwner) {
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            while (true) {
+                readBatterySample(context)?.let { BatteryDataRepository.addSample(it) }
+                kotlinx.coroutines.delay(10_000L.milliseconds)
+            }
         }
     }
 

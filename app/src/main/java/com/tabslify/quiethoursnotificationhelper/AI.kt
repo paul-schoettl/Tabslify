@@ -13,6 +13,8 @@ import com.google.firebase.ai.type.content
 import com.tabslify.core.objects.Config
 import com.tabslify.core.objects.Config.DEF_GEMINI
 import com.tabslify.tabs.aitab.ChatMessage
+import java.net.SocketException
+import java.net.SocketTimeoutException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -277,7 +279,7 @@ private suspend fun sendChatCompletionsMessage(
     systemPrompt: String,
     pic: String? = null,
     onToken: ((String) -> Unit)? = null
-): String {
+): String? {
     val messages = buildChatCompletionsMessages(history, userMessage, pic, systemPrompt)
 
     val payload = JSONObject().apply {
@@ -354,6 +356,12 @@ private suspend fun sendChatCompletionsMessage(
                     .ifBlank { "Response was 200 OK but empty." }
                 response
             }
+        } catch (e: SocketTimeoutException) {
+            Log.e(logTag, "$logTag Zeitueberschreitung beim Warten auf die Antwort: ${e.message}")
+            null
+        } catch (e: SocketException) {
+            Log.e(logTag, "$logTag Verbindung unterbrochen: ${e.message}")
+            null
         } finally {
             connection.disconnect()
         }
@@ -375,7 +383,7 @@ suspend fun sendOpenrouterMessage(
     pic: String? = null,
     model: String? = null,
     onToken: ((String) -> Unit)? = null
-): String = sendChatCompletionsMessage(
+): String? = sendChatCompletionsMessage(
     ctx = context,
     history = history,
     userMessage = userMessage,
