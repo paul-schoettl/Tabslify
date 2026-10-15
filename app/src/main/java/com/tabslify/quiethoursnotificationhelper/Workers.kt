@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.Worker
 import androidx.work.WorkerParameters
-import com.tabslify.core.activities.Tabslify
 import com.tabslify.core.functions.errorInsert
 import com.tabslify.core.objects.CloudBackup
 import com.tabslify.services.QuietHoursNotificationService
@@ -21,7 +20,7 @@ class DailyDigestWorker(
         val appCtx = applicationContext
         try {
             runDailyMusicSummary(appCtx)
-            CloudBackup.backupNow(appCtx, Tabslify.appScope)
+            CloudBackup.backupNow(appCtx)
             postSchoolDaySummary(appCtx)
             runCatching { FocusGuardSummaryRunner.run(appCtx) }
         } catch (e: Exception) {
@@ -53,11 +52,8 @@ class CleanupWorker(
 
     fun cleanupOldMessages() {
         workerHandler.post {
-            val cutoff = System.currentTimeMillis() - (24 * 60 * 60 * 1000)
             WhatsAppNotificationListener.messagesByContact.forEach { (_, msgs) ->
-                msgs.removeAll { it.timestamp < cutoff }
-                if (msgs.size > MAX_MESSAGES_PER_CONTACT)
-                    msgs.subList(0, msgs.size - MAX_MESSAGES_PER_CONTACT).clear()
+                pruneContactMessages(msgs)
             }
             WhatsAppNotificationListener.messagesByContact.entries.removeIf { it.value.isEmpty() }
         }

@@ -81,14 +81,14 @@ import com.google.firebase.ai.type.GenerativeBackend
 import com.google.firebase.ai.type.content
 import com.tabslify.core.activities.Tabslify.Companion.coroutineExceptionHandler
 import com.tabslify.core.functions.errorInsert
+import com.tabslify.core.functions.isNetworkFailure
 import com.tabslify.core.functions.postVoiceTapNotification
 import com.tabslify.core.functions.replyVoice
-import com.tabslify.core.functions.isNetworkFailure
+import com.tabslify.core.functions.showSimpleNotificationExtern
 import com.tabslify.core.functions.tryStartVoiceService
 import com.tabslify.core.functions.uploadVoiceFile
 import com.tabslify.core.functions.voiceFile
 import com.tabslify.core.functions.VoiceState
-import com.tabslify.core.functions.showSimpleNotificationExtern
 import com.tabslify.core.objects.Config
 import com.tabslify.core.objects.Config.FLASHCARD_RECEIVE_PORT
 import com.tabslify.core.objects.Config.INFO_PORT
@@ -107,8 +107,8 @@ import com.tabslify.tabs.authenticator.PasswordDatabase
 import com.tabslify.tabs.authenticator.TotpGenerator.base32Encode
 import com.tabslify.tabs.authenticator.TotpGenerator.deriveTotpSecretFromUuid
 import com.tabslify.tabs.authenticator.TotpGenerator.generateTOTP
-import com.tabslify.tabs.audiorecordertab.AudioForegroundService
 import com.tabslify.tabs.authenticator.TwoFADatabase
+import com.tabslify.tabs.audiorecordertab.AudioForegroundService
 import com.tabslify.tabs.mediaplayer.AlgorithmicPlaylistRegistry
 import com.tabslify.tabs.mediaplayer.ListenSession
 import com.tabslify.tabs.mediaplayer.MediaAnalyticsManager
@@ -118,6 +118,7 @@ import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -436,7 +437,6 @@ fun resetReconnectBackoff() {
     reconnectFailures = 0
     reconnectBackoff = RECONNECT_HEARTBEAT_INTERVAL
     reconnectSuspended = false
-    lastReconnectHeartbeat = 0L
 }
 
 private fun registerReconnectFailure() {
@@ -540,9 +540,10 @@ private var networkCallback: ConnectivityManager.NetworkCallback? = null
 private var pendingSyncJob: Job? = null
 private var lastTriggerTime = 0L
 private const val MIN_TRIGGER_INTERVAL = 15_000L
-private var lastReconnectHeartbeat = 0L
 private const val RECONNECT_HEARTBEAT_INTERVAL = 120_000L
 private const val RECONNECT_BACKOFF_MAX = 1_800_000L
+private const val TRIGGER_HEARTBEAT_CONNECTED_MS = 60_000L
+private const val TRIGGER_HEARTBEAT_IDLE_MS = 60_000L
 private const val MAX_RECONNECT_FAILURES = 6
 @Volatile
 private var reconnectFailures = 0
@@ -1082,27 +1083,43 @@ private fun startTriggerWatchdog(context: Context) {
     val ctx = context.applicationContext
     triggerWatchdogJob?.cancel()
     triggerWatchdogJob = syncScope.launch {
-        while (isActive) {
-            delay(20_000L.milliseconds)
-            if (triggerJob == null || triggerJob?.isActive != true) {
-                Log.w("CLOUDSA", "Trigger listener not active, restarting...")
-                showSimpleNotificationExtern(
-                    "⚠️ Trigger Listener",
-                    "Neustart des Trigger Listeners...",
-                    5.seconds,
-                    ctx
-                )
-                startTriggerListener(ctx)
+        val watchdogScope = this
+        isLaptopConnectedFlow.collect { connected ->
+            watchdogScope.coroutineContext.cancelChildren()
+            watchdogScope.launch {
+                if (connected) triggerConnectedHeartbeat(ctx)
+                else triggerReconnectHeartbeat(ctx)
             }
-            if (isLaptopConnected) {
-                ensureSyncListenersAlive(ctx)
-            } else if (laptopIp.isNotEmpty() && !reconnectSuspended) {
-                val now = System.currentTimeMillis()
-                if (now - lastReconnectHeartbeat >= reconnectBackoff) {
-                    lastReconnectHeartbeat = now
-                    syncTodosWithLaptop(ctx)
-                }
-            }
+        }
+    }
+}
+
+private suspend fun CoroutineScope.triggerConnectedHeartbeat(ctx: Context) {
+    while (coroutineContext.isActive) {
+        if (triggerJob == null || triggerJob?.isActive != true) {
+            Log.w("CLOUDSA", "Trigger listener not active, restarting...")
+            showSimpleNotificationExtern(
+                "⚠️ Trigger Listener",
+                "Neustart des Trigger Listeners...",
+                5.seconds,
+                ctx
+            )
+            startTriggerListener(ctx)
+        }
+        if (isLaptopConnected) {
+            ensureSyncListenersAlive(ctx)
+        }
+        delay(TRIGGER_HEARTBEAT_CONNECTED_MS.milliseconds)
+    }
+}
+
+private suspend fun CoroutineScope.triggerReconnectHeartbeat(ctx: Context) {
+    while (coroutineContext.isActive) {
+        if (!isLaptopConnected && laptopIp.isNotEmpty() && !reconnectSuspended) {
+            syncTodosWithLaptop(ctx)
+            delay(reconnectBackoff.milliseconds)
+        } else {
+            delay(TRIGGER_HEARTBEAT_IDLE_MS.milliseconds)
         }
     }
 }
@@ -2713,6 +2730,7 @@ private fun handleExecuteCommand(context: Context, json: JSONObject) {
                 }
             }
         }
+
         "start_voice_recording" -> {
             syncScope.launch(Dispatchers.IO) {
                 val ctx = context.applicationContext
@@ -2765,7 +2783,6 @@ private fun handleExecuteCommand(context: Context, json: JSONObject) {
                 }
             }
         }
-
 
         else -> {}
     }
