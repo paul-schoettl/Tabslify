@@ -15,6 +15,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
+import androidx.core.content.edit
 
 data class TikTokSession(val cookie: String, val deviceId: String)
 
@@ -61,7 +62,7 @@ object TikTokCookieRepository {
 
     private fun markFromPc(context: Context) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit().putBoolean(KEY_FROM_PC, true).apply()
+            .edit {putBoolean(KEY_FROM_PC, true)}
     }
 
     private suspend fun fetchFromPc(context: Context): TikTokSession? = withContext(Dispatchers.IO) {
@@ -78,8 +79,7 @@ object TikTokCookieRepository {
                 return@withContext session
             }
         }
-        val prefix = localIpv4()?.substringBeforeLast('.')
-        if (prefix == null) return@withContext null
+        val prefix = localIpv4()?.substringBeforeLast('.') ?: return@withContext null
         val hit = scanSubnet(prefix)
         if (hit != null) {
             Log.i(TAG, "PC per Netzwerkscan gefunden: $hit")
@@ -141,7 +141,7 @@ object TikTokCookieRepository {
     private fun rememberHost(context: Context, host: String) {
         runCatching {
             context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                .edit().putString(KEY_PC_HOST, host).apply()
+                .edit { putString(KEY_PC_HOST, host)}
         }
     }
 
@@ -219,10 +219,10 @@ object TikTokCookieRepository {
 
     private fun writeSession(context: Context, session: TikTokSession) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putString(KEY_COOKIE, sanitizeCookie(session.cookie))
-            .putString(KEY_DEVICE_ID, session.deviceId)
-            .apply()
+            .edit {
+                putString(KEY_COOKIE, sanitizeCookie(session.cookie))
+                    .putString(KEY_DEVICE_ID, session.deviceId)
+            }
     }
 
     private fun sanitizeCookie(raw: String): String {

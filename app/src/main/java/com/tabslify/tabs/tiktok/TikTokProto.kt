@@ -28,11 +28,28 @@ data class TikTokConversation(
     val lastMessage: String
 )
 
+data class TikTokConvMeta(
+    val convId: String,
+    val convType: Int,
+    val convShortId: Long,
+    val ticket: String
+)
+
 data class TikTokFeed(
     val conversations: List<TikTokConversation>,
     val messages: List<TikTokMessage>,
     val selfId: String = "",
-    val hasMore: Set<String> = emptySet()
+    val hasMore: Set<String> = emptySet(),
+    val convMeta: Map<String, TikTokConvMeta> = emptyMap()
+)
+
+data class TikTokSendResult(
+    val statusCode: Int,
+    val errorDesc: String,
+    val innerStatus: Int,
+    val serverMessageId: Long,
+    val clientMessageId: String,
+    val newTicket: String
 )
 
 object TikTokProto {
@@ -41,6 +58,8 @@ object TikTokProto {
     private const val SUB_CMD_INIT = 10001
     private const val CMD_COMBO = 204
     private const val SUB_CMD_COMBO = 10011
+    private const val CMD_SEND = 100
+    private const val SEND_MESSAGE_TYPE_TEXT = 7
 
     fun buildInitRequest(params: Map<String, String>, deviceId: String, combo: Boolean = false): ByteArray {
         val out = ByteArrayOutputStream()
@@ -71,17 +90,22 @@ object TikTokProto {
 
     fun parse(bytes: ByteArray): TikTokFeed {
         val raw = mutableListOf<RawMessage>()
-        for (field in readFields(bytes)) {
-            if (field.number != 6 || field.value !is ByteArray) continue
-            val payload = readFields(field.value)
+        val metas = mutableMapOf<String, TikTokConvMeta>()
+        for ((number, value) in readFields(bytes)) {
+            if (number != 6 || value !is ByteArray) continue
+            val payload = readFields(value)
                 .firstOrNull { it.number == CMD_INIT && it.value is ByteArray }?.value as? ByteArray ?: continue
-            for (record in readFields(payload)) {
-                if (record.number == 1 && record.value is ByteArray) {
-                    parseMessage(record.value)?.let { raw += it }
+            for ((number1, value1) in readFields(payload)) {
+                when (number1) {
+                    1 if value1 is ByteArray ->
+                        parseMessage(value1)?.let { raw += it }
+
+                    2 if value1 is ByteArray ->
+                        parseConversation(value1)?.let { metas[it.convId] = it }
                 }
             }
         }
-        if (raw.isEmpty()) return TikTokFeed(emptyList(), emptyList())
+        if (raw.isEmpty() && metas.isEmpty()) return TikTokFeed(emptyList(), emptyList())
 
         val self = mostFrequentUid(raw.map { it.convId })
         val messages = raw
@@ -90,10 +114,88 @@ object TikTokProto {
         val conversations = messages.groupBy { it.convId }
             .map { (convId, list) ->
                 val last = list.last()
-                TikTokConversation(convId, peerOf(convId, self), "", last.timestamp, last.text)
+                TikTokConversation(convId, peerOf(convId, self).ifEmpty { self }, "", last.timestamp, last.text)
             }
             .sortedByDescending { it.lastTimestamp }
-        return TikTokFeed(conversations, messages, self)
+        return TikTokFeed(conversations, messages, self, convMeta = metas)
+    }
+
+    fun buildSendRequest(
+        params: Map<String, String>,
+        deviceId: String,
+        meta: TikTokConvMeta,
+        contentJson: String,
+        clientMessageId: String
+    ): ByteArray {
+        val out = ByteArrayOutputStream()
+        val sendBody = ByteArrayOutputStream().apply {
+            writeString(this, 1, meta.convId)
+            writeVarintField(this, 2, meta.convType.toLong())
+            writeVarintField(this, 3, meta.convShortId)
+            writeString(this, 4, contentJson)
+            writeVarintField(this, 6, SEND_MESSAGE_TYPE_TEXT.toLong())
+            writeString(this, 7, meta.ticket)
+            writeString(this, 8, clientMessageId)
+        }.toByteArray()
+        val body = ByteArrayOutputStream().apply { writeBytes(this, CMD_SEND, sendBody) }.toByteArray()
+        writeVarintField(out, 1, CMD_SEND.toLong())
+        writeVarintField(out, 2, System.currentTimeMillis())
+        writeString(out, 3, "1.8.2")
+        writeBytes(out, 4, ByteArray(0))
+        writeVarintField(out, 5, 3)
+        writeVarintField(out, 6, 0)
+        writeString(out, 7, "1132b10:master")
+        writeBytes(out, 8, body)
+        writeString(out, 9, deviceId)
+        writeString(out, 11, "web")
+        for ((key, value) in params) {
+            val entry = ByteArrayOutputStream().apply {
+                writeString(this, 1, key)
+                writeString(this, 2, value)
+            }.toByteArray()
+            writeBytes(out, 15, entry)
+        }
+        writeVarintField(out, 18, 1)
+        return out.toByteArray()
+    }
+
+    fun parseSendResponse(bytes: ByteArray): TikTokSendResult {
+        var statusCode = -1
+        var errorDesc = ""
+        var body: ByteArray? = null
+        for ((number, value) in readFields(bytes)) {
+            when (number) {
+                3 if value is Long -> statusCode = value.toInt()
+                4 if value is String -> errorDesc = value
+                6 if value is ByteArray -> body = value
+            }
+        }
+        var innerStatus = -1
+        var serverMessageId = 0L
+        var clientMessageId = ""
+        var newTicket = ""
+        if (body != null) {
+            val sendBody = readFields(body)
+                .firstOrNull { it.number == CMD_SEND && it.value is ByteArray }?.value as? ByteArray
+            if (sendBody != null) {
+                val fields = readFields(sendBody)
+                innerStatus = longField(fields, 3)?.toInt() ?: -1
+                serverMessageId = longField(fields, 1) ?: 0L
+                clientMessageId = stringField(fields, 4).orEmpty()
+                newTicket = stringField(fields, 9).orEmpty()
+            }
+        }
+        return TikTokSendResult(statusCode, errorDesc, innerStatus, serverMessageId, clientMessageId, newTicket)
+    }
+
+    private fun parseConversation(bytes: ByteArray): TikTokConvMeta? {
+        val fields = readFields(bytes)
+        val convId = stringField(fields, 1) ?: return null
+        if (!convId.contains(':')) return null
+        val shortId = longField(fields, 2) ?: 0L
+        val type = longField(fields, 3)?.toInt() ?: 1
+        val ticket = stringField(fields, 4).orEmpty()
+        return TikTokConvMeta(convId, type, shortId, ticket)
     }
 
     fun buildConversationRequest(
@@ -139,16 +241,17 @@ object TikTokProto {
         val raw = mutableListOf<RawMessage>()
         var nextCursor = 0L
         var hasMore = false
-        for (field in readFields(bytes)) {
-            if (field.number != 6 || field.value !is ByteArray) continue
-            val payload = readFields(field.value as ByteArray)
+        for ((number, value) in readFields(bytes)) {
+            if (number != 6 || value !is ByteArray) continue
+            val payload = readFields(value)
                 .firstOrNull { it.number == 301 && it.value is ByteArray }?.value as? ByteArray ?: continue
-            for (record in readFields(payload)) {
-                when {
-                    record.number == 1 && record.value is ByteArray ->
-                        parseMessage(record.value as ByteArray)?.let { raw += it }
-                    record.number == 2 && record.value is Long -> nextCursor = record.value as Long
-                    record.number == 3 && record.value is Long -> hasMore = (record.value as Long) != 0L
+            for ((number1, value1) in readFields(payload)) {
+                when (number1) {
+                    1 if value1 is ByteArray ->
+                        parseMessage(value1)?.let { raw += it }
+
+                    2 if value1 is Long -> nextCursor = value1
+                    3 if value1 is Long -> hasMore = value1 != 0L
                 }
             }
         }
@@ -270,8 +373,14 @@ object TikTokProto {
     private fun peerOf(convId: String, self: String): String =
         convId.split(':').lastOrNull { it != self && it.length >= 5 }.orEmpty()
 
-    private fun stringField(fields: List<Field>, number: Int): String? =
-        fields.firstOrNull { it.number == number && it.value is String }?.value as? String
+    private fun stringField(fields: List<Field>, number: Int): String? {
+        val value = fields.firstOrNull { it.number == number }?.value ?: return null
+        return when (value) {
+            is String -> value
+            is ByteArray -> String(value, Charsets.UTF_8)
+            else -> null
+        }
+    }
 
     private fun longField(fields: List<Field>, number: Int): Long? =
         fields.firstOrNull { it.number == number && it.value is Long }?.value as? Long

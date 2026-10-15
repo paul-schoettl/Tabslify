@@ -17,6 +17,7 @@ object TikTokDmClient {
 
     private const val INIT_URL = "https://im-api.tiktok.com/v2/message/get_by_user_init"
     private const val CONV_URL = "https://im-api.tiktok.com/v1/message/get_by_conversation"
+    private const val SEND_URL = "https://im-api.tiktok.com/v1/message/send"
     private const val PROFILE_URL = "https://www.tiktok.com/tiktok/v1/im/user/profile/"
     private const val USER_AGENT =
         "Mozilla/5.0 (X11; Linux x86_64; rv:157.0) Gecko/20100101 Firefox/157.0"
@@ -73,6 +74,68 @@ object TikTokDmClient {
         }
     }
 
+    suspend fun resolvePeerName(context: Context, peerId: String): String? = withContext(Dispatchers.IO) {
+        if (peerId.isBlank()) return@withContext null
+        val session = runCatching { TikTokCookieRepository.session(context) }.getOrNull()
+            ?: return@withContext null
+        fetchProfiles(session.cookie, listOf(peerId))[peerId]
+    }
+
+    suspend fun send(context: Context, convId: String, peerId: String, text: String): String =
+        withContext(Dispatchers.IO) {
+            val foreign = TikTokSendPolicy.blockedForeign(convId)
+            if (foreign.isNotEmpty()) {
+                throw TikTokDmException(
+                    403,
+                    "Senden ist im Testmodus auf eigene Accounts beschränkt (${foreign.joinToString(",")})"
+                )
+            }
+            if (!TikTokSendPolicy.recipientAllowed(peerId)) {
+                throw TikTokDmException(403, "Senden ist ausschließlich an programmi erlaubt")
+            }
+            val clean = text.trim()
+            if (clean.isEmpty()) throw TikTokDmException(400, "Leere Nachricht")
+            val session = TikTokCookieRepository.session(context)
+            var meta = _feed.value.convMeta[convId]
+            if (meta == null || meta.ticket.isEmpty() || meta.convShortId == 0L) {
+                meta = fetch(session).convMeta[convId]
+            }
+            if (meta == null || meta.ticket.isEmpty() || meta.convShortId == 0L) {
+                throw TikTokDmException(409, "Chat-Metadaten (Ticket/ShortId) nicht gefunden")
+            }
+            val content = JSONObject().put("aweType", 0).put("text", clean).toString()
+            val clientMessageId = "${System.currentTimeMillis()}${(100..999).random()}"
+            val body = TikTokProto.buildSendRequest(buildParams(session), session.deviceId, meta, content, clientMessageId)
+            val result = TikTokProto.parseSendResponse(post(SEND_URL, session.cookie, body))
+            if (result.newTicket.isNotEmpty()) {
+                _feed.value = _feed.value.copy(
+                    convMeta = _feed.value.convMeta + (convId to meta.copy(ticket = result.newTicket))
+                )
+            }
+            if (result.statusCode != 0) {
+                throw TikTokDmException(
+                    result.statusCode,
+                    "TikTok: ${result.errorDesc.ifEmpty { "Status ${result.statusCode}" }}"
+                )
+            }
+            if (result.innerStatus != 0) {
+                throw TikTokDmException(result.innerStatus, "TikTok: Nachricht abgelehnt (Status ${result.innerStatus})")
+            }
+            if (result.serverMessageId > 0L) {
+                val message = TikTokMessage(
+                    id = result.serverMessageId.toString(),
+                    convId = convId,
+                    convHash = meta.convShortId,
+                    senderId = _feed.value.selfId,
+                    text = clean,
+                    timestamp = System.currentTimeMillis(),
+                    isOwn = true
+                )
+                merge(convId, TikTokPage(listOf(message), 0L, false), replace = false)
+            }
+            "Gesendet ($clientMessageId)"
+        }
+
     private fun convHash(convId: String): Long =
         _feed.value.messages.firstOrNull { it.convId == convId }?.convHash ?: 0L
 
@@ -82,7 +145,7 @@ object TikTokDmClient {
         val existing = if (replace) emptyList() else current.messages.filter { it.convId == convId }
         val byId = LinkedHashMap<String, TikTokMessage>()
         for (message in existing + page.messages) {
-            val key = if (message.id.isNotEmpty()) message.id else "${message.convId}:${message.timestamp}:${message.text}"
+            val key = message.id.ifEmpty { "${message.convId}:${message.timestamp}:${message.text}" }
             byId[key] = message
         }
         val merged = (kept + byId.values).sortedBy { it.timestamp }

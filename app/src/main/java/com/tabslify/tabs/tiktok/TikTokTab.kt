@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -22,6 +24,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -35,9 +38,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import android.webkit.WebView
 import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -66,7 +72,26 @@ fun TikTokTabContent() {
 
     LaunchedEffect(Unit) { reload() }
 
-    TikTokBackground {
+    var webViewSichtbar by remember { mutableStateOf(false) }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        AndroidView(
+            factory = { ctx -> WebView(ctx).also { TikTokWebSender.attach(it) } },
+            modifier = if (webViewSichtbar) {
+                Modifier
+                    .fillMaxSize()
+                    .zIndex(2f)
+            } else {
+                Modifier.fillMaxSize()
+            },
+            update = { view ->
+                if (webViewSichtbar) {
+                    TikTokWebSender.onVisible()
+                    view.invalidate()
+                }
+            }
+        )
+        TikTokBackground {
         val selected = feed.conversations.firstOrNull { it.convId == selectedConv }
         if (selected == null) {
             ConversationList(
@@ -87,8 +112,20 @@ fun TikTokTabContent() {
                 hasMore = convId in feed.hasMore,
                 loading = loadingConv == convId,
                 onLoadMore = { scope.launch { runCatching { TikTokDmClient.loadMore(context, convId) } } },
-                onBack = { selectedConv = null }
+                onBack = { selectedConv = null },
+                onSent = { scope.launch { runCatching { TikTokDmClient.load(context) } } },
+                sendBlocked = webViewSichtbar
             )
+        }
+        }
+        Button(
+            onClick = { webViewSichtbar = !webViewSichtbar },
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(6.dp)
+                .zIndex(3f)
+        ) {
+            Text(if (webViewSichtbar) "WebView aus" else "WebView an")
         }
     }
 }
@@ -168,8 +205,39 @@ private fun ChatView(
     hasMore: Boolean,
     loading: Boolean,
     onLoadMore: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onSent: () -> Unit,
+    sendBlocked: Boolean = false
 ) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var draft by remember(conversation.convId) { mutableStateOf("") }
+    var sendError by remember(conversation.convId) { mutableStateOf<String?>(null) }
+    var sending by remember(conversation.convId) { mutableStateOf(false) }
+
+    fun doSend() {
+        val text = draft.trim()
+        if (text.isEmpty() || sending) return
+        if (sendBlocked) {
+            sendError = "WebView ist sichtbar - zum Senden ausschalten"
+            return
+        }
+        sendError = null
+        sending = true
+        scope.launch {
+            runCatching {
+                TikTokDmClient.send(context, conversation.convId, conversation.peerId, text)
+            }.onSuccess {
+                draft = ""
+                sendError = null
+                onSent()
+            }.onFailure {
+                sendError = it.message ?: it.toString()
+            }
+            sending = false
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -186,20 +254,19 @@ private fun ChatView(
         Spacer(Modifier.height(8.dp))
 
         val listState = rememberLazyListState()
-        var lastSeenId by remember(conversation.convId) { mutableStateOf("") }
-        LaunchedEffect(messages) {
-            val last = messages.lastOrNull()
-            if (last != null && last.id != lastSeenId) {
-                lastSeenId = last.id
-                listState.scrollToItem(messages.size)
-            }
-        }
+        val ordered = remember(messages) { messages.sortedBy { it.timestamp }.reversed() }
 
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
             state = listState,
+            reverseLayout = true,
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
+            items(ordered, key = { it.id.ifEmpty { it.timestamp.toString() + it.text } }) { message ->
+                MessageBubble(message)
+            }
             item {
                 when {
                     loading -> Box(
@@ -215,7 +282,48 @@ private fun ChatView(
                     ) { Text("⬆︎ Ältere Nachrichten") }
                 }
             }
-            items(messages) { message -> MessageBubble(message) }
+        }
+
+        if (sendError != null) {
+            Text(
+                text = "Senden fehlgeschlagen: $sendError",
+                color = Color(0xFFFF8A80),
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.padding(vertical = 4.dp)
+            )
+        }
+        if (sending) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(vertical = 4.dp)
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = " Sende…",
+                    style = MaterialTheme.typography.labelMedium
+                )
+            }
+        }
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            TextField(
+                value = draft,
+                onValueChange = { draft = it },
+                placeholder = { Text("Nachricht…") },
+                modifier = Modifier.weight(1f),
+                singleLine = false,
+                maxLines = 4
+            )
+            Spacer(Modifier.width(8.dp))
+            Button(
+                onClick = { doSend() },
+                enabled = draft.trim().isNotEmpty() && !sending,
+                modifier = Modifier.padding(start = 8.dp)
+            ) { Text("↑") }
         }
     }
 }
