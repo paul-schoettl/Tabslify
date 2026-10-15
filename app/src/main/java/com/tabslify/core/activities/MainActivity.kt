@@ -5,6 +5,7 @@ import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.app.admin.DeviceAdminReceiver
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
@@ -24,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.core.animation.doOnEnd
+import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
 import androidx.fragment.app.FragmentActivity
@@ -31,6 +33,8 @@ import com.tabslify.R
 import com.tabslify.core.objects.Config
 import com.tabslify.core.objects.Config.requestPermission
 import com.tabslify.core.objects.prvt
+import com.tabslify.core.functions.EXTRA_VOICE_START
+import com.tabslify.core.functions.startVoiceRecordingNow
 import com.tabslify.core.ui.LandingPageOrApp
 import com.tabslify.core.ui.SharedViewModel
 import com.tabslify.core.ui.Typography
@@ -53,6 +57,17 @@ class MainActivity : FragmentActivity() {
 
     private var jsonFilePath by mutableStateOf<String?>(null)
     private var jsonFileUri by mutableStateOf<Uri?>(null)
+    private val voicePermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { results ->
+        if (results[Manifest.permission.RECORD_AUDIO] == true) {
+            if (!startVoiceRecordingNow(this)) {
+                Toast.makeText(this, "Voice-Aufnahme konnte nicht starten", Toast.LENGTH_LONG).show()
+            }
+        } else {
+            Toast.makeText(this, "Mikrofon-Berechtigung fehlt", Toast.LENGTH_LONG).show()
+        }
+    }
     private var showJsonEditor by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -136,6 +151,7 @@ class MainActivity : FragmentActivity() {
         applyAiNotifyDeepLink(intent)
         applyVirusTotalDeepLink(intent)
         applyTextActionDeepLink(intent)
+        applyVoiceDeepLink(intent)
         setContent {
             val appColor = rememberAppColor()
             MaterialTheme(
@@ -192,6 +208,7 @@ class MainActivity : FragmentActivity() {
         applyAiNotifyDeepLink(intent)
         applyVirusTotalDeepLink(intent)
         applyTextActionDeepLink(intent)
+        applyVoiceDeepLink(intent)
     }
 
     private fun applyEmailDeepLink(intent: Intent) {
@@ -218,6 +235,20 @@ class MainActivity : FragmentActivity() {
         val prompt = intent.getStringExtra("ai_prompt")?.trim()
         if (!prompt.isNullOrEmpty()) {
             sharedViewModel.setPendingAiPrompt(prompt)
+        }
+    }
+
+    private fun applyVoiceDeepLink(intent: Intent) {
+        if (!intent.getBooleanExtra(EXTRA_VOICE_START, false)) return
+        intent.removeExtra(EXTRA_VOICE_START)
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            if (!startVoiceRecordingNow(this)) {
+                Toast.makeText(this, "Voice-Aufnahme konnte nicht starten", Toast.LENGTH_LONG).show()
+            }
+        } else {
+            voicePermissionLauncher.launch(arrayOf(Manifest.permission.RECORD_AUDIO))
         }
     }
 

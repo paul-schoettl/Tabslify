@@ -81,7 +81,13 @@ import com.google.firebase.ai.type.GenerativeBackend
 import com.google.firebase.ai.type.content
 import com.tabslify.core.activities.Tabslify.Companion.coroutineExceptionHandler
 import com.tabslify.core.functions.errorInsert
+import com.tabslify.core.functions.postVoiceTapNotification
+import com.tabslify.core.functions.replyVoice
 import com.tabslify.core.functions.isNetworkFailure
+import com.tabslify.core.functions.tryStartVoiceService
+import com.tabslify.core.functions.uploadVoiceFile
+import com.tabslify.core.functions.voiceFile
+import com.tabslify.core.functions.VoiceState
 import com.tabslify.core.functions.showSimpleNotificationExtern
 import com.tabslify.core.objects.Config
 import com.tabslify.core.objects.Config.FLASHCARD_RECEIVE_PORT
@@ -101,6 +107,7 @@ import com.tabslify.tabs.authenticator.PasswordDatabase
 import com.tabslify.tabs.authenticator.TotpGenerator.base32Encode
 import com.tabslify.tabs.authenticator.TotpGenerator.deriveTotpSecretFromUuid
 import com.tabslify.tabs.authenticator.TotpGenerator.generateTOTP
+import com.tabslify.tabs.audiorecordertab.AudioForegroundService
 import com.tabslify.tabs.authenticator.TwoFADatabase
 import com.tabslify.tabs.mediaplayer.AlgorithmicPlaylistRegistry
 import com.tabslify.tabs.mediaplayer.ListenSession
@@ -2706,6 +2713,59 @@ private fun handleExecuteCommand(context: Context, json: JSONObject) {
                 }
             }
         }
+        "start_voice_recording" -> {
+            syncScope.launch(Dispatchers.IO) {
+                val ctx = context.applicationContext
+                var ok = false
+                var reason = ""
+                if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.RECORD_AUDIO) !=
+                    PackageManager.PERMISSION_GRANTED
+                ) {
+                    reason = "no_permission"
+                } else {
+                    val file = voiceFile(ctx)
+                    VoiceState.filePath = file.absolutePath
+                    if (!tryStartVoiceService(ctx, file.absolutePath)) {
+                        postVoiceTapNotification(ctx)
+                    }
+                    val deadline = System.currentTimeMillis() + 20_000L
+                    while (!VoiceState.recording && System.currentTimeMillis() < deadline) {
+                        delay(250.milliseconds)
+                    }
+                    ok = VoiceState.recording
+                    if (!ok) {
+                        reason = "tap_timeout"
+                        VoiceState.filePath = null
+                    }
+                }
+                replyVoice(JSONObject().put("ok", ok).put("reason", reason))
+            }
+        }
+
+        "stop_voice_recording" -> {
+            syncScope.launch(Dispatchers.IO) {
+                val ctx = context.applicationContext
+                try {
+                    ctx.stopService(Intent(ctx, AudioForegroundService::class.java))
+                } catch (_: Exception) {
+                }
+                delay(700.milliseconds)
+                val path = VoiceState.filePath
+                VoiceState.recording = false
+                VoiceState.filePath = null
+                if (path != null) {
+                    val file = java.io.File(path)
+                    if (file.exists()) {
+                        uploadVoiceFile(file)
+                        try {
+                            file.delete()
+                        } catch (_: Exception) {
+                        }
+                    }
+                }
+            }
+        }
+
 
         else -> {}
     }

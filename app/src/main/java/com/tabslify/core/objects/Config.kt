@@ -123,6 +123,7 @@ object Config {
     const val MEDIA_STATE_PORT = 8900
     const val AI_PORT = 8902
     const val SPOTIFY_HISTORY_PORT = 8903
+    const val VOICE_PORT = 8904
     const val EXECUTE_PORT = 8905
     const val EXECUTE_PORT_SEND_FROM_HANDY = 8906
     const val EXECUTE_RESPONSE_PORT = 8907

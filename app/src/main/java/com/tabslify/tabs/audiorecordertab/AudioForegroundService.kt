@@ -22,6 +22,7 @@ import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
+import com.tabslify.core.functions.VoiceState
 import com.tabslify.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -86,6 +87,7 @@ class AudioForegroundService : Service() {
 
                 setOutputFile(path)
                 prepare()
+                VoiceState.recording = true
                 start()
             }
         } catch (e: Exception) {
@@ -317,6 +319,7 @@ class AudioForegroundService : Service() {
         }
     }
 
+        VoiceState.recording = false
     override fun onDestroy() {
         stopForeground(STOP_FOREGROUND_REMOVE)
         try {
