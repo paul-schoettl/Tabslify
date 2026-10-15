@@ -22,8 +22,8 @@ import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
-import com.tabslify.core.functions.VoiceState
 import com.tabslify.R
+import com.tabslify.core.functions.VoiceState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -61,10 +61,10 @@ class AudioForegroundService : Service() {
                     stopSelf()
                     return START_NOT_STICKY
                 }
-                startForeground(1, createNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
+                startForeground(1, safeNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION)
                 startPlaybackCapture(resultCode, data, filePath)
             } else {
-                startForeground(1, createNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
+                startForeground(1, safeNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
                 startRecording(filePath)
             }
         } catch (_: Exception) {
@@ -87,8 +87,8 @@ class AudioForegroundService : Service() {
 
                 setOutputFile(path)
                 prepare()
-                VoiceState.recording = true
                 start()
+                VoiceState.recording = true
             }
         } catch (e: Exception) {
             try {
@@ -285,24 +285,36 @@ class AudioForegroundService : Service() {
 
     private fun createNotification(): Notification {
         val launchTabslifyIntent =
-            packageManager.getLaunchIntentForPackage("com.paluss1122.tabslify")?.apply {
+            packageManager.getLaunchIntentForPackage(packageName)?.apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             }
-        val launchTabslifyPendingIntent = PendingIntent.getActivity(
-            this,
-            1002,
-            launchTabslifyIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
         val builder = NotificationCompat.Builder(this, "audio_channel")
             .setContentTitle(getString(R.string.aufnahme_lauft))
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setOngoing(true)
-            .setContentIntent(launchTabslifyPendingIntent)
-            .build()
+        if (launchTabslifyIntent != null) {
+            val launchTabslifyPendingIntent = PendingIntent.getActivity(
+                this,
+                1002,
+                launchTabslifyIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            builder.setContentIntent(launchTabslifyPendingIntent)
+        }
 
-        return builder
+        return builder.build()
+    }
+
+    private fun safeNotification(): Notification {
+        return try {
+            createNotification()
+        } catch (_: Exception) {
+            NotificationCompat.Builder(this, "audio_channel")
+                .setContentTitle(getString(R.string.aufnahme_lauft))
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setOngoing(true)
+                .build()
+        }
     }
 
     private fun createNotificationChannel() {
@@ -319,8 +331,8 @@ class AudioForegroundService : Service() {
         }
     }
 
-        VoiceState.recording = false
     override fun onDestroy() {
+        VoiceState.recording = false
         stopForeground(STOP_FOREGROUND_REMOVE)
         try {
             recorder?.stop()
