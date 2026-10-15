@@ -21,6 +21,7 @@ import com.tabslify.core.objects.prvt
 import com.tabslify.core.ui.getDeviceName
 import com.tabslify.privatetabslifyapp.isOnline
 import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -322,6 +323,8 @@ suspend fun syncPasswordEntriesWithCloud(
             val cloudEntries = try {
                 Config.client.postgrest.from("password_entries")
                     .select().decodeList<PasswordEntrySupabase>()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 errorInsert(
                     "PasswordRepository",
@@ -435,6 +438,8 @@ suspend fun syncPasswordEntriesWithCloud(
                                 )
                             }
                         }
+                    } catch (e: CancellationException) {
+                        throw e
                     } catch (e: Exception) {
                         errorInsert(
                             "PasswordRepository",
@@ -470,6 +475,8 @@ suspend fun syncPasswordEntriesWithCloud(
                 total = localPasswords.size,
                 pendingConflicts = pendingConflicts
             )
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             errorInsert(
                 "PasswordRepository",
@@ -662,6 +669,8 @@ suspend fun applySyncConflictDecision(
                 }
             }
             true
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             errorInsert(
                 "PasswordRepository",
@@ -703,6 +712,8 @@ suspend fun diagnosePasswordSync(
 ): PasswordSyncDiagnosis = withContext(Dispatchers.IO) {
     val localCount = try {
         passwordDb.passwordDao().getAll().size
+    } catch (e: CancellationException) {
+        throw e
     } catch (_: Exception) {
         -1
     }
@@ -727,12 +738,16 @@ suspend fun diagnosePasswordSync(
                 totpDecryptOk = totpRaw.isEmpty() || CloudCrypto.decryptFromCloud(totpRaw) != null
             )
         }
+    } catch (e: CancellationException) {
+        throw e
     } catch (e: Exception) {
         cloudError = e.message
     }
     val lastSync = try {
         context.getSharedPreferences("sync_prefs", Context.MODE_PRIVATE)
             .getLong("last_sync_pw_timestamp", 0L)
+    } catch (e: CancellationException) {
+        throw e
     } catch (_: Exception) {
         0L
     }
