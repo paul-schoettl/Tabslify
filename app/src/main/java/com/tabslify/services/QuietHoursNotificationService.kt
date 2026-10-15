@@ -409,10 +409,10 @@ class QuietHoursNotificationService : Service() {
                     addAction(Intent.ACTION_POWER_CONNECTED)
                     addAction(Intent.ACTION_POWER_DISCONNECTED)
                 }
-                runCatching { context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED) }
+                runCatching { context.registerReceiver(receiver, filter, RECEIVER_NOT_EXPORTED) }
                 widgetPowerReceiver = receiver
             }
-            val power = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+            val power = context.getSystemService(POWER_SERVICE) as? PowerManager
             if (power != null && !power.isInteractive) {
                 screenOffSince = System.currentTimeMillis()
             }
@@ -421,11 +421,13 @@ class QuietHoursNotificationService : Service() {
         fun startWidgetRefresh(context: Context) {
             val app = context.applicationContext
             widgetRefreshContext = app
+            runCatching { com.tabslify.widget.LampWidgetSync.start(app) }
             runCatching { registerWidgetReceivers(app) }
             handler.removeCallbacks(widgetRefreshRunnable)
             handler.post(widgetRefreshRunnable)
         }
 
+            widgetRefreshContext?.let { runCatching { com.tabslify.widget.LampWidgetSync.stop(it) } }
         fun stopWidgetRefresh() {
             handler.removeCallbacks(widgetRefreshRunnable)
             widgetRefreshContext?.let { ctx ->

@@ -4,16 +4,25 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.util.Log
+import com.tabslify.core.functions.PcCommands
+import com.tabslify.core.objects.Config
 import com.tabslify.quiethoursnotificationhelper.laptopIp
+import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.query.Columns
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.Inet4Address
 import java.net.NetworkInterface
 import java.net.URL
+import java.time.Instant
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
+import androidx.core.content.edit
 
 object HandyLampClient {
 
@@ -33,36 +42,143 @@ object HandyLampClient {
     private const val SCAN_READ_TIMEOUT_MS = 400
     private const val SCAN_THREADS = 64
     private const val SCAN_BUDGET_MS = 4_000L
+    private const val SB_TABLE = "lamp_state"
+    private const val SB_ROW_ID = "lampe"
 
     fun cachedOn(context: Context): Boolean? {
         val prefs = context.getSharedPreferences(STATE_PREFS, Context.MODE_PRIVATE)
         return if (prefs.contains(KEY_ON)) prefs.getBoolean(KEY_ON, false) else null
     }
 
-    fun flipCached(context: Context) {
-        storeOn(context, cachedOn(context)?.let { !it } ?: true)
+    fun storeOn(context: Context, on: Boolean) {
+        context.getSharedPreferences(STATE_PREFS, Context.MODE_PRIVATE)
+            .edit {putBoolean(KEY_ON, on)}
     }
 
-    fun toggle(context: Context): Boolean {
-        if (!shouldTryLan(context)) {
-            Log.i(TAG, "Mobilfunk ohne VPN – LAN übersprungen, direkter Supabase-Weg")
-            return false
+    fun applyRemoteState(context: Context, on: Boolean): Boolean {
+        val previous = cachedOn(context)
+        storeOn(context, on)
+        return previous != on
+    }
+
+    fun isCellularOnly(context: Context): Boolean = runCatching {
+        val manager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            ?: return@runCatching false
+        val active = manager.activeNetwork ?: return@runCatching false
+        val capabilities = manager.getNetworkCapabilities(active) ?: return@runCatching false
+        capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) &&
+            !capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) &&
+            !capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) &&
+            !capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)
+    }.getOrDefault(false)
+
+    suspend fun readSupabaseState(): Boolean? {
+        return runCatching {
+            val result = Config.safeCall {
+                Config.client
+                    .from(SB_TABLE)
+                    .select(columns = Columns.list("is_on")) {
+                        filter { eq("id", SB_ROW_ID) }
+                    }.data
+            }
+            val row = JSONArray(result).optJSONObject(0) ?: return@runCatching null
+            if (!row.has("is_on") || row.isNull("is_on")) return@runCatching null
+            row.optBoolean("is_on")
+        }.getOrNull()
+    }
+
+    suspend fun writeSupabaseState(on: Boolean, source: String) {
+        runCatching {
+            Config.safeCall {
+                Config.client.from(SB_TABLE).upsert(
+                    buildJsonObject {
+                        put("id", SB_ROW_ID)
+                        put("is_on", on)
+                        put("updated_at", Instant.now().toString())
+                        put("updated_by", source)
+                    }
+                ) { onConflict = "id" }
+            }
+        }.onFailure {
+            Log.w(TAG, "Supabase-Write fehlgeschlagen: ${it.message}")
         }
-        for (host in priorityHosts(context)) {
-            val result = postToggle(host)
-            if (result.ok) {
-                rememberHost(context, host)
-                storeOn(context, result.state ?: getState(host) ?: cachedOn(context)?.let { !it } ?: true)
-                return true
+    }
+
+    suspend fun refreshBestEffort(context: Context): Boolean? {
+        if (shouldTryLan(context)) {
+            for (host in priorityHosts(context)) {
+                val state = getState(host)
+                if (state != null) {
+                    storeOn(context, state)
+                    writeSupabaseState(state, "lan_refresh")
+                    return state
+                }
+            }
+            val prefix = localIpv4()?.substringBeforeLast('.')
+            if (prefix != null) {
+                val hit = scanSubnet(prefix)
+                if (hit != null) {
+                    getState(hit)?.let {
+                        storeOn(context, it)
+                        writeSupabaseState(it, "lan_refresh")
+                        return it
+                    }
+                }
             }
         }
-        val prefix = localIpv4()?.substringBeforeLast('.') ?: return false
-        val hit = scanSubnet(prefix) ?: return false
-        val result = postToggle(hit)
-        if (!result.ok) return false
-        rememberHost(context, hit)
-        storeOn(context, result.state ?: getState(hit) ?: cachedOn(context)?.let { !it } ?: true)
-        return true
+        val remote = readSupabaseState()
+        if (remote != null) {
+            storeOn(context, remote)
+            return remote
+        }
+        return cachedOn(context)
+    }
+
+    suspend fun toggleBestEffort(context: Context, source: String): Boolean {
+        if (shouldTryLan(context)) {
+            for (host in priorityHosts(context)) {
+                val result = postToggle(host)
+                if (result.ok) {
+                    rememberHost(context, host)
+                    val state = result.state ?: getState(host) ?: cachedOn(context)?.let { !it } ?: true
+                    storeOn(context, state)
+                    writeSupabaseState(state, source)
+                    return true
+                }
+            }
+            val prefix = localIpv4()?.substringBeforeLast('.')
+            if (prefix != null) {
+                val hit = scanSubnet(prefix)
+                if (hit != null) {
+                    val result = postToggle(hit)
+                    if (result.ok) {
+                        rememberHost(context, hit)
+                        val state = result.state ?: getState(hit) ?: cachedOn(context)?.let { !it } ?: true
+                        storeOn(context, state)
+                        writeSupabaseState(state, source)
+                        return true
+                    }
+                }
+            }
+            if (!isCellularOnly(context)) {
+                val fallback = cachedOn(context)?.let { !it } ?: true
+                storeOn(context, fallback)
+                writeSupabaseState(fallback, source)
+                PcCommands.queueLampToggle(fallback, source)
+                return false
+            }
+        }
+        val desired = readSupabaseState()?.let { !it } ?: cachedOn(context)?.let { !it } ?: true
+        storeOn(context, desired)
+        writeSupabaseState(desired, source)
+        PcCommands.queueLampToggle(desired, source)
+        return false
+    }
+
+    suspend fun reportExplicitState(context: Context, on: Boolean, source: String) {
+        storeOn(context, on)
+        writeSupabaseState(on, source)
+        PcCommands.queueLampState(on, source)
     }
 
     fun refresh(context: Context) {
@@ -77,11 +193,6 @@ object HandyLampClient {
         val prefix = localIpv4()?.substringBeforeLast('.') ?: return
         val hit = scanSubnet(prefix) ?: return
         getState(hit)?.let { storeOn(context, it) }
-    }
-
-    private fun storeOn(context: Context, on: Boolean) {
-        context.getSharedPreferences(STATE_PREFS, Context.MODE_PRIVATE)
-            .edit().putBoolean(KEY_ON, on).apply()
     }
 
     private fun shouldTryLan(context: Context): Boolean = runCatching {
@@ -107,7 +218,7 @@ object HandyLampClient {
     private fun rememberHost(context: Context, host: String) {
         runCatching {
             context.getSharedPreferences(HOST_PREFS, Context.MODE_PRIVATE)
-                .edit().putString(KEY_PC_HOST, host).apply()
+                .edit {putString(KEY_PC_HOST, host)}
         }
     }
 

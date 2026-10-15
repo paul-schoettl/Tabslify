@@ -16,7 +16,32 @@ import kotlin.time.Duration.Companion.milliseconds
 object PcCommands {
 
     const val LAMP_OFF = "lamp_off"
+    const val LAMP_ON = "lamp_on"
     const val LAMP_TOGGLE = "lamp_toggle"
+
+    fun queueLampToggle(desired: Boolean, source: String) {
+        queue(
+            LAMP_TOGGLE,
+            source,
+            buildJsonObject {
+                put("desired", desired)
+                put("is_on", desired)
+            },
+            cooldownMs = 0
+        )
+    }
+
+    fun queueLampState(on: Boolean, source: String) {
+        queue(
+            if (on) LAMP_ON else LAMP_OFF,
+            source,
+            buildJsonObject {
+                put("desired", on)
+                put("is_on", on)
+            },
+            cooldownMs = 0
+        )
+    }
 
     private const val RESEND_COOLDOWN_MS = 15 * 60_000L
 

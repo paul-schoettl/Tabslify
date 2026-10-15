@@ -26,7 +26,6 @@ import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.Tasks
-import com.tabslify.core.functions.PcCommands
 import com.tabslify.core.objects.Config
 import com.tabslify.quiethoursnotificationhelper.getHomeWifiStatus
 import com.tabslify.quiethoursnotificationhelper.isLaptopConnected
@@ -106,8 +105,8 @@ object ExploreLocationTracker {
     private const val MAX_ACCURACY_METERS = 50f
     private const val MAX_VERTICAL_ACCURACY_METERS = 15f
     private const val UNIVERSAL_SPEED_CEILING_MPS = 55f
-    private const val STILL_BATCH_INTERVAL_MS = 5 * 60_000L
     private const val AR_UPDATE_INTERVAL_MS = 30_000L
+    private const val STILL_BATCH_INTERVAL_MS = 5 * 60_000L
     private const val AR_CONFIDENCE_FLOOR = 50
     private const val AR_CEILING_CONFIDENCE_FLOOR = 75
 
@@ -149,9 +148,9 @@ object ExploreLocationTracker {
         val hour = Instant.now().atZone(java.time.ZoneId.systemDefault()).hour
         return hour in NIGHT_START_HOUR until NIGHT_END_HOUR
     }
+
     val trackingActive: Boolean
         get() = serviceRunning && isEnabled && !isNightTime()
-
 
     private fun distanceToHome(lat: Double, lng: Double): Float {
         val results = FloatArray(1)
@@ -167,7 +166,7 @@ object ExploreLocationTracker {
         if (isLaptopConnected) {
             stopAllSyncServices(context.applicationContext)
         }
-        PcCommands.queue(PcCommands.LAMP_OFF, source = "explore_verlassen")
+        runCatching { com.tabslify.widget.LampWidgetSync.reportOff(context, "explore_verlassen") }
     }
 
     fun onGeofenceEnter(context: Context) {
@@ -414,8 +413,8 @@ object ExploreLocationTracker {
     private fun locationRequestFor(mode: String): LocationRequest = when (mode) {
         "STILL" -> LocationRequest.Builder(Priority.PRIORITY_BALANCED_POWER_ACCURACY, 120_000L)
             .setMinUpdateIntervalMillis(60_000L)
-            .setMaxUpdateDelayMillis(STILL_BATCH_INTERVAL_MS)
             .setMinUpdateDistanceMeters(0f)
+            .setMaxUpdateDelayMillis(STILL_BATCH_INTERVAL_MS)
             .setWaitForAccurateLocation(false)
             .build()
 
