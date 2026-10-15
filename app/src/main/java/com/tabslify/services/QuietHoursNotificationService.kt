@@ -85,7 +85,6 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import com.tabslify.R
-import com.tabslify.core.activities.MainActivity
 import com.tabslify.core.activities.Tabslify.Companion.appScope
 import com.tabslify.core.functions.ExactAlarms
 import com.tabslify.core.functions.PODCAST_DOWNLOAD_PREFS
@@ -100,23 +99,16 @@ import com.tabslify.core.objects.Config.realDevice
 import com.tabslify.core.objects.prvt
 import com.tabslify.core.objects.tNotify
 import com.tabslify.core.ui.getDeviceName
-import com.tabslify.quiethoursnotificationhelper.AiProvider
-import com.tabslify.quiethoursnotificationhelper.AiTarget
-import com.tabslify.quiethoursnotificationhelper.AiResponseEntry
 import com.tabslify.quiethoursnotificationhelper.CleanupWorker
-import com.tabslify.quiethoursnotificationhelper.DailySummaryReceiver
+import com.tabslify.quiethoursnotificationhelper.DailyDigestScheduler
 import com.tabslify.quiethoursnotificationhelper.GalleryImage
-import com.tabslify.quiethoursnotificationhelper.aiResponseFlow
-import com.tabslify.quiethoursnotificationhelper.buildSessionStatsText
 import com.tabslify.quiethoursnotificationhelper.checkQuietHours
 import com.tabslify.quiethoursnotificationhelper.commandReceiver
 import com.tabslify.quiethoursnotificationhelper.createNotification
 import com.tabslify.quiethoursnotificationhelper.createNotificationChannel
 import com.tabslify.quiethoursnotificationhelper.deleteGalleryImage
 import com.tabslify.quiethoursnotificationhelper.ensureReadyForConnect
-import com.tabslify.quiethoursnotificationhelper.getTodayKey
 import com.tabslify.quiethoursnotificationhelper.loadGalleryImages
-import com.tabslify.quiethoursnotificationhelper.loadTodayOrYesterdayEntry
 import com.tabslify.quiethoursnotificationhelper.markMessageAsRead
 import com.tabslify.quiethoursnotificationhelper.markReadReceiver
 import com.tabslify.quiethoursnotificationhelper.messageSentReceiver
@@ -125,9 +117,7 @@ import com.tabslify.quiethoursnotificationhelper.playLatestVoiceNote
 import com.tabslify.quiethoursnotificationhelper.playNextVoiceNote
 import com.tabslify.quiethoursnotificationhelper.playPreviousVoiceNote
 import com.tabslify.quiethoursnotificationhelper.restoreSyncIfNeeded
-import com.tabslify.quiethoursnotificationhelper.saveAiResponse
 import com.tabslify.quiethoursnotificationhelper.scheduleNextCheck
-import com.tabslify.quiethoursnotificationhelper.sendAiRequest
 import com.tabslify.quiethoursnotificationhelper.showDeleteConfirmation
 import com.tabslify.quiethoursnotificationhelper.showNextGalleryImage
 import com.tabslify.quiethoursnotificationhelper.showPreviousGalleryImage
@@ -143,8 +133,6 @@ import com.tabslify.quiethoursnotificationhelper.updateSingleSenderNotification
 import com.tabslify.tabs.audiorecordertab.AudioForegroundService
 import com.tabslify.widget.CommandCodeUsageWidget
 import com.tabslify.tabs.exploretab.ExploreLocationTracker
-import com.tabslify.tabs.mediaplayer.MediaAnalyticsManager
-import com.tabslify.tabs.mediaplayer.MediaAnalyticsManager.getSessions
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -160,7 +148,6 @@ import java.time.Instant
 import java.util.Calendar
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class QuietHoursNotificationService : Service() {
@@ -289,10 +276,6 @@ class QuietHoursNotificationService : Service() {
         const val ACTION_CONTENT_INTENT = "com.tabslify.ACTION_CONTENT_INTENT"
         const val ACTION_SYNC_LAPTOP = "com.tabslify.ACTION_SYNC_LAPTOP"
         const val SHOW_OVERLAY = "com.tabslify.SHOW_OVERLAY"
-        const val ACTION_DAILY_MUSIC_SUMMARY = "com.tabslify.ACTION_DAILY_MUSIC_SUMMARY"
-        const val ACTION_SCHOOL_DAY_SUMMARY = "com.tabslify.ACTION_SCHOOL_DAY_SUMMARY"
-        const val SCHEDULE_DAILY_SUMMARY_ALARM = "com.tabslify.SCHEDULE_DAILY_SUMMARY_ALARM"
-
         const val ACTION_PODCAST_CHECK = "com.tabslify.ACTION_PODCAST_CHECK"
         const val ACTION_PODCAST_DOWNLOAD = "com.tabslify.ACTION_PODCAST_DOWNLOAD"
         const val ACTION_PODCAST_RETRY = "com.tabslify.ACTION_PODCAST_RETRY"
@@ -363,7 +346,7 @@ class QuietHoursNotificationService : Service() {
 
         private fun widgetRefreshDelayMs(): Long {
             val context = widgetRefreshContext ?: return WIDGET_REFRESH_MS
-            val power = context.getSystemService(Context.POWER_SERVICE) as? PowerManager
+            val power = context.getSystemService(POWER_SERVICE) as? PowerManager
             if (power == null || power.isInteractive) return WIDGET_REFRESH_MS
             val since = screenOffSince ?: return WIDGET_REFRESH_MS
             val offMs = System.currentTimeMillis() - since
@@ -392,7 +375,7 @@ class QuietHoursNotificationService : Service() {
                     addAction(Intent.ACTION_SCREEN_ON)
                     addAction(Intent.ACTION_SCREEN_OFF)
                 }
-                runCatching { context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED) }
+                runCatching { context.registerReceiver(receiver, filter, RECEIVER_NOT_EXPORTED) }
                 widgetScreenReceiver = receiver
             }
             if (widgetPowerReceiver == null) {
@@ -421,14 +404,14 @@ class QuietHoursNotificationService : Service() {
         fun startWidgetRefresh(context: Context) {
             val app = context.applicationContext
             widgetRefreshContext = app
-            runCatching { com.tabslify.widget.LampWidgetSync.start(app) }
             runCatching { registerWidgetReceivers(app) }
+            runCatching { com.tabslify.widget.LampWidgetSync.start(app) }
             handler.removeCallbacks(widgetRefreshRunnable)
             handler.post(widgetRefreshRunnable)
         }
 
-            widgetRefreshContext?.let { runCatching { com.tabslify.widget.LampWidgetSync.stop(it) } }
         fun stopWidgetRefresh() {
+            widgetRefreshContext?.let { runCatching { com.tabslify.widget.LampWidgetSync.stop(it) } }
             handler.removeCallbacks(widgetRefreshRunnable)
             widgetRefreshContext?.let { ctx ->
                 widgetScreenReceiver?.let { receiver ->
@@ -504,6 +487,28 @@ class QuietHoursNotificationService : Service() {
             return nextChange
         }
 
+    fun schedulePodcastCheck(context: Context) {
+            val am = context.getSystemService(ALARM_SERVICE) as AlarmManager
+
+            val cal = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 15)
+                set(Calendar.MINUTE, 30)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+                if (timeInMillis <= System.currentTimeMillis()) add(Calendar.DAY_OF_YEAR, 1)
+            }
+
+            val podcastCheckBase = Intent(context, QuietHoursNotificationService::class.java)
+            podcastCheckBase.action = ACTION_PODCAST_CHECK
+            podcastCheckBase.setPackage(context.packageName)
+            val pi = PendingIntent.getService(
+                context, 0,
+                podcastCheckBase,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+
+            ExactAlarms.setExactOrWindow(am, cal.timeInMillis, pi, SUMMARY_WINDOW_MS)
+        }
     }
 
     private val prefChangeListener =
@@ -638,14 +643,6 @@ class QuietHoursNotificationService : Service() {
             when (intent?.action) {
                 ACTION_SCHEDULED_STOP -> {
                     stopSelf()
-                    START_NOT_STICKY
-                }
-
-                SCHEDULE_DAILY_SUMMARY_ALARM -> {
-                    scheduleDailySummaryAlarm(this)
-                    if (prvt()) {
-                        checkPermissionsForPrvt()
-                    }
                     START_NOT_STICKY
                 }
 
@@ -794,72 +791,6 @@ class QuietHoursNotificationService : Service() {
                     START_STICKY
                 }
 
-                ACTION_DAILY_MUSIC_SUMMARY -> {
-                    dailyMusicSummaryJob = appScope.launch {
-                        try {
-                            kotlinx.coroutines.delay(500.milliseconds)
-                            MediaAnalyticsManager.init(this@QuietHoursNotificationService)
-                            val lastAiTimestamp =
-                                loadTodayOrYesterdayEntry(this@QuietHoursNotificationService)?.timestamp
-                                    ?: 0L
-
-                            val sessions = MediaAnalyticsManager.dedupForStats(
-                                getSessions().filter { it.startedAt >= lastAiTimestamp }
-                            )
-                            if (sessions.isEmpty()) return@launch
-
-                            val stats = buildSessionStatsText(sessions)
-                            val result = sendAiRequest(
-                                this@QuietHoursNotificationService,
-                                userMessage = stats,
-                                target = AiTarget.MusicSummary,
-                                serviceKey = "music_summary",
-                                provider = AiProvider.NVIDIA,
-                                model = "openai/gpt-oss-20b",
-                                onToken = {}
-                            ) ?: return@launch
-                            val musicMs =
-                                sessions.filter { it.type == "music" }.sumOf { it.listenedMs }
-                            val podcastMs =
-                                sessions.filter { it.type == "podcast" }.sumOf { it.listenedMs }
-
-                            fun fmt(ms: Long): String {
-                                val mins = ms / 1000.0 / 60.0
-                                return if (mins < 1) "${(ms / 1000).toInt()}s" else "${
-                                    "%.1f".format(
-                                        mins
-                                    )
-                                } min"
-                            }
-
-                            val parts = mutableListOf<String>()
-                            if (musicMs > 0) parts += "🎵${fmt(musicMs)}"
-                            if (podcastMs > 0) parts += "🎙️${fmt(podcastMs)}"
-                            val suffix = parts.joinToString(" · ")
-
-                            val finalResult =
-                                if (suffix.isNotEmpty()) "$result\n\n$suffix" else result
-
-                            saveAiResponse(this@QuietHoursNotificationService, finalResult)
-                            aiResponseFlow.emit(
-                                AiResponseEntry(
-                                    finalResult,
-                                    System.currentTimeMillis(),
-                                    getTodayKey()
-                                )
-                            )
-                            showSimpleNotification(
-                                getString(R.string.tages_zusammenfassung),
-                                finalResult,
-                                60.seconds
-                            )
-                        } catch (e: Exception) {
-                            reportServiceError("ACTION_DAILY_MUSIC_SUMMARY", e)
-                        }
-                    }
-                    START_STICKY
-                }
-
                 ACTION_PODCAST_CHECK -> {
                     try {
                         if (isWifiConnected()) {
@@ -917,49 +848,6 @@ class QuietHoursNotificationService : Service() {
                     START_NOT_STICKY
                 }
 
-                ACTION_SCHOOL_DAY_SUMMARY -> {
-                    if (!prvt()) return START_STICKY
-                    val dayOfWeek = Calendar.getInstance().get(Calendar.DAY_OF_WEEK)
-                    if (dayOfWeek == Calendar.SATURDAY || dayOfWeek == Calendar.SUNDAY) return START_STICKY
-                    val nm = getSystemService(NotificationManager::class.java)
-                    if (nm.getNotificationChannel(SCHOOL_SUMMARY_CHANNEL_ID) == null) {
-                        android.app.NotificationChannel(
-                            SCHOOL_SUMMARY_CHANNEL_ID,
-                            getString(R.string.schultag_zusammenfassung),
-                            NotificationManager.IMPORTANCE_HIGH
-                        ).apply {
-                            enableVibration(true)
-                            enableLights(true)
-                        }.also { nm.createNotificationChannel(it) }
-                    }
-
-                    val launchBase = Intent(this, MainActivity::class.java)
-                    launchBase.putExtra("target", "files")
-                    launchBase.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                    launchBase.setPackage(packageName)
-                    val pi = PendingIntent.getActivity(
-                        this, SCHOOL_SUMMARY_NOTIF_ID, launchBase,
-                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                    )
-
-                    val notification = NotificationCompat.Builder(this, SCHOOL_SUMMARY_CHANNEL_ID)
-                        .setSmallIcon(android.R.drawable.ic_menu_upload)
-                        .setContentTitle(getString(R.string.schultag_beendet))
-                        .setContentText(getString(R.string.materialien_von_heute_in_die))
-                        .setStyle(
-                            NotificationCompat.BigTextStyle()
-                                .bigText(getString(R.string.lade_deine_unterlagen_fotos_und))
-                        )
-                        .setPriority(NotificationCompat.PRIORITY_HIGH)
-                        .setCategory(NotificationCompat.CATEGORY_REMINDER)
-                        .setAutoCancel(true)
-                        .setContentIntent(pi)
-                        .build()
-
-                    tNotify(this, SCHOOL_SUMMARY_NOTIF_ID, notification)
-                    START_STICKY
-                }
-
                 "requestIgnoreBatteryOptimizations" -> {
                     requestIgnoreBatteryOptimizations(this)
                     START_STICKY
@@ -978,7 +866,6 @@ class QuietHoursNotificationService : Service() {
     private var testOverlayView: ComposeView? = null
     private var testOverlayLifecycle: OverlayLifecycleOwner? = null
     private var testOverlayWebView: WebView? = null
-    private var dailyMusicSummaryJob: Job? = null
     private var podcastJob: Job? = null
 
     private fun tearDownOverlay() {
@@ -1245,7 +1132,6 @@ class QuietHoursNotificationService : Service() {
         super.onDestroy()
 
         tearDownOverlay()
-        dailyMusicSummaryJob?.cancel()
         podcastJob?.cancel()
         stopWidgetRefresh()
 
@@ -1486,43 +1372,6 @@ class QuietHoursNotificationService : Service() {
         } catch (e: Exception) {
             Log.e("QuietHoursService", "Error checking WiFi connectivity", e)
             false
-        }
-    }
-
-    private fun checkPermissionsForPrvt() {
-        try {
-            val dpm =
-                getSystemService(DEVICE_POLICY_SERVICE) as android.app.admin.DevicePolicyManager
-            val adminComponent = android.content.ComponentName(
-                this,
-                "com.tabslify.core.activities.MyDeviceAdminReceiver"
-            )
-            if (!dpm.isAdminActive(adminComponent)) {
-                val intent =
-                    Intent(android.app.admin.DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).apply {
-                        putExtra(
-                            android.app.admin.DevicePolicyManager.EXTRA_DEVICE_ADMIN,
-                            adminComponent
-                        )
-                        putExtra(
-                            android.app.admin.DevicePolicyManager.EXTRA_ADD_EXPLANATION,
-                            getString(R.string.ermoglicht_sicherheitsfunktionen)
-                        )
-                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    }
-                startActivity(intent)
-            }
-
-            val listeners =
-                Settings.Secure.getString(contentResolver, "enabled_notification_listeners")
-            if (listeners == null || !listeners.contains(packageName)) {
-                val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                startActivity(intent)
-            }
-        } catch (e: Exception) {
-            reportServiceError("checkPermissionsForPrvt", e)
         }
     }
 

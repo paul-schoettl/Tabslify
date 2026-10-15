@@ -26,6 +26,7 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.tabslify.R
 import com.tabslify.core.activities.MainActivity
 import com.tabslify.core.functions.errorInsert
+import com.tabslify.quiethoursnotificationhelper.DailyDigestScheduler
 import com.tabslify.services.OverlayLifecycleOwner
 import com.tabslify.tabs.focusguard.data.FocusGuardConfig
 import com.tabslify.tabs.focusguard.data.FocusGuardRepository
@@ -34,7 +35,6 @@ import com.tabslify.tabs.focusguard.monitoring.ContextDetector
 import com.tabslify.tabs.focusguard.monitoring.RestrictionEngine
 import com.tabslify.tabs.focusguard.monitoring.StudyGoalTracker
 import com.tabslify.tabs.focusguard.monitoring.UsageTracker
-import com.tabslify.tabs.focusguard.monitoring.scheduleFocusGuardDailySummary
 import com.tabslify.tabs.focusguard.monitoring.scheduleFocusGuardWorkers
 import com.tabslify.tabs.focusguard.ui.FocusGuardBlockOverlay
 import java.text.SimpleDateFormat
@@ -84,7 +84,7 @@ class FocusGuardService : Service() {
 
         try {
             scheduleFocusGuardWorkers(this)
-            scheduleFocusGuardDailySummary(this)
+            DailyDigestScheduler.schedule(this)
         } catch (_: Exception) {
         }
 

@@ -149,6 +149,8 @@ import com.tabslify.core.objects.BackupOutcome
 import com.tabslify.core.objects.Config
 import com.tabslify.core.objects.Config.client
 import com.tabslify.core.objects.Config.realDevice
+import com.tabslify.quiethoursnotificationhelper.DailyDigestScheduler
+import com.tabslify.quiethoursnotificationhelper.checkPermissionsForPrvt
 import com.tabslify.core.objects.PasswordStorage
 import com.tabslify.core.objects.PrefsBackup
 import com.tabslify.core.objects.prvt
@@ -162,7 +164,6 @@ import com.tabslify.services.WhatsAppNotificationListener
 import com.tabslify.tabs.ainotify.AiNotifyHost
 import com.tabslify.tabs.focusguard.FocusGuardService
 import com.tabslify.tabs.focusguard.monitoring.cancelFocusGuardWorkers
-import com.tabslify.tabs.focusguard.monitoring.scheduleFocusGuardDailySummary
 import com.tabslify.tabs.focusguard.monitoring.scheduleFocusGuardWorkers
 import com.tabslify.tabs.mediaplayer.MediaAnalyticsManager
 import com.tabslify.tabs.virustotal.VirusTotalScanBar
@@ -1971,7 +1972,8 @@ fun SettingsFrame(
 
         if (masterEnabled && serviceFocusguard) {
             scheduleFocusGuardWorkers(context)
-            scheduleFocusGuardDailySummary(context)
+            DailyDigestScheduler.schedule(context)
+            checkPermissionsForPrvt(context)
         } else {
             cancelFocusGuardWorkers(context)
         }

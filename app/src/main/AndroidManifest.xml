@@ -342,12 +342,6 @@
             android:exported="false"
             android:foregroundServiceType="location" />
         <receiver
-            android:name=".quiethoursnotificationhelper.DailySummaryReceiver"
-            android:exported="false" />
-        <receiver
-            android:name=".tabs.focusguard.monitoring.FocusGuardDailySummaryReceiver"
-            android:exported="false" />
-        <receiver
             android:name=".quiethoursnotificationhelper.FinishedPdDownload"
             android:exported="true">
             <intent-filter>

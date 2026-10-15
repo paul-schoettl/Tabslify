@@ -8,7 +8,7 @@ import com.tabslify.core.activities.Tabslify
 import com.tabslify.core.functions.errorInsert
 import com.tabslify.core.objects.CloudBackup
 import com.tabslify.services.QuietHoursNotificationService
-import com.tabslify.services.QuietHoursNotificationService.Companion.MAX_MESSAGES_PER_CONTACT
+import com.tabslify.services.QuietHoursNotificationService.Companion.workerHandler
 import com.tabslify.services.WhatsAppNotificationListener
 import com.tabslify.tabs.focusguard.monitoring.FocusGuardSummaryRunner
 import java.time.Instant

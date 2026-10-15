@@ -9,6 +9,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.tabslify.quiethoursnotificationhelper.DailyDigestScheduler
 import com.tabslify.tabs.focusguard.data.FOCUSGUARD_CATEGORIES
 import com.tabslify.tabs.focusguard.data.FocusGuardConfig
 import com.tabslify.tabs.focusguard.data.FocusGuardRepository
@@ -174,7 +175,7 @@ class FocusGuardViewModel(application: Application) : AndroidViewModel(applicati
                 enabled = draft.enabled
             )
         })
-        com.tabslify.tabs.focusguard.monitoring.scheduleFocusGuardDailySummary(getApplication())
+        DailyDigestScheduler.schedule(getApplication())
         FocusGuardRepository.refresh()
     }
 

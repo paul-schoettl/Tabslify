@@ -1,10 +1,6 @@
 package com.tabslify.tabs.focusguard.monitoring
 
-import android.app.AlarmManager
-import android.app.PendingIntent
-import android.content.BroadcastReceiver
 import android.content.Context
-import android.content.Intent
 import androidx.core.content.edit
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
@@ -13,18 +9,13 @@ import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import com.tabslify.core.activities.Tabslify.Companion.appScope
-import com.tabslify.core.functions.ExactAlarms
 import com.tabslify.tabs.focusguard.FocusGuardNotifications
 import com.tabslify.tabs.focusguard.data.FocusGuardConfig
 import com.tabslify.tabs.focusguard.data.FocusGuardDatabase
 import com.tabslify.tabs.focusguard.data.FocusGuardRepository
 import com.tabslify.tabs.focusguard.data.todayYmd
 import com.tabslify.tabs.focusguard.formatDurationMs
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import java.time.LocalDate
-import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
 class FocusGuardUsageLogWorker(context: Context, params: WorkerParameters) :
@@ -163,15 +154,6 @@ class FocusGuardSyncWorker(context: Context, params: WorkerParameters) :
     }
 }
 
-class FocusGuardDailySummaryReceiver : BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent) {
-        appScope.launch(Dispatchers.IO) {
-            runCatching { FocusGuardSummaryRunner.run(context) }
-        }
-        scheduleFocusGuardDailySummary(context)
-    }
-}
-
 object FocusGuardSummaryRunner {
     suspend fun run(context: Context) {
         FocusGuardRepository.init(context)
@@ -239,28 +221,6 @@ object FocusGuardSummaryRunner {
     }
 }
 
-fun scheduleFocusGuardDailySummary(context: Context) {
-    FocusGuardConfig.init(context)
-    val am = context.getSystemService(AlarmManager::class.java) ?: return
-    val cal = Calendar.getInstance().apply {
-        set(Calendar.HOUR_OF_DAY, FocusGuardConfig.dailySummaryHour)
-        set(Calendar.MINUTE, 0)
-        set(Calendar.SECOND, 0)
-        set(Calendar.MILLISECOND, 0)
-        if (timeInMillis <= System.currentTimeMillis()) add(Calendar.DAY_OF_YEAR, 1)
-    }
-    val summaryIntent = Intent(context, FocusGuardDailySummaryReceiver::class.java).apply {
-        setPackage(context.packageName)
-    }
-    val pi = PendingIntent.getBroadcast(
-        context,
-        DAILY_SUMMARY_REQUEST_CODE,
-        summaryIntent,
-        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-    )
-    ExactAlarms.setExactOrWindow(am, cal.timeInMillis, pi, DAILY_SUMMARY_WINDOW_MS)
-}
-
 fun scheduleFocusGuardWorkers(context: Context) {
     WorkManager.getInstance(context).enqueueUniquePeriodicWork(
         "focusguard_usage_log",
@@ -300,5 +260,3 @@ fun cancelFocusGuardWorkers(context: Context) {
     WorkManager.getInstance(context).cancelUniqueWork("focusguard_sync")
 }
 
-private const val DAILY_SUMMARY_REQUEST_CODE = 96000
-private const val DAILY_SUMMARY_WINDOW_MS = 10 * 60_000L

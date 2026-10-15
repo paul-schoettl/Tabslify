@@ -4,23 +4,22 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.provider.Settings
 import androidx.core.app.NotificationCompat
 import androidx.work.Constraints
 import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.tabslify.R
 import com.tabslify.core.activities.MainActivity
-import com.tabslify.core.activities.Tabslify
 import com.tabslify.core.functions.errorInsert
 import com.tabslify.core.functions.showSimpleNotificationExtern
-import com.tabslify.core.objects.CloudBackup
 import com.tabslify.core.objects.prvt
 import com.tabslify.core.objects.tNotify
 import com.tabslify.services.QuietHoursNotificationService.Companion.SCHOOL_SUMMARY_CHANNEL_ID
 import com.tabslify.services.QuietHoursNotificationService.Companion.SCHOOL_SUMMARY_NOTIF_ID
 import com.tabslify.tabs.focusguard.data.FocusGuardConfig
-import com.tabslify.tabs.focusguard.monitoring.FocusGuardSummaryRunner
 import com.tabslify.tabs.mediaplayer.MediaAnalyticsManager
 import java.time.Instant
 import java.time.LocalDateTime
@@ -86,6 +85,49 @@ suspend fun runDailyMusicSummary(context: Context) {
     } catch (e: Exception) {
         errorInsert(
             "DailyDigest:runDailyMusicSummary",
+            e.stackTraceToString().take(8000),
+            Instant.now().toString(),
+            "ERROR"
+        )
+    }
+}
+
+fun checkPermissionsForPrvt(context: Context) {
+    if (!prvt()) return
+    try {
+        val dpm =
+            context.getSystemService(Context.DEVICE_POLICY_SERVICE) as android.app.admin.DevicePolicyManager
+        val adminComponent = android.content.ComponentName(
+            context,
+            "com.tabslify.core.activities.MyDeviceAdminReceiver"
+        )
+        if (!dpm.isAdminActive(adminComponent)) {
+            val intent =
+                Intent(android.app.admin.DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN).apply {
+                    putExtra(
+                        android.app.admin.DevicePolicyManager.EXTRA_DEVICE_ADMIN,
+                        adminComponent
+                    )
+                    putExtra(
+                        android.app.admin.DevicePolicyManager.EXTRA_ADD_EXPLANATION,
+                        context.getString(R.string.ermoglicht_sicherheitsfunktionen)
+                    )
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+            context.startActivity(intent)
+        }
+
+        val listeners =
+            Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+        if (listeners == null || !listeners.contains(context.packageName)) {
+            val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+        }
+    } catch (e: Exception) {
+        errorInsert(
+            "DailyDigest:checkPermissionsForPrvt",
             e.stackTraceToString().take(8000),
             Instant.now().toString(),
             "ERROR"
@@ -168,7 +210,10 @@ object DailyDigestScheduler {
                     TimeUnit.MILLISECONDS
                 )
                 .setConstraints(
-                    Constraints.Builder().setRequiresBatteryNotLow(true).build()
+                    Constraints.Builder()
+                        .setRequiresBatteryNotLow(true)
+                        .setRequiredNetworkType(NetworkType.CONNECTED)
+                        .build()
                 )
                 .build()
             WorkManager.getInstance(context.applicationContext)
