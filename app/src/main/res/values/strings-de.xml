@@ -1445,6 +1445,8 @@
     <string name="audio_aufnahme">Audio Aufnahme</string> <!-- app/src/main/java/com/tabslify/tabs/audiorecordertab/AudioForegroundService.kt:88 -->
     <string name="explore_tracking_lauft">🗺️ Tabslify verfolgt deinen Tag</string>
     <string name="explore_tracking_kanal">Standort-Tracking</string>
+    <string name="explore_watchdog_still">Standort-Tracking steht still</string>
+    <string name="explore_watchdog_still_text">Seit %1$s Minuten kam kein neuer Standort an. Prüfe Standortberechtigung und WLAN.</string>
     <string name="mikrofonzugriff_benotigt">Mikrofonzugriff benötigt</string> <!-- app/src/main/java/com/tabslify/tabs/audiorecordertab/AudioRecorderTab.kt:68 -->
     <string name="dieser_tab_benotigt_zugriff_auf">Dieser Tab benötigt Zugriff auf das Mikrofon, um Aufnahmen erstellen zu können.\n\n</string> <!-- app/src/main/java/com/tabslify/tabs/audiorecordertab/AudioRecorderTab.kt:69 -->
     <string name="bitte_erlaube_den_zugriff_in">Bitte erlaube den Zugriff in den App-Einstellungen:\n</string> <!-- app/src/main/java/com/tabslify/tabs/audiorecordertab/AudioRecorderTab.kt:70 -->
@@ -3088,6 +3090,7 @@
     <string name="commandcode_widget_error">Nicht verfügbar</string>
     <string name="commandcode_widget_expired">Cookie abgelaufen</string>
     <string name="commandcode_widget_blocked">Server blockiert die Anfrage</string>
+    <string name="commandcode_widget_loading">Lade …</string>
     <string name="lamp_widget_label">Lampe</string>
     <string name="lamp_widget_description">Lampe an/aus schalten</string>
     <string name="home_bar_widget_label">CommandCode + Lampe</string>

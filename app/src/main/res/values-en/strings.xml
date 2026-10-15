@@ -827,6 +827,8 @@
     <string name="audio_aufnahme">Audio recording</string>
     <string name="explore_tracking_lauft">🗺️ Tabslify is tracking your day</string>
     <string name="explore_tracking_kanal">Location tracking</string>
+    <string name="explore_watchdog_still">Location tracking has stalled</string>
+    <string name="explore_watchdog_still_text">No new location for %1$s minutes. Check the location permission and Wi-Fi.</string>
     <string name="mikrofonzugriff_benotigt">Microphone access required</string>
     <string name="dieser_tab_benotigt_zugriff_auf">This tab needs access to the microphone in order to create recordings.\n\n</string>
     <string name="bitte_erlaube_den_zugriff_in">Please allow access in the app settings:\n</string>
@@ -2374,6 +2376,7 @@
     <string name="commandcode_widget_error">Not available</string>
     <string name="commandcode_widget_expired">Cookie expired</string>
     <string name="commandcode_widget_blocked">Server blocked the request</string>
+    <string name="commandcode_widget_loading">Loading …</string>
     <string name="lamp_widget_label">Lamp</string>
     <string name="lamp_widget_description">Toggle lamp on/off</string>
     <string name="home_bar_widget_label">CommandCode + lamp</string>
