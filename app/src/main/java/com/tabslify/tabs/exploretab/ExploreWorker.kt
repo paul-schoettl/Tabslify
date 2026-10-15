@@ -1,6 +1,5 @@
 package com.tabslify.tabs.exploretab
 
-import android.annotation.SuppressLint
 import android.content.Context
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
@@ -8,44 +7,36 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import com.google.android.gms.location.CurrentLocationRequest
-import com.google.android.gms.location.LocationServices
-import com.google.android.gms.location.Priority
-import com.google.android.gms.tasks.Tasks
 import java.util.concurrent.TimeUnit
 
 class ExploreWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {
 
-    @SuppressLint("MissingPermission")
     override suspend fun doWork(): Result {
-        val ctx = applicationContext
-        return try {
-            val client = LocationServices.getFusedLocationProviderClient(ctx)
-            val request = CurrentLocationRequest.Builder()
-                .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
-                .setMaxUpdateAgeMillis(1 * 60 * 1000L)
-                .setDurationMillis(10_000L)
-                .build()
-            val loc = Tasks.await(client.getCurrentLocation(request, null))
-            if (loc != null) {
-                ExploreRepository(ctx).ingest(
-                    RawPoint(
-                        lat = loc.latitude,
-                        lon = loc.longitude,
-                        accuracy = loc.accuracy,
-                        speed = if (loc.hasSpeed()) loc.speed else null,
-                        bearing = if (loc.hasBearing()) loc.bearing else null,
-                        activityType = "UNKNOWN",
-                        activityConfidence = 0,
-                        timestamp = System.currentTimeMillis(),
-                        altitude = if (loc.hasAltitude()) loc.altitude else null
-                    )
-                )
-            }
-            Result.success()
-        } catch (_: Exception) {
-            Result.retry()
+        val appCtx = applicationContext
+        ExploreConfig.init(appCtx)
+
+        if (!ExploreLocationTracker.trackingActive) {
+            return Result.success()
         }
+
+        val repo = ExploreRepository(appCtx)
+
+        runCatching { runExploreMaintenance(appCtx, repo) }
+            .onFailure { reportExploreMaintenanceError("watchdogMaintenance", it) }
+
+        val latest = runCatching { repo.latestPointTimestamp() }.getOrNull()
+        if (latest == null) {
+            logExploreStallEvent(repo, EXPLORE_STALE_AFTER_MS)
+            return Result.success()
+        }
+        val staleMs = System.currentTimeMillis() - latest
+        if (staleMs < EXPLORE_STALE_AFTER_MS) {
+            return Result.success()
+        }
+
+        logExploreStallEvent(repo, staleMs)
+        notifyTrackingStalled(appCtx, staleMs)
+        return Result.success()
     }
 
     companion object {

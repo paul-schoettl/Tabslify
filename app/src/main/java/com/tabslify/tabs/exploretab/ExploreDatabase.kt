@@ -113,6 +113,9 @@ interface RawPointDao {
     @Query("SELECT COUNT(*) FROM raw_points")
     fun countAllFlow(): Flow<Long>
 
+    @Query("SELECT MAX(timestamp) FROM raw_points")
+    suspend fun latestTimestamp(): Long?
+
     @Query("SELECT * FROM raw_points WHERE timestamp >= :dayStart AND timestamp < :dayEnd ORDER BY timestamp ASC")
     suspend fun pointsBetween(dayStart: Long, dayEnd: Long): List<RawPoint>
 

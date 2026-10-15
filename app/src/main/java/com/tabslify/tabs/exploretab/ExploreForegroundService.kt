@@ -47,7 +47,7 @@ class ExploreForegroundService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        return NotificationCompat.Builder(this, CHANNEL_ID)
+        return NotificationCompat.Builder(this, EXPLORE_TRACKING_CHANNEL_ID)
             .setContentTitle(getString(R.string.explore_tracking_lauft))
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setOngoing(true)
@@ -57,7 +57,7 @@ class ExploreForegroundService : Service() {
 
     private fun createNotificationChannel() {
         val channel = NotificationChannel(
-            CHANNEL_ID,
+            EXPLORE_TRACKING_CHANNEL_ID,
             getString(R.string.explore_tracking_kanal),
             NotificationManager.IMPORTANCE_LOW
         )
@@ -65,7 +65,4 @@ class ExploreForegroundService : Service() {
         manager.createNotificationChannel(channel)
     }
 
-    companion object {
-        private const val CHANNEL_ID = "explore_tracking_channel"
-    }
 }

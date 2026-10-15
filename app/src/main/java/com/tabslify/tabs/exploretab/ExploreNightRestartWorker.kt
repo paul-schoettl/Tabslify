@@ -5,27 +5,20 @@ import androidx.work.CoroutineWorker
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.util.concurrent.TimeUnit
 
-private const val RAW_POINT_RETENTION_DAYS = 30L
-
 class ExploreNightRestartWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {
     override suspend fun doWork(): Result {
         val appCtx = applicationContext
-        try {
-            ExploreSegmentBuilder.rebuildDay(appCtx, LocalDate.now().minusDays(1))
-            val cutoff = System.currentTimeMillis() - RAW_POINT_RETENTION_DAYS * 24 * 60 * 60 * 1000
-            val repo = ExploreRepository(appCtx)
-            repo.deleteRawPointsBefore(cutoff)
-            repo.deleteTrackerEventsBefore(cutoff)
-        } catch (_: Exception) {
-            return if (runAttemptCount < MAX_ATTEMPTS) Result.retry() else Result.failure()
-        }
+        val repo = ExploreRepository(appCtx)
+
+        runCatching { runExploreMaintenance(appCtx, repo) }
+            .onFailure { reportExploreMaintenanceError("nightRestart", it) }
 
         ExploreLocationTracker.start(appCtx)
+        schedule(appCtx)
         return Result.success()
     }
 
@@ -34,7 +27,6 @@ class ExploreNightRestartWorker(ctx: Context, params: WorkerParameters) : Corout
         private const val RESTART_HOUR = 5
         private const val RESTART_MINUTE = 0
         private const val MIN_DELAY_MS = 60_000L
-        private const val MAX_ATTEMPTS = 3
 
         fun schedule(context: Context) {
             val appCtx = context.applicationContext

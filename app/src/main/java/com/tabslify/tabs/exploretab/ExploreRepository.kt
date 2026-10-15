@@ -74,6 +74,8 @@ class ExploreRepository(context: Context) {
 
     suspend fun deleteTrackerEventsBefore(cutoff: Long) = trackerEventDao.deleteBefore(cutoff)
 
+    suspend fun latestPointTimestamp(): Long? = rawPointDao.latestTimestamp()
+
     suspend fun todayCount(): Long {
         val midnight = System.currentTimeMillis() / 86_400_000L * 86_400_000L
         return dao.countSince(midnight)
