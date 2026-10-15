@@ -23,6 +23,9 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
+import androidx.core.content.edit
+import androidx.core.graphics.toColorInt
+import androidx.core.graphics.createBitmap
 
 class CookieExpiredException(message: String) : Exception(message)
 
@@ -38,7 +41,6 @@ data class CommandCodeUsage(
     val pacePct: Double,
     val offlineDays: Int
 ) {
-    val overPace: Boolean get() = pct > pacePct
 }
 
 object CommandCodeUsageRepository {
@@ -157,7 +159,7 @@ object CommandCodeUsageRepository {
 
     private fun markCookieFromPc(context: Context) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit().putBoolean(KEY_COOKIE_FROM_PC, true).apply()
+            .edit {putBoolean(KEY_COOKIE_FROM_PC, true) }
     }
 
     private suspend fun fetchCookieFromPc(context: Context): String? = withContext(Dispatchers.IO) {
@@ -174,8 +176,7 @@ object CommandCodeUsageRepository {
                 return@withContext cookie
             }
         }
-        val prefix = localIpv4()?.substringBeforeLast('.')
-        if (prefix == null) return@withContext null
+        val prefix = localIpv4()?.substringBeforeLast('.') ?: return@withContext null
         val hit = scanSubnet(prefix)
         if (hit != null) {
             Log.i(TAG, "PC per Netzwerkscan gefunden: $hit")
@@ -235,7 +236,7 @@ object CommandCodeUsageRepository {
     private fun rememberHost(context: Context, host: String) {
         runCatching {
             context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-                .edit().putString(KEY_PC_HOST, host).apply()
+                .edit {putString(KEY_PC_HOST, host)}
         }
     }
 
@@ -309,7 +310,7 @@ object CommandCodeUsageRepository {
 
     private fun writeCookie(context: Context, value: String) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit().putString(KEY_COOKIE, sanitizeCookie(value)).apply()
+            .edit {putString(KEY_COOKIE, sanitizeCookie(value))}
     }
 
     private fun sanitizeCookie(raw: String): String {
@@ -404,14 +405,14 @@ object CommandCodeBarRenderer {
     private const val WIDTH = 480
     private const val HEIGHT = 48
 
-    private val track = Color.parseColor("#33FFFFFF")
-    private val inRange = Color.parseColor("#22C55E")
-    private val over = Color.parseColor("#FFE53935")
-    private val paceLine = Color.parseColor("#FFFF1744")
-    private val paceEdge = Color.parseColor("#59000000")
+    private val track = "#33FFFFFF".toColorInt()
+    private val inRange = "#22C55E".toColorInt()
+    private val over = "#FFE53935".toColorInt()
+    private val paceLine = "#FFFF1744".toColorInt()
+    private val paceEdge = "#59000000".toColorInt()
 
     fun render(pct: Double, pacePct: Double): Bitmap {
-        val bitmap = Bitmap.createBitmap(WIDTH, HEIGHT, Bitmap.Config.ARGB_8888)
+        val bitmap = createBitmap(WIDTH, HEIGHT)
         val canvas = Canvas(bitmap)
         val radius = HEIGHT / 2.6f
         val height = HEIGHT.toFloat()

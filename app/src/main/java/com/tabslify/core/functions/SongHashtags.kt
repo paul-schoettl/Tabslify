@@ -3,7 +3,6 @@ package com.tabslify.core.functions
 import android.content.Context
 import android.net.Uri
 import android.util.Log
-import androidx.core.content.edit
 import com.tabslify.core.objects.Config
 import com.tabslify.privatetabslifyapp.isOnline
 import kotlinx.coroutines.CancellationException
@@ -14,6 +13,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.time.Instant
 import kotlin.time.Duration.Companion.milliseconds
+import androidx.core.content.edit
 
 object SongHashtags {
 
@@ -71,7 +71,7 @@ object SongHashtags {
 
     fun markTagged(context: Context, path: String) {
         val prefs = context.getSharedPreferences(STATE_PREFS, Context.MODE_PRIVATE)
-        prefs.edit().putStringSet(KEY_TAGGED, taggedPaths(context) + path).apply()
+        prefs.edit {putStringSet(KEY_TAGGED, taggedPaths(context) + path) }
     }
 
     fun taggedPaths(context: Context): Set<String> =

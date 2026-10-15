@@ -1,6 +1,7 @@
 package com.tabslify.widget
 
 import android.content.Context
+import androidx.core.content.edit
 
 data class WidgetUsageSnapshot(
     val pct: Double,
@@ -19,11 +20,11 @@ object WidgetSnapshotStore {
 
     fun save(context: Context, usage: CommandCodeUsage) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putString(KEY_PCT, usage.pct.toString())
-            .putString(KEY_PACE, usage.pacePct.toString())
-            .putLong(KEY_AT, System.currentTimeMillis())
-            .apply()
+            .edit {
+                putString(KEY_PCT, usage.pct.toString())
+                    .putString(KEY_PACE, usage.pacePct.toString())
+                    .putLong(KEY_AT, System.currentTimeMillis())
+            }
     }
 
     fun read(context: Context): WidgetUsageSnapshot? {

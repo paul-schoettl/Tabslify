@@ -11,6 +11,7 @@ import android.widget.RemoteViews
 import com.tabslify.R
 import java.util.Locale
 import kotlin.math.abs
+import androidx.core.content.edit
 
 object CommandCodeWidgetRenderer {
 
@@ -71,10 +72,6 @@ object CommandCodeWidgetRenderer {
     fun pushCurrent(context: Context) {
         val snapshot = WidgetSnapshotStore.read(context)
         push(context, render(context, if (snapshot == null) PaceState.LOADING else PaceState.DATA))
-    }
-
-    fun pushError(context: Context, state: PaceState) {
-        push(context, render(context, state))
     }
 
     private fun applyFooter(context: Context, views: RemoteViews, footer: String?) {
@@ -140,11 +137,11 @@ object LampWidgetPending {
 
     fun markTap(context: Context) {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit().putLong(KEY_TAP_AT, System.currentTimeMillis()).apply()
+            .edit {putLong(KEY_TAP_AT, System.currentTimeMillis())}
     }
 
     fun clear(context: Context) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().clear().apply()
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit {clear()}
     }
 
     fun isPending(context: Context): Boolean {
