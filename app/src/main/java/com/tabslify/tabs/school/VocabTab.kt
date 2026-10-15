@@ -653,7 +653,7 @@ fun VocabTab(paddingValues: PaddingValues) {
                                 if (sent) {
                                     usedEngine = ExtractionEngine.LAPTOP
                                     val result = withTimeoutOrNull(
-                                        LOKALE_EXTRAKTION_TIMEOUT_MS
+                                        LOKALE_EXTRAKTION_TIMEOUT_MS.milliseconds
                                     ) {
                                         flashcardVokabelnFlow.first { it != null }
                                     }
