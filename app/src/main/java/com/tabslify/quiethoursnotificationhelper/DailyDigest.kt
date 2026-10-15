@@ -13,6 +13,7 @@ import com.tabslify.R
 import com.tabslify.core.activities.MainActivity
 import com.tabslify.core.activities.Tabslify
 import com.tabslify.core.functions.errorInsert
+import com.tabslify.core.functions.showSimpleNotificationExtern
 import com.tabslify.core.objects.CloudBackup
 import com.tabslify.core.objects.prvt
 import com.tabslify.core.objects.tNotify
