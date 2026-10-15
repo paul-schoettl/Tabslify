@@ -101,7 +101,6 @@ object BatteryDataRepository {
     private const val FILE_NAME = "battery_samples.jsonl"
     private const val PREF_LAST_SYNC_MS = "last_battery_sync_ms"
     private const val PREF_LAST_SYNC_COUNT = "last_battery_sync_count"
-    private const val SYNC_MIN_INTERVAL_MS = 60L * 60 * 1000
 
     private lateinit var context: Context
     private val json = Json { ignoreUnknownKeys = true }
@@ -230,15 +229,6 @@ object BatteryDataRepository {
             }
             true
         }.getOrElse { false }
-    }
-
-    fun trySync(context: Context) = appScope.launch(Dispatchers.IO) {
-        runCatching {
-            val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-            val last = prefs.getLong(PREF_LAST_SYNC_MS, 0L)
-            if (System.currentTimeMillis() - last < SYNC_MIN_INTERVAL_MS) return@launch
-            syncToSupabase(context)
-        }
     }
 
     private fun sampleFile(): File = File(context.filesDir, FILE_NAME)
