@@ -28,6 +28,18 @@ suspend fun readChargeEstimate(context: Context): ChargeEstimate {
     return ChargeEstimate(pct, charging, minutes)
 }
 
+fun readChargeEstimateFast(context: Context): ChargeEstimate {
+    val intent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+    val level = intent?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+    val scale = intent?.getIntExtra(BatteryManager.EXTRA_SCALE, 100) ?: 100
+    val status = intent?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) ?: -1
+    val pct = if (scale > 0 && level >= 0) level * 100 / scale else level
+    val charging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
+        status == BatteryManager.BATTERY_STATUS_FULL
+    val minutes = if (charging) fastMinutesToTarget(context, pct) else null
+    return ChargeEstimate(pct, charging, minutes)
+}
+
 fun footerText(context: Context, estimate: ChargeEstimate): String? {
     if (!estimate.isCharging) return null
     val minutes = estimate.minutesToTarget
@@ -44,6 +56,13 @@ private suspend fun estimateMinutesToTarget(context: Context, level: Int): Int? 
     if (level >= CHARGE_TARGET) return 0
     val rate = systemRate(context, level) ?: historyRate(context)
     if (rate == null || rate <= 0f) return null
+    return ((CHARGE_TARGET - level) / rate).toInt().coerceAtLeast(0)
+}
+
+private fun fastMinutesToTarget(context: Context, level: Int): Int? {
+    if (level >= CHARGE_TARGET) return 0
+    val rate = systemRate(context, level) ?: return null
+    if (rate <= 0f) return null
     return ((CHARGE_TARGET - level) / rate).toInt().coerceAtLeast(0)
 }
 
