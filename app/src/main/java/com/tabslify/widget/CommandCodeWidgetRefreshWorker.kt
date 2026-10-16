@@ -67,7 +67,7 @@ class CommandCodeWidgetRefreshWorker(
                 CommandCodeWidgetRenderer.renderWithFooter(app, state)
             )
             val cached = WidgetSnapshotStore.read(app) != null
-            CommandCodeWidgetRenderer.logRender(app, state, cached)
+            CommandCodeWidgetRenderer.logRender(state, cached)
             Log.i(TAG, "Refresh-Worker fertig in ${SystemClock.elapsedRealtime() - started} ms")
             return Result.success()
         } catch (e: CancellationException) {

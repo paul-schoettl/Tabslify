@@ -124,7 +124,7 @@ object CommandCodeWidgetRenderer {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-    fun logRender(context: Context, state: PaceState, cached: Boolean) {
+    fun logRender(state: PaceState, cached: Boolean) {
         Log.i(TAG, "Render: Zustand=$state cache=$cached")
     }
 }
