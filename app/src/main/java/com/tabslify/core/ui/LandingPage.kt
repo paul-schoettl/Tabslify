@@ -328,7 +328,7 @@ fun LandingPageOrApp(storage: Storage, startTarget: String?) {
         }
     }
 
-    if (prvt()) {
+    if (prvt() && realDevice) {
         when (sessionStatus) {
             is SessionStatus.NotAuthenticated -> {
                 SupabaseLoginScreen { }
