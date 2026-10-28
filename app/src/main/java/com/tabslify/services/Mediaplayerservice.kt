@@ -74,6 +74,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -97,9 +100,9 @@ class MediaPlayerService : MediaSessionService() {
         const val CHANNEL_ID = "media_player_channel"
 
         private const val ACTION_MUSIC_PLAY = "com.tabslify.ACTION_MUSIC_PLAY"
-        private const val ACTION_MUSIC_PAUSE = "com.tabslify.ACTION_MUSIC_PAUSE"
-        private const val ACTION_MUSIC_NEXT = "com.tabslify.ACTION_MUSIC_NEXT"
-        private const val ACTION_MUSIC_PREVIOUS = "com.tabslify.ACTION_MUSIC_PREVIOUS"
+        const val ACTION_MUSIC_PAUSE = "com.tabslify.ACTION_MUSIC_PAUSE"
+        const val ACTION_MUSIC_NEXT = "com.tabslify.ACTION_MUSIC_NEXT"
+        const val ACTION_MUSIC_PREVIOUS = "com.tabslify.ACTION_MUSIC_PREVIOUS"
         const val ACTION_TOGGLE_REPEAT = "com.tabslify.ACTION_TOGGLE_REPEAT"
         private const val ACTION_TOGGLE_FAVORITE = "com.tabslify.ACTION_TOGGLE_FAVORITE"
         const val ACTION_TOGGLE_FAVORITES_MODE = "TOGGLE_FAVORITES_MODE"
@@ -108,7 +111,7 @@ class MediaPlayerService : MediaSessionService() {
         const val ACTION_PODCAST_PLAY_SPECIFIED = "com.tabslify.ACTION_PODCAST_PLAY_SPECIFIED"
         const val EXTRA_PODCAST_SAFE_TITLE = "safeTitle"
         const val EXTRA_PODCAST_AUDIO_URL = "audioUrl"
-        private const val ACTION_PODCAST_PAUSE = "com.tabslify.ACTION_PODCAST_PAUSE"
+        const val ACTION_PODCAST_PAUSE = "com.tabslify.ACTION_PODCAST_PAUSE"
         private const val ACTION_PODCAST_REWIND = "com.tabslify.ACTION_PODCAST_REWIND"
         private const val ACTION_PODCAST_FORWARD = "com.tabslify.ACTION_PODCAST_FORWARD"
         private const val ACTION_SELECT_PODCAST = "com.tabslify.ACTION_SELECT_PODCAST"
@@ -261,6 +264,14 @@ class MediaPlayerService : MediaSessionService() {
         private var isRunning = false
 
         fun isServiceActive() = isRunning
+
+        private val _nowPlayingSignal = MutableStateFlow(0L)
+
+        val nowPlayingSignal: StateFlow<Long> = _nowPlayingSignal.asStateFlow()
+
+        private fun publishStateChange() {
+            _nowPlayingSignal.value = _nowPlayingSignal.value + 1L
+        }
 
         fun ensureServiceIsRunning(context: Context) {
             if (!isRunning) {
@@ -565,6 +576,7 @@ class MediaPlayerService : MediaSessionService() {
             return
         }
         isRunning = true
+        publishStateChange()
         musicPrefs = getSharedPreferences(MUSIC_PREFS, MODE_PRIVATE)
         podcastPrefs = getSharedPreferences(PODCAST_PREFS, MODE_PRIVATE)
 
@@ -1014,6 +1026,7 @@ class MediaPlayerService : MediaSessionService() {
         val wasInitialized = isRunning
         isServiceDestroyed = true
         isRunning = false
+        publishStateChange()
 
         positionSaveRunnable?.let { handler.removeCallbacks(it) }
         handler.removeCallbacksAndMessages(null)
@@ -1294,7 +1307,7 @@ class MediaPlayerService : MediaSessionService() {
 
         if (musicPlayer != null && !isPlayingMusic) {
             musicPlayer?.start()
-            musicPrefs.editAsync { putBoolean("is_playing", true) }
+            setPlayingFlag(true)
             isPlayingMusic = true
             dummyPlayer?.setIsPlaying(true)
             dummyPlayer?.setPlaybackState(Player.STATE_READY)
@@ -1356,7 +1369,7 @@ class MediaPlayerService : MediaSessionService() {
                 saveMusicState()
                 saveActivePlaylistIndex()
                 updateNotification()
-                musicPrefs.editAsync { putBoolean("is_playing", true) }
+                setPlayingFlag(true)
 
                 serviceScope.launch {
                     try {
@@ -1436,7 +1449,7 @@ class MediaPlayerService : MediaSessionService() {
             consecutiveRepeatCount = 0
         }
         musicPlayer?.pause()
-        musicPrefs.editAsync { putBoolean("is_playing", false) }
+        setPlayingFlag(false)
         isPlayingMusic = false
         dummyPlayer?.setIsPlaying(false)
         updateNotification(instantUpdate = false)
@@ -1645,7 +1658,7 @@ class MediaPlayerService : MediaSessionService() {
                 podcastPlayer?.start()
                 isPlayingPodcast = true
                 podcastSessionStartedAt = System.currentTimeMillis()
-                musicPrefs.editAsync { putBoolean("is_playing", true) }
+                setPlayingFlag(true)
                 updateNotification()
             }
             return
@@ -1661,7 +1674,7 @@ class MediaPlayerService : MediaSessionService() {
         if (podcastPlayer != null && !isPlayingPodcast) {
             val savedPos = getPodcastSavedPosition(podcast.path)
             if (savedPos > 1000) podcastPlayer?.seekTo((savedPos - 1000).toInt())
-            musicPrefs.editAsync { putBoolean("is_playing", true) }
+            setPlayingFlag(true)
             podcastPlayer?.start()
             podcastSessionStartedAt = System.currentTimeMillis()
             isPlayingPodcast = true
@@ -1689,7 +1702,7 @@ class MediaPlayerService : MediaSessionService() {
         if (isPlayingMusic) {
             musicPlayer?.release(); musicPlayer = null
             isPlayingMusic = false
-            musicPrefs.editAsync { putBoolean("is_playing", false) }
+            setPlayingFlag(false)
         }
 
         try {
@@ -1713,7 +1726,7 @@ class MediaPlayerService : MediaSessionService() {
                 savePodcastCurrentPath(podcast.path)
                 updateNotification()
                 start()
-                musicPrefs.editAsync { putBoolean("is_playing", true) }
+                setPlayingFlag(true)
             }
             podcastSessionStartedAt = System.currentTimeMillis()
             podcastSessionStartPos = podcast.savedPosition
@@ -1732,7 +1745,7 @@ class MediaPlayerService : MediaSessionService() {
             val pos = player.currentPosition.toLong()
             player.pause()
             isPlayingPodcast = false
-            musicPrefs.editAsync { putBoolean("is_playing", false) }
+            setPlayingFlag(false)
             currentPodcast?.let { savePodcastPosition(it.path, pos) }
             savePodcastSession()
             updateNotification(instantUpdate = false)
@@ -2214,13 +2227,21 @@ class MediaPlayerService : MediaSessionService() {
             putBoolean("was_playing_music", isPlayingMusic)
             putBoolean("was_playing_podcast", isPlayingPodcast)
         }
+        publishStateChange()
+    }
+
+    private fun setPlayingFlag(playing: Boolean) {
+        musicPrefs.edit { putBoolean("is_playing", playing) }
+        publishStateChange()
     }
 
     private fun getPodcastSavedPosition(path: String) =
         podcastPrefs.getLong(KEY_PREFIX_POSITION + path.hashCode(), 0L)
 
-    private fun savePodcastPosition(path: String, pos: Long) =
+    private fun savePodcastPosition(path: String, pos: Long) {
         podcastPrefs.edit(commit = true) { putLong(KEY_PREFIX_POSITION + path.hashCode(), pos) }
+        publishStateChange()
+    }
 
     private fun getPodcastCompleted(path: String) =
         podcastPrefs.getBoolean(KEY_PREFIX_COMPLETED + path.hashCode(), false)
@@ -2233,8 +2254,10 @@ class MediaPlayerService : MediaSessionService() {
             )
         }
 
-    private fun savePodcastCurrentPath(path: String) =
+    private fun savePodcastCurrentPath(path: String) {
         podcastPrefs.edit(commit = true) { putString(KEY_CURRENT_PODCAST, path) }
+        publishStateChange()
+    }
 
     private fun podcastCurrentPosition() = podcastPlayer?.currentPosition?.toLong()
 
@@ -2303,6 +2326,7 @@ class MediaPlayerService : MediaSessionService() {
                                 "music_duration_ms",
                                 musicPlayer!!.duration.toLong().takeIf { it > 0 } ?: 0L)
                         }
+                        publishStateChange()
                     }
                 }
 
@@ -2520,7 +2544,7 @@ class MediaPlayerService : MediaSessionService() {
             savePodcastCurrentPosition()
             podcastPlayer?.pause()
             isPlayingPodcast = false
-            musicPrefs.editAsync { putBoolean("is_playing", false) }
+            setPlayingFlag(false)
         }
         currentMode = MODE_MUSIC
 
@@ -3029,7 +3053,7 @@ class MediaPlayerService : MediaSessionService() {
                             isPlayingPodcast = true
                             podcastSessionStartedAt = System.currentTimeMillis()
                             podcastSessionStartPos = 0L
-                            musicPrefs.editAsync { putBoolean("is_playing", true) }
+                            setPlayingFlag(true)
                             updateNotification()
                         }
                         setOnCompletionListener {
@@ -3101,8 +3125,4 @@ object PodcastPlayerServiceCompat {
     fun managePodcast(context: Context) = MediaPlayerService.managePodcast(context)
     fun setPlaybackSpeed(context: Context, speed: Float) =
         MediaPlayerService.setPlaybackSpeed(context, speed)
-}
-
-private fun SharedPreferences.editAsync(block: SharedPreferences.Editor.() -> Unit) {
-    edit { apply(block).apply() }
 }

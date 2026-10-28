@@ -9,6 +9,7 @@ import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.MediaStore
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -68,7 +69,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -89,6 +89,8 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -111,6 +113,7 @@ import com.google.gson.reflect.TypeToken
 import com.tabslify.R
 import com.tabslify.core.functions.SongHashtags
 import com.tabslify.core.ui.NeonBox
+import com.tabslify.privatetabslifyapp.isOnline
 import com.tabslify.quiethoursnotificationhelper.AiResponseEntry
 import com.tabslify.quiethoursnotificationhelper.aiResponseFlow
 import com.tabslify.quiethoursnotificationhelper.deleteAiResponse
@@ -127,7 +130,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -141,13 +143,14 @@ import kotlin.time.Duration.Companion.milliseconds
 private val BgDeep = Color(0xFF121212)
 private val BgSurface = Color(0xFF1E1E1E)
 private val BgCard = Color(0xFF2A2A2A)
-private val AccentViolet = Color(0xFF7C4DFF)
-private val AccentVioletDim = Color(0xFF4A148C)
+private val AccentViolet = Color(0xFFFF7A1A)
+private val AccentVioletDim = Color(0xFF8A3B0A)
 private val TextPrimary = Color(0xFFFFFFFF)
 private val TextSecondary = Color(0xFFB0B0B0)
 private val TextTertiary = Color(0xFF757575)
 private val NeonGreen = Color(0xFF39FF14)
 private val NeonBlue = Color(0xFF00CFFF)
+private const val LOG_TAG = "SongHashtags"
 
 data class NowPlayingState(
     val isActive: Boolean = false,
@@ -170,11 +173,13 @@ fun formatMsMTB(ms: Long): String {
 fun MediaTab(
     viewModel: MediaViewModel = viewModel(),
     contentPadding: PaddingValues = PaddingValues(0.dp),
+    onBottomBarHeight: ((Dp) -> Unit)? = null,
     onBack: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
     val searchResults by viewModel.searchResults.collectAsState()
     val context = LocalContext.current
+    val density = LocalDensity.current
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -182,11 +187,6 @@ fun MediaTab(
 
     LaunchedEffect(Unit) {
         viewModel.checkAndRefresh()
-    }
-
-    DisposableEffect(Unit) {
-        viewModel.startNowPlayingPoller()
-        onDispose { viewModel.stopNowPlayingPoller() }
     }
 
     var analyticsTarget by remember { mutableStateOf<Any?>(null) }
@@ -210,7 +210,11 @@ fun MediaTab(
         Scaffold(
             containerColor = Color.Transparent,
             bottomBar = {
-                Column {
+                Column(
+                    modifier = Modifier.onGloballyPositioned { coords ->
+                        onBottomBarHeight?.invoke(with(density) { coords.size.height.toDp() })
+                    }
+                ) {
                     NowPlayingBar(
                         nowPlaying = nowPlaying,
                         onOpenFullscreen = { showFullscreenPlayer = true },
@@ -512,7 +516,6 @@ private fun HomeTab(
         }
     }
 
-    // Periodic refresh every second, even if sheets are open
     LaunchedEffect(Unit) {
         while (true) {
             delay(1000.milliseconds)
@@ -1263,35 +1266,7 @@ private fun MusicTab(
             }
 
             if (state.songs.isNotEmpty()) {
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        SectionHeader(stringResource(R.string.alle_songs_3, state.songs.size))
-                        val tagging = state.taggingState == SongHashtags.STATE_RUNNING
-                        val finished = state.taggingState == SongHashtags.STATE_DONE
-                        Button(
-                            onClick = {
-                                when {
-                                    tagging -> viewModel.cancelTagging()
-                                    finished -> viewModel.dismissTaggingResult()
-                                    else -> viewModel.tagMissingSongs()
-                                }
-                            },
-                            enabled = tagging || finished ||
-                                viewModel.countSongsWithoutHashtags(state) > 0
-                        ) {
-                            Text(
-                                when {
-                                    tagging -> "Abbrechen ${state.taggingDone}/${state.taggingTotal}"
-                                    finished -> "Fertig: ${state.taggingWritten} von ${state.taggingTotal}"
-                                    else -> "Tags ergänzen"
-                                }
-                            )
-                        }
-                    }
-                }
+                item { SectionHeader(stringResource(R.string.alle_songs_3, state.songs.size)) }
                 items(state.songs) { song ->
                     val isSelected = selectedSongs.contains(song.path)
                     Row(
@@ -3180,11 +3155,6 @@ data class MediaUiState(
     val isLoading: Boolean = false,
     val searchQuery: String = "",
     val currentTab: MediaTab = MediaTab.HOME,
-    val taggingState: String = SongHashtags.STATE_IDLE,
-    val taggingDone: Int = 0,
-    val taggingTotal: Int = 0,
-    val taggingWritten: Int = 0,
-    val taggingFailed: Int = 0,
     val permissionGranted: Boolean? = null // null = noch nicht geprüft
 )
 
@@ -3200,6 +3170,7 @@ class MediaViewModel(app: Application) : AndroidViewModel(app) {
 
     private var refreshJob: Job? = null
     private var taggingJob: Job? = null
+    private var taggingAttempted = false
     private val _uiState = MutableStateFlow(MediaUiState(isLoading = true))
     val uiState: StateFlow<MediaUiState> = _uiState.asStateFlow()
 
@@ -3222,8 +3193,11 @@ class MediaViewModel(app: Application) : AndroidViewModel(app) {
         MediaAnalyticsManager.init(app)
         PodcastShowManager.init(app)
         FavoritesPlaylist.setContext(app)
-        // refresh() wird erst nach Permission-Check aus dem Composable aufgerufen
-        // Poller startet über DisposableEffect in MediaTab (Sichtbarkeits-gekoppelt)
+        viewModelScope.launch {
+            MediaPlayerService.nowPlayingSignal.collect {
+                _nowPlaying.value = readNowPlayingFromPrefs()
+            }
+        }
     }
 
     private fun hasAudioPermission(): Boolean {
@@ -3247,44 +3221,19 @@ class MediaViewModel(app: Application) : AndroidViewModel(app) {
         else _uiState.value = _uiState.value.copy(isLoading = false)
     }
 
-    private var nowPlayingPollerJob: Job? = null
-
-    fun startNowPlayingPoller() {
-        if (nowPlayingPollerJob?.isActive == true) return
-        nowPlayingPollerJob = viewModelScope.launch {
-            while (isActive) {
-                _nowPlaying.value = readNowPlayingFromPrefs()
-                delay(1000.milliseconds)
-            }
-        }
-    }
-
-    fun stopNowPlayingPoller() {
-        nowPlayingPollerJob?.cancel()
-        nowPlayingPollerJob = null
-    }
-
-    override fun onCleared() {
-        stopNowPlayingPoller()
-    }
-
-    fun countSongsWithoutHashtags(state: MediaUiState): Int =
-        state.songs.count { it.hashtags.isNullOrBlank() }
-
-    fun tagMissingSongs() {
-        if (taggingJob?.isActive == true) return
-        val candidates = _uiState.value.songs.filter { it.hashtags.isNullOrBlank() }
+    private fun tagSongsWithoutTags(songs: List<MediaPlayerService.Song>) {
+        if (taggingAttempted || taggingJob?.isActive == true) return
+        val candidates = songs.filter { it.hashtags.isNullOrBlank() }
         if (candidates.isEmpty()) return
 
-        _uiState.value = _uiState.value.copy(
-            taggingState = SongHashtags.STATE_RUNNING,
-            taggingDone = 0,
-            taggingTotal = candidates.size,
-            taggingWritten = 0,
-            taggingFailed = 0
-        )
-
         val context = getApplication<Application>()
+        if (!isOnline(context)) {
+            Log.i(LOG_TAG, "Tags: kein Netz, ${candidates.size} Songs bleiben offen")
+            return
+        }
+
+        taggingAttempted = true
+        Log.i(LOG_TAG, "Tags: starte autonom fuer ${candidates.size} Songs")
         taggingJob = viewModelScope.launch {
             val refs = candidates.map { song ->
                 SongHashtags.SongRef(
@@ -3296,41 +3245,21 @@ class MediaViewModel(app: Application) : AndroidViewModel(app) {
                 )
             }
             val results = SongHashtags.tagSongs(context, refs) { progress ->
-                _uiState.value = _uiState.value.copy(
-                    taggingDone = progress.done,
-                    taggingTotal = progress.total
-                )
+                Log.i(LOG_TAG, "Tags: ${progress.done}/${progress.total}")
             }
-            _uiState.value = _uiState.value.copy(
-                taggingState = SongHashtags.STATE_DONE,
-                taggingWritten = results.count { it.written },
-                taggingFailed = results.count { !it.skipped && !it.written }
-            )
+            val written = results.count { it.written }
+            val failed = results.count { !it.skipped && !it.written && !it.quotaExceeded }
+            val offen = candidates.size - results.size
+            if (results.any { it.quotaExceeded }) {
+                Log.i(
+                    LOG_TAG,
+                    "Tags: Quota erschöpft, $written geschrieben, $offen Songs offen (naechster Start)"
+                )
+            } else {
+                Log.i(LOG_TAG, "Tags: $written geschrieben, $failed fehlgeschlagen")
+            }
             refresh()
         }
-    }
-
-    fun cancelTagging() {
-        taggingJob?.cancel()
-        taggingJob = null
-        _uiState.value = _uiState.value.copy(
-            taggingState = SongHashtags.STATE_IDLE,
-            taggingDone = 0,
-            taggingTotal = 0,
-            taggingWritten = 0,
-            taggingFailed = 0
-        )
-    }
-
-    fun dismissTaggingResult() {
-        if (_uiState.value.taggingState != SongHashtags.STATE_DONE) return
-        _uiState.value = _uiState.value.copy(
-            taggingState = SongHashtags.STATE_IDLE,
-            taggingDone = 0,
-            taggingTotal = 0,
-            taggingWritten = 0,
-            taggingFailed = 0
-        )
     }
 
     fun refresh() {
@@ -3368,6 +3297,7 @@ class MediaViewModel(app: Application) : AndroidViewModel(app) {
                 userPlaylists = userPlaylists,
                 isLoading = false
             )
+            tagSongsWithoutTags(songs)
         }
     }
 
@@ -3550,9 +3480,9 @@ class MediaViewModel(app: Application) : AndroidViewModel(app) {
                     1f
                 ) else 0f
             NowPlayingState(
-                isActive = ep != null,
+                isActive = path != null,
                 mode = "podcast",
-                title = ep?.title ?: "",
+                title = ep?.title ?: path?.let { File(it).nameWithoutExtension } ?: "",
                 subtitle = show?.name ?: app.getString(R.string.podcast),
                 isPlaying = musicPrefs.getBoolean("is_playing", false),
                 positionMs = pos,
@@ -3569,13 +3499,13 @@ class MediaViewModel(app: Application) : AndroidViewModel(app) {
                 if (np.mode == "music") {
                     if (np.isPlaying) context.startService(
                         Intent(context, MediaPlayerService::class.java).apply {
-                            this.action = "com.cloud.ACTION_MUSIC_PAUSE"
+                            this.action = MediaPlayerService.ACTION_MUSIC_PAUSE
                         }
                     ) else MediaPlayerService.sendMusicPlayAction(context)
                 } else {
                     if (np.isPlaying) context.startService(
                         Intent(context, MediaPlayerService::class.java).apply {
-                            this.action = "com.cloud.ACTION_PODCAST_PAUSE"
+                            this.action = MediaPlayerService.ACTION_PODCAST_PAUSE
                         }
                     ) else MediaPlayerService.sendPodcastPlayAction(context)
                 }
@@ -3583,13 +3513,13 @@ class MediaViewModel(app: Application) : AndroidViewModel(app) {
 
             PlayerAction.NEXT -> context.startService(
                 Intent(context, MediaPlayerService::class.java).apply {
-                    this.action = "com.cloud.ACTION_MUSIC_NEXT"
+                    this.action = MediaPlayerService.ACTION_MUSIC_NEXT
                 }
             )
 
             PlayerAction.PREVIOUS -> context.startService(
                 Intent(context, MediaPlayerService::class.java).apply {
-                    this.action = "com.cloud.ACTION_MUSIC_PREVIOUS"
+                    this.action = MediaPlayerService.ACTION_MUSIC_PREVIOUS
                 }
             )
 

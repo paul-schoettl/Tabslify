@@ -6,11 +6,22 @@ import android.content.Context
 import android.os.Environment
 import android.provider.MediaStore
 import android.widget.Toast
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -27,7 +38,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -43,10 +53,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -613,10 +626,9 @@ fun PodcastTab() {
                 when (val state = downloadState) {
                     is DownloadState.Idle -> Text(stringResource(R.string.url_eingeben_und_download_starten))
                     is DownloadState.Searching -> CircularProgressIndicator()
+                    is DownloadState.NeedsAiDecision -> CircularProgressIndicator()
                     is DownloadState.Downloading -> {
-                        val progress = state.progress
-                        LinearProgressIndicator(progress = { progress / 100f })
-                        Text(stringResource(R.string.downloading, progress))
+                        AnimatedSongProgress(state.progress, state.detail)
                     }
 
                     is DownloadState.Converting -> {
@@ -628,6 +640,16 @@ fun PodcastTab() {
                     is DownloadState.Error -> Text(
                         stringResource(R.string.fehler_msg, state.message),
                         color = MaterialTheme.colorScheme.error
+                    )
+                }
+
+                if (downloadState is DownloadState.NeedsAiDecision) {
+                    AlertDialogTabslify(
+                        onConfirm = { vm.answerAiDecision(true) },
+                        onDismiss = { vm.answerAiDecision(false) },
+                        title = stringResource(R.string.song_ohne_ki_titel),
+                        text = stringResource(R.string.song_ohne_ki_text),
+                        confirmText = stringResource(R.string.song_trotzdem_laden)
                     )
                 }
             }
@@ -776,6 +798,81 @@ fun PodcastTab() {
                     )
                 }
                 item { Spacer(Modifier.height(16.dp)) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AnimatedSongProgress(progress: Int, detail: String?) {
+    val target = progress.coerceIn(0, 100) / 100f
+    val animated by animateFloatAsState(
+        targetValue = target,
+        animationSpec = tween(durationMillis = 450, easing = LinearOutSlowInEasing),
+        label = "songProgress"
+    )
+    val shimmer = rememberInfiniteTransition(label = "songShimmer")
+    val shift by shimmer.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1300, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "songShift"
+    )
+    val accent = Color(0xFFFF7A1A)
+    val accentLight = Color(0xFFFFC46B)
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(12.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .background(Color.White.copy(alpha = 0.10f))
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .fillMaxWidth(animated)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(
+                        Brush.horizontalGradient(listOf(accent.copy(alpha = 0.85f), accentLight))
+                    )
+            ) {
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val band = size.width * 0.4f
+                    if (band <= 0f) return@Canvas
+                    val start = shift * (size.width + band) - band
+                    drawRect(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.White.copy(alpha = 0.45f),
+                                Color.Transparent
+                            ),
+                            startX = start,
+                            endX = start + band
+                        )
+                    )
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "${(animated * 100).toInt()} %",
+                color = Color.White,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            if (!detail.isNullOrBlank()) {
+                Spacer(modifier = Modifier.size(8.dp))
+                Text(
+                    text = detail,
+                    color = Color.White.copy(alpha = 0.55f),
+                    fontSize = 12.sp
+                )
             }
         }
     }
