@@ -6,8 +6,7 @@ import io.github.jan.supabase.exceptions.HttpRequestException as SupabaseHttpReq
 import io.github.jan.supabase.functions.functions
 import io.ktor.client.plugins.HttpRequestTimeoutException
 import kotlinx.coroutines.launch
-import java.net.ConnectException
-import java.net.SocketTimeoutException
+import java.io.IOException
 import java.net.UnknownHostException
 
 fun errorInsert(serviceName: String, errorMessage: String, createdAt: String, severity: String) {
@@ -40,9 +39,7 @@ fun errorInsert(serviceName: String, errorMessage: String, createdAt: String, se
 fun isNetworkFailure(e: Throwable): Boolean =
     e is HttpRequestTimeoutException ||
         e is SupabaseHttpRequestException ||
-        e is UnknownHostException ||
-        e is ConnectException ||
-        e is SocketTimeoutException
+        e is IOException
 
 fun neverReachedServer(e: Throwable): Boolean =
     e is UnknownHostException ||
