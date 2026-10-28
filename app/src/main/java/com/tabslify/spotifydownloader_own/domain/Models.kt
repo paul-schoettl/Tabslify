@@ -5,8 +5,9 @@ import android.net.Uri
 sealed class DownloadState {
     object Idle : DownloadState()
     object Searching : DownloadState()
-    data class Downloading(val progress: Int) : DownloadState()
+    data class Downloading(val progress: Int, val detail: String? = null) : DownloadState()
     object Converting : DownloadState()
+    object NeedsAiDecision : DownloadState()
     data class Success(
         val trackId: String,
         val title: String,

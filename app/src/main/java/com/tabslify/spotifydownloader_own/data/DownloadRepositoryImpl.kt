@@ -6,167 +6,199 @@ import android.os.Environment
 import android.provider.MediaStore
 import com.tabslify.core.functions.Id3Tags
 import com.tabslify.core.functions.SongHashtags
-import com.tabslify.core.functions.getAppCheckToken
 import com.tabslify.core.objects.Config
 import com.tabslify.spotifydownloader_own.domain.DownloadRepository
 import com.tabslify.spotifydownloader_own.domain.DownloadState
+import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.storage.storage
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.timeout
 import io.ktor.client.request.get
 import io.ktor.client.request.headers
-import io.ktor.client.request.post
-import io.ktor.client.request.setBody
-import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.bodyAsChannel
-import io.ktor.client.statement.bodyAsText
-import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.contentType
-import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.readAvailable
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import org.json.JSONArray
+import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.net.URL
+import java.util.Locale
+import kotlin.math.exp
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 class DownloadRepositoryImpl(
     private val httpClient: HttpClient,
     private val context: Context
 ) : DownloadRepository {
 
-    override fun downloadTrack(spotifyUrl: String): Flow<DownloadState> = channelFlow {
+    private companion object {
+        const val SONGS_BUCKET = "songs"
+        const val QUEUE_TIMEOUT_MS = 180_000L
+        const val POLL_INTERVAL_MS = 2_000L
+        const val WAIT_CEILING = 54
+        const val TRANSFER_START = 56
+        const val TRANSFER_END = 95
+    }
+
+    override fun downloadTrack(
+        spotifyUrl: String,
+        confirmWithoutAi: suspend () -> Boolean
+    ): Flow<DownloadState> = channelFlow {
         send(DownloadState.Searching)
 
         try {
             val trackId = spotifyUrl.split("/track/").getOrNull(1)?.split("?")?.getOrNull(0)
-            if (trackId == null) {
+            if (trackId.isNullOrBlank()) {
                 send(DownloadState.Error("Ungültige Spotify URL"))
                 return@channelFlow
             }
-            val sha256 = Config.getAppSignatureSha256(context) ?: run {
-                send(DownloadState.Error("App-Signatur konnte nicht validiert werden"))
+
+            send(DownloadState.Downloading(6, "Auftrag gesendet"))
+            val jobId = queueJob(trackId)
+            if (jobId <= 0L) {
+                send(DownloadState.Error("Auftrag konnte nicht angelegt werden"))
                 return@channelFlow
             }
 
-            send(DownloadState.Downloading(5))
-
-            val requestBody = kotlinx.serialization.json.buildJsonObject {
-                put("action", "rapidapi_spotify")
-                put("payload", kotlinx.serialization.json.buildJsonObject {
-                    put("songId", "https://open.spotify.com/track/$trackId")
-                })
-                put("apiKey", Config.userApiKey(context, "rapidapi"))
-            }.toString()
-
-            val appCheckToken = getAppCheckToken()
-            val response: HttpResponse =
-                httpClient.post("${Config.SUPABASE_URL}/functions/v1/api-proxy") {
-                    contentType(ContentType.Application.Json)
-                    setBody(requestBody)
-                    timeout {
-                        requestTimeoutMillis = 120_000
-                        connectTimeoutMillis = 60_000
-                        socketTimeoutMillis = 120_000
-                    }
-                    headers {
-                        append("Authorization", "Bearer ${Config.SUPABASE_PUBLISHABLE_KEY}")
-                        append("X-Android-Cert", sha256)
-                        if (appCheckToken != null) {
-                            append("X-Firebase-AppCheck", appCheckToken)
-                        }
-                    }
-                }
-
-            if (response.status != HttpStatusCode.OK) {
-                send(
-                    DownloadState.Error(
-                        "Downloader: ${response.status}" + errorSuffix(response.bodyAsText())
+            val deadline = System.currentTimeMillis() + QUEUE_TIMEOUT_MS
+            val waitStart = System.currentTimeMillis()
+            var job: JSONObject? = null
+            val ticker = launch {
+                while (isActive) {
+                    val elapsed = System.currentTimeMillis() - waitStart
+                    val eased = 8 + (46 * (1 - exp(-elapsed / 9_000.0))).toInt()
+                    send(
+                        DownloadState.Downloading(
+                            progress = eased.coerceAtMost(WAIT_CEILING),
+                            detail = "MiniPC lädt · ${elapsed / 1000} s"
+                        )
                     )
-                )
+                    delay(300)
+                }
+            }
+            try {
+                var pollFailures = 0
+                while (System.currentTimeMillis() < deadline) {
+                    val current = try {
+                        readJob(jobId)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        pollFailures++
+                        if (pollFailures >= 3) throw e
+                        null
+                    }
+                    if (current != null) pollFailures = 0
+                    val status = current?.optString("status").orEmpty()
+                    if (status == "done" || status == "failed") {
+                        job = current
+                        break
+                    }
+                    delay(POLL_INTERVAL_MS)
+                }
+            } finally {
+                ticker.cancel()
+            }
+
+            val finished = job
+            if (finished == null) {
+                send(DownloadState.Error("Zeitüberschreitung – MiniPC nicht erreichbar?"))
+                return@channelFlow
+            }
+            if (finished.optString("status") != "done") {
+                val reason = finished.optString("error").ifBlank { "unbekannt" }
+                send(DownloadState.Error("Server: $reason"))
                 return@channelFlow
             }
 
-            val jsonBody = Json.parseToJsonElement(response.bodyAsText()).jsonObject
-            val success = jsonBody["success"]?.jsonPrimitive?.content?.toBoolean() ?: false
-
-            if (!success) {
-                send(DownloadState.Error("Track konnte nicht gefunden werden"))
+            val storagePath = finished.optString("storage_path")
+            if (storagePath.isBlank()) {
+                send(DownloadState.Error("Server lieferte keine Datei"))
                 return@channelFlow
             }
 
-            val dataObject = jsonBody["data"]?.jsonObject
-            val downloadUrl = dataObject?.get("downloadLink")?.jsonPrimitive?.content
-            val trackTitle = dataObject?.get("title")?.jsonPrimitive?.content ?: "Track"
-            val artist = dataObject?.get("artist")?.jsonPrimitive?.content ?: "Unknown"
-
-            if (downloadUrl == null) {
-                send(DownloadState.Error("Kein Download-Link erhalten"))
-                return@channelFlow
-            }
-
-            val album = dataObject["album"]?.jsonPrimitive?.content ?: ""
-            val coverUrl = dataObject["cover"]?.jsonPrimitive?.content
-
-            val safeArtist = artist.replace(" ", "_")
-            val safeTitle = trackTitle.replace(" ", "_")
+            val trackTitle = finished.optString("title").ifBlank { "Track" }
+            val artist = finished.optString("artist").ifBlank { "Unknown" }
+            val album = finished.optString("album")
+            val coverUrl = finished.optString("cover").ifBlank { null }
+            val safeArtist = artist.replace(Regex("[/\\\\:*?\"<>|]"), "_").replace(" ", "_")
+            val safeTitle = trackTitle.replace(Regex("[/\\\\:*?\"<>|]"), "_").replace(" ", "_")
             val fileName = "${safeArtist}_${safeTitle}.mp3"
 
             if (fileExistsInMediaStore(fileName)) {
+                deleteStoredFile(storagePath)
                 send(DownloadState.Error("Datei existiert bereits lokal"))
                 return@channelFlow
             }
 
-            send(DownloadState.Downloading(20))
-
-            val hashtagJob = async {
-                SongHashtags.analyzeTrack(context, trackId)
+            send(DownloadState.Downloading(TRANSFER_START - 1, "Tag-Analyse läuft"))
+            val hashtags = try {
+                SongHashtags.requestTextHashtags(context, trackTitle, artist, album)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                null
+            }
+            if (hashtags.isNullOrBlank() && !confirmWithoutAi()) {
+                deleteStoredFile(storagePath)
+                send(DownloadState.Error("Abgebrochen"))
+                return@channelFlow
             }
 
-            val audioResponse: HttpResponse = httpClient.get(downloadUrl) {
-                timeout {
-                    requestTimeoutMillis = 120_000
-                    connectTimeoutMillis = 60_000
-                    socketTimeoutMillis = 120_000
+            send(DownloadState.Downloading(TRANSFER_START, "0,0 MB"))
+            val bytes = downloadAudio(storagePath) { received, total ->
+                val fraction = if (total > 0) {
+                    (received.toFloat() / total).coerceIn(0f, 1f)
+                } else {
+                    (1.0 - exp(-received / 6_000_000.0)).toFloat()
                 }
+                val percent = TRANSFER_START + (fraction * (TRANSFER_END - TRANSFER_START)).toInt()
+                val detail = if (total > 0) {
+                    "${megabytes(received)} / ${megabytes(total)} MB"
+                } else {
+                    "${megabytes(received)} MB"
+                }
+                send(DownloadState.Downloading(progress = percent, detail = detail))
             }
-            val channel: ByteReadChannel = audioResponse.bodyAsChannel()
-            val contentLength = audioResponse.contentLength() ?: 0L
+            if (bytes.isEmpty()) {
+                send(DownloadState.Error("Leere Datei erhalten"))
+                return@channelFlow
+            }
 
-            val coverBytes: ByteArray? = coverUrl?.let {
+            val coverBytes = coverUrl?.let {
                 try {
-                    withTimeout(30_000L.milliseconds) { URL(it).readBytes() }
+                    withTimeout(15.seconds) { URL(it).readBytes() }
                 } catch (_: Exception) {
                     null
                 }
             }
 
-            val hashtags = hashtagJob.await()
-
-            val fileUri = saveFileFromChannel(
-                fileName,
-                channel,
-                contentLength,
-                "audio/mpeg",
-                trackId,
-                trackTitle,
-                artist,
-                album,
-                coverBytes,
-                hashtags
-            ) { progress ->
-                send(DownloadState.Downloading(20 + (progress * 0.7).toInt()))
-            }
+            send(DownloadState.Downloading(97, "Tag wird geschrieben"))
+            val fileUri = saveAudioBytes(
+                fileName = fileName,
+                bytes = bytes,
+                trackId = trackId,
+                title = trackTitle,
+                artist = artist,
+                album = album,
+                coverBytes = coverBytes,
+                hashtags = hashtags
+            )
+            deleteStoredFile(storagePath)
 
             send(DownloadState.Converting)
             delay(500.milliseconds)
@@ -185,25 +217,89 @@ class DownloadRepositoryImpl(
         }
     }.flowOn(Dispatchers.IO)
 
-    private suspend fun saveFileFromChannel(
+    private suspend fun queueJob(trackId: String): Long {
+        val data = Config.client.from("song_jobs").insert(
+            buildJsonObject { put("track_id", trackId) }
+        ) {
+            select(Columns.list("id"))
+        }.data
+        return JSONArray(data).optJSONObject(0)?.optLong("id") ?: 0L
+    }
+
+    private suspend fun readJob(jobId: Long): JSONObject? {
+        val data = Config.client.from("song_jobs")
+            .select(columns = Columns.list("id,status,title,artist,album,cover,storage_path,error")) {
+                filter { eq("id", jobId) }
+                limit(1L)
+            }.data
+        return JSONArray(data).optJSONObject(0)
+    }
+
+    private suspend fun downloadAudio(
+        storagePath: String,
+        onProgress: suspend (Long, Long) -> Unit
+    ): ByteArray {
+        val url = "${Config.SUPABASE_URL}/storage/v1/object/$SONGS_BUCKET/$storagePath"
+        val response = httpClient.get(url) {
+            headers {
+                append("apikey", Config.SUPABASE_PUBLISHABLE_KEY)
+                append("Authorization", "Bearer ${Config.SUPABASE_PUBLISHABLE_KEY}")
+            }
+            timeout {
+                requestTimeoutMillis = 180_000
+                connectTimeoutMillis = 30_000
+                socketTimeoutMillis = 180_000
+            }
+        }
+        if (response.status != HttpStatusCode.OK) {
+            throw Exception("Datei-Download: ${response.status}")
+        }
+        val total = response.headers["Content-Length"]?.toLongOrNull() ?: 0L
+        val channel = response.bodyAsChannel()
+        val output = ByteArrayOutputStream()
+        val buffer = ByteArray(64 * 1024)
+        var received = 0L
+        var lastEmit = 0L
+        while (true) {
+            val read = channel.readAvailable(buffer, 0, buffer.size)
+            if (read == -1) break
+            if (read == 0) continue
+            output.write(buffer, 0, read)
+            received += read
+            val now = System.currentTimeMillis()
+            if (now - lastEmit > 120) {
+                onProgress(received, total)
+                lastEmit = now
+            }
+        }
+        onProgress(received, total)
+        return output.toByteArray()
+    }
+
+    private fun megabytes(value: Long): String =
+        String.format(Locale.GERMANY, "%.1f", value / 1024.0 / 1024.0)
+
+    private suspend fun deleteStoredFile(path: String) {
+        runCatching {
+            Config.client.storage.from(SONGS_BUCKET).delete(listOf(path))
+        }
+    }
+
+    private suspend fun saveAudioBytes(
         fileName: String,
-        channel: ByteReadChannel,
-        contentLength: Long,
-        mimeType: String,
+        bytes: ByteArray,
         trackId: String,
         title: String,
         artist: String,
         album: String,
         coverBytes: ByteArray?,
-        hashtags: String?,
-        onProgress: suspend (Int) -> Unit
+        hashtags: String?
     ): android.net.Uri {
         val resolver = context.contentResolver
         val contentValues = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
-            put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
+            put(MediaStore.MediaColumns.MIME_TYPE, "audio/mpeg")
             put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_MUSIC + "/Tabslify")
-
             put(MediaStore.MediaColumns.IS_PENDING, 1)
         }
 
@@ -213,53 +309,10 @@ class DownloadRepositoryImpl(
         try {
             withContext(Dispatchers.IO) {
                 resolver.openOutputStream(uri)?.use { outputStream ->
-                    val id3Tag = buildId3Tag(trackId, title, artist, album, coverBytes, hashtags)
-                    outputStream.write(id3Tag)
-
-                    val buffer = ByteArray(8192)
-                    var totalBytesRead = 0L
-                    var id3Skipped = false
-                    var id3SkipBytes = 0
-
-                    while (!channel.isClosedForRead) {
-                        val read = channel.readAvailable(buffer, 0, buffer.size)
-                        if (read == -1) break
-
-                        var writeOffset = 0
-                        var writeLength = read
-
-                        if (!id3Skipped) {
-                            if (id3SkipBytes == 0 && read >= 10 &&
-                                buffer[0] == 0x49.toByte() &&
-                                buffer[1] == 0x44.toByte() &&
-                                buffer[2] == 0x33.toByte()
-                            ) {
-                                val tagSize = ((buffer[6].toInt() and 0x7F) shl 21) or
-                                        ((buffer[7].toInt() and 0x7F) shl 14) or
-                                        ((buffer[8].toInt() and 0x7F) shl 7) or
-                                        (buffer[9].toInt() and 0x7F)
-                                id3SkipBytes = 10 + tagSize
-                            }
-                            if (id3SkipBytes > 0) {
-                                val skip = minOf(id3SkipBytes, read)
-                                id3SkipBytes -= skip
-                                writeOffset = skip
-                                writeLength = read - skip
-                                if (id3SkipBytes == 0) id3Skipped = true
-                            } else {
-                                id3Skipped = true
-                            }
-                        }
-
-                        if (writeLength > 0) outputStream.write(buffer, writeOffset, writeLength)
-                        totalBytesRead += read
-                        if (contentLength > 0) {
-                            val progress = ((totalBytesRead * 100) / contentLength).toInt()
-                            withContext(Dispatchers.Main) { onProgress(progress) }
-                        }
-                    }
+                    outputStream.write(buildId3Tag(trackId, title, artist, album, coverBytes, hashtags))
+                    outputStream.write(stripId3(bytes))
                     outputStream.flush()
-                }
+                } ?: throw Exception("Konnte Datei nicht schreiben")
             }
 
             val updateValues = ContentValues().apply {
@@ -269,12 +322,25 @@ class DownloadRepositoryImpl(
                 put(MediaStore.Audio.Media.ALBUM, album)
             }
             resolver.update(uri, updateValues, null, null)
-
         } catch (e: Exception) {
             resolver.delete(uri, null, null)
             throw e
         }
         return uri
+    }
+
+    private fun stripId3(bytes: ByteArray): ByteArray {
+        if (bytes.size < 10) return bytes
+        if (bytes[0] != 0x49.toByte() || bytes[1] != 0x44.toByte() || bytes[2] != 0x33.toByte()) {
+            return bytes
+        }
+        val size = ((bytes[6].toInt() and 0x7F) shl 21) or
+                ((bytes[7].toInt() and 0x7F) shl 14) or
+                ((bytes[8].toInt() and 0x7F) shl 7) or
+                (bytes[9].toInt() and 0x7F)
+        val footer = if (bytes[5].toInt() and 0x10 != 0) 10 else 0
+        val end = 10 + size + footer
+        return if (end in 10..bytes.size) bytes.copyOfRange(end, bytes.size) else bytes
     }
 
     private fun buildId3Tag(
@@ -357,26 +423,6 @@ class DownloadRepositoryImpl(
         val header = byteArrayOf(0x49, 0x44, 0x33, 0x03, 0x00, 0x00) + toSyncsafe(tagSize)
         return header + framesBytes
     }
-
-    private fun errorSuffix(body: String?): String {
-        val detail = serverMessage(body) ?: return ""
-        return " – $detail"
-    }
-
-    private fun serverMessage(body: String?): String? {
-        val text = body?.trim().orEmpty()
-        if (text.isEmpty()) return null
-        val parsed = runCatching {
-            val json = Json.parseToJsonElement(text).jsonObject
-            json["message"]?.jsonPrimitive?.content
-                ?: json["error"]?.jsonPrimitive?.content
-                ?: json["details"]?.jsonPrimitive?.content
-                ?: json["error"]?.jsonObject?.get("message")?.jsonPrimitive?.content
-        }.getOrNull()
-        return (parsed ?: text).take(160).ifBlank { null }
-    }
-
-    private fun HttpResponse.contentLength(): Long? = headers["Content-Length"]?.toLongOrNull()
 
     private suspend fun fileExistsInMediaStore(fileName: String): Boolean =
         withContext(Dispatchers.IO) {

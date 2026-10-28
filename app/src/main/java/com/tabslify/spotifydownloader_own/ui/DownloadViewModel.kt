@@ -14,6 +14,7 @@ import com.tabslify.core.objects.tNotify
 import com.tabslify.services.MediaPlayerService
 import com.tabslify.spotifydownloader_own.domain.DownloadRepository
 import com.tabslify.spotifydownloader_own.domain.DownloadState
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,15 +35,32 @@ class DownloadViewModel(
     private val _downloadState = MutableStateFlow<DownloadState>(DownloadState.Idle)
     val downloadState: StateFlow<DownloadState> = _downloadState.asStateFlow()
 
+    private var aiDecision: CompletableDeferred<Boolean>? = null
+
     fun startDownload(url: String) {
         viewModelScope.launch {
-            repository.downloadTrack(url).collect { state ->
+            repository.downloadTrack(url) { awaitAiDecision() }.collect { state ->
                 _downloadState.value = state
                 if (state is DownloadState.Success) {
                     showSongDownloadedNotification(state)
                 }
             }
         }
+    }
+
+    private suspend fun awaitAiDecision(): Boolean {
+        val pending = CompletableDeferred<Boolean>()
+        aiDecision = pending
+        _downloadState.value = DownloadState.NeedsAiDecision
+        return try {
+            pending.await()
+        } finally {
+            aiDecision = null
+        }
+    }
+
+    fun answerAiDecision(downloadAnyway: Boolean) {
+        aiDecision?.complete(downloadAnyway)
     }
 
     companion object {
