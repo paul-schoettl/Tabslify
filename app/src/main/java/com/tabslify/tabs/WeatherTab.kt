@@ -101,6 +101,9 @@ import com.tabslify.core.objects.Config.client
 import com.tabslify.core.objects.Config.cms
 import com.tabslify.core.objects.tNotify
 import com.tabslify.core.objects.toast
+import com.tabslify.core.ui.BackHintOverlay
+import com.tabslify.core.ui.hasSeenBackHint
+import com.tabslify.core.ui.markBackHintSeen
 import io.github.jan.supabase.functions.functions
 import io.ktor.client.statement.bodyAsText
 import kotlinx.coroutines.CancellationException
@@ -322,8 +325,6 @@ fun WeatherTabContent(
     val scope = rememberCoroutineScope()
     var selectionState by remember { mutableStateOf(SelectionState(hour = null, dayIndex = null)) }
     var showBackHint by remember { mutableStateOf(false) }
-    val backHintPrefs =
-        remember { ctx.getSharedPreferences("tabslify_weather", Context.MODE_PRIVATE) }
     var weather by remember { mutableStateOf<WeatherData?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -332,7 +333,7 @@ fun WeatherTabContent(
     val lifecycleOwner = LocalLifecycleOwner.current
 
     val animIconbg = remember { Animatable(1f) }
-    val animIconbgColor = remember { Animatable(Color(0xFF001FBB)) }
+    val animIconbgColor = remember { Animatable(Color(0xFFFF7A1A)) }
 
     val blink = {
         scope.launch {
@@ -363,9 +364,9 @@ fun WeatherTabContent(
 
     // Show the back-navigation hint the first time the user opens a day.
     LaunchedEffect(selectionState.dayIndex) {
-        if (selectionState.dayIndex != null && !backHintPrefs.getBoolean("seen_back_hint", false)) {
+        if (selectionState.dayIndex != null && !hasSeenBackHint(ctx)) {
             showBackHint = true
-            backHintPrefs.edit { putBoolean("seen_back_hint", true) }
+            markBackHintSeen(ctx)
         }
     }
 
@@ -457,7 +458,7 @@ fun WeatherTabContent(
             } finally {
                 isLoading = false
                 animIconbgColor.animateTo(
-                    Color(0xFF001FBB),
+                    Color(0xFFFF7A1A),
                     animationSpec = tween(durationMillis = 500)
                 )
             }
@@ -654,145 +655,6 @@ fun WeatherTabContent(
 
         if (showBackHint) {
             BackHintOverlay(onDismiss = { showBackHint = false })
-        }
-    }
-}
-
-@Composable
-fun BackHintOverlay(onDismiss: () -> Unit) {
-    val infinite = rememberInfiniteTransition(label = "backhint")
-    val swipe by infinite.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 2200, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "swipe"
-    )
-    val edgeAlpha by infinite.animateFloat(
-        initialValue = 0.28f,
-        targetValue = 0.85f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(900, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "edge"
-    )
-
-    val fingerAlpha = when {
-        swipe < 0.12f -> swipe / 0.12f
-        swipe > 0.62f -> (1f - swipe) / 0.38f
-        else -> 1f
-    }.coerceIn(0f, 1f)
-
-    val accentBrush = Brush.linearGradient(
-        listOf(Color(0xFFFF8A4C), Color(0xFFB45CFC), Color(0xFF6B4CFC))
-    )
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(listOf(Color(0xE0060509), Color(0xF2060509)))
-            )
-            // Swallow touches so the dimmed screen behind is not interactive.
-            .clickable(
-                indication = null,
-                interactionSource = remember { MutableInteractionSource() }
-            ) { }
-    ) {
-        // left-edge accent bar (pulsing)
-        Box(
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .fillMaxHeight()
-                .width(5.dp)
-                .alpha(edgeAlpha)
-                .background(
-                    Brush.verticalGradient(
-                        listOf(Color(0xFFFF8A4C), Color(0xFFB45CFC), Color(0xFF6B4CFC))
-                    ),
-                    shape = RoundedCornerShape(topEnd = 4.dp, bottomEnd = 4.dp)
-                )
-        )
-
-        Box(
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .offset {
-                    IntOffset(
-                        (14 + swipe * 160).dp.roundToPx(),
-                        (-40).dp.roundToPx()
-                    )
-                }
-                .size(52.dp)
-                .alpha(fingerAlpha)
-                .background(
-                    Brush.radialGradient(
-                        listOf(Color(0xF2FFFFFF), Color(0x59FFFFFF), Color(0x1FFFFFFF))
-                    ),
-                    shape = RoundedCornerShape(50)
-                )
-        )
-
-        Card(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .padding(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1A2D)),
-            shape = RoundedCornerShape(26.dp)
-        ) {
-            Column(modifier = Modifier.padding(24.dp)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(100))
-                        .background(Color(0x29B45CFC))
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                ) {
-                    Text("💡", fontSize = 12.sp)
-                    Spacer(Modifier.width(7.dp))
-                    Text(
-                        stringResource(R.string.tipp),
-                        color = Color(0xFFC9BEF7),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-                Spacer(Modifier.height(16.dp))
-                Text(
-                    stringResource(R.string.zuruck_zur_ubersicht),
-                    color = Color(0xFFF7F5FB),
-                    fontSize = 23.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    stringResource(R.string.du_hast_einen_tag_geoffnet),
-                    color = Color(0xA8FFFFFF),
-                    fontSize = 15.sp,
-                    lineHeight = 22.sp
-                )
-                Spacer(Modifier.height(22.dp))
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(accentBrush)
-                        .clickable { onDismiss() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        stringResource(R.string.verstanden),
-                        color = Color.White,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-            }
         }
     }
 }

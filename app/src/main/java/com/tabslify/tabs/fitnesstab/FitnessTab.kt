@@ -58,6 +58,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.tabslify.R
 import com.tabslify.core.objects.Config
+import com.tabslify.core.TabNavigationViewModel
 import com.tabslify.core.ui.AlertDialogTabslify
 import com.tabslify.core.ui.PloppingButton
 import com.tabslify.core.ui.TextSecondary
@@ -69,9 +70,30 @@ import com.tabslify.tabs.fitnesstab.ui.HistoryScreen
 import com.tabslify.tabs.fitnesstab.ui.WorkoutScreen
 
 @Composable
-fun FitnessTabContent(vm: FitnessViewModel = viewModel()) {
+fun FitnessTabContent(
+    vm: FitnessViewModel = viewModel(),
+    navViewModel: TabNavigationViewModel = viewModel(),
+) {
     val context = LocalContext.current
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+
+    val canGoBack = vm.selectedExerciseId != null ||
+            (vm.currentScreen != FitnessScreen.DASHBOARD && vm.currentScreen != FitnessScreen.WORKOUT)
+    LaunchedEffect(canGoBack) {
+        navViewModel.updateBackState(
+            canNavigateBack = canGoBack,
+            onNavigateBack = {
+                if (vm.selectedExerciseId != null) {
+                    vm.navigateBackFromDetail()
+                } else if (vm.currentScreen != FitnessScreen.DASHBOARD) {
+                    vm.switchTo(FitnessScreen.DASHBOARD)
+                }
+            }
+        )
+    }
+    DisposableEffect(Unit) {
+        onDispose { navViewModel.reset() }
+    }
 
     var hasPermission by remember {
         mutableStateOf(

@@ -38,7 +38,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -72,6 +74,7 @@ import com.tabslify.core.objects.Config
 import com.tabslify.core.objects.cancelOrphanedEmailNotifications
 import com.tabslify.core.objects.emailNotificationId
 import com.tabslify.core.objects.prvt
+import com.tabslify.core.TabNavigationViewModel
 import com.tabslify.core.ui.AlertDialogTabslify
 import com.tabslify.core.ui.SharedViewModel
 import io.github.jan.supabase.postgrest.from
@@ -173,6 +176,7 @@ private suspend fun triggerGmailSync() = withContext(Dispatchers.IO) {
 @Composable
 fun GmailTabContent(
     svm: SharedViewModel = viewModel(),
+    navViewModel: TabNavigationViewModel = viewModel(),
 ) {
     val context = LocalContext.current
     if (!prvt()) {
@@ -190,6 +194,18 @@ fun GmailTabContent(
     var accountFilter by remember { mutableStateOf<String?>(null) }
     var pendingDelete by remember { mutableStateOf<EmailItem?>(null) }
     val listState = rememberLazyListState()
+    LaunchedEffect(selectedEmail) {
+        navViewModel.updateBackState(
+            canNavigateBack = selectedEmail != null,
+            onNavigateBack = { selectedEmail = null }
+        )
+    }
+    DisposableEffect(Unit) {
+        onDispose { navViewModel.reset() }
+    }
+    BackHandler(enabled = selectedEmail != null) {
+        selectedEmail = null
+    }
     LaunchedEffect(accountFilter) {
         listState.scrollToItem(0)
     }
