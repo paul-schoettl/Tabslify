@@ -45,6 +45,30 @@
         </LinearLayout>
 
         <FrameLayout
+            android:id="@+id/home_bar_hoses"
+            android:layout_width="40dp"
+            android:layout_height="match_parent">
+
+            <TextView
+                android:id="@+id/hose_divider"
+                android:layout_width="1dp"
+                android:layout_height="match_parent"
+                android:layout_gravity="start"
+                android:layout_marginTop="12dp"
+                android:layout_marginBottom="12dp"
+                android:background="#33FFFFFF" />
+
+            <ImageView
+                android:id="@+id/hose_widget_icon"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                android:layout_gravity="center"
+                android:contentDescription="@string/hose_widget_label"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_hose_off" />
+        </FrameLayout>
+
+        <FrameLayout
             android:id="@+id/home_bar_lamp"
             android:layout_width="72dp"
             android:layout_height="match_parent">

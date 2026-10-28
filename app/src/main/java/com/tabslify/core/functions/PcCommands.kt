@@ -7,8 +7,10 @@ import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration.Companion.milliseconds
@@ -18,6 +20,7 @@ object PcCommands {
     const val LAMP_OFF = "lamp_off"
     const val LAMP_ON = "lamp_on"
     const val LAMP_TOGGLE = "lamp_toggle"
+    const val SWITCH_SET = "switch_set"
 
     fun queueLampToggle(desired: Boolean, source: String) {
         queue(
@@ -38,6 +41,21 @@ object PcCommands {
             buildJsonObject {
                 put("desired", on)
                 put("is_on", on)
+            },
+            cooldownMs = 0
+        )
+    }
+
+    fun queueSwitchState(on: Boolean, source: String) {
+        queue(
+            SWITCH_SET,
+            source,
+            buildJsonObject {
+                put("desired", if (on) "on" else "off")
+                putJsonArray("devices") {
+                    add("steckdose")
+                    add("steckdose2")
+                }
             },
             cooldownMs = 0
         )

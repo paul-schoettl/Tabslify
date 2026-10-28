@@ -114,6 +114,16 @@ object LampWidgetSync {
                 }.onEach { change ->
                     applyRecord(appContext, change.record.toString())
                 }.launchIn(this)
+                channel.postgresChangeFlow<PostgresAction.Update>(schema = "public") {
+                    table = "hose_state"
+                }.onEach { change ->
+                    applyHoseRecord(appContext, change.record.toString())
+                }.launchIn(this)
+                channel.postgresChangeFlow<PostgresAction.Insert>(schema = "public") {
+                    table = "hose_state"
+                }.onEach { change ->
+                    applyHoseRecord(appContext, change.record.toString())
+                }.launchIn(this)
                 channel.subscribe(blockUntilSubscribed = true)
                 Log.i(TAG, "Lampen-Realtime aktiv")
             }.onFailure {
@@ -129,6 +139,16 @@ object LampWidgetSync {
             if (json.has("is_on") && !json.isNull("is_on")) json.optBoolean("is_on") else null
         }.getOrNull() ?: return
         val changed = HandyLampClient.applyRemoteState(appContext, on)
+        if (changed) updateIcon(appContext)
+    }
+
+    private fun applyHoseRecord(appContext: Context, record: String) {
+        val state = runCatching {
+            val json = JSONObject(record)
+            val name = json.optString("state")
+            if (name.isBlank()) null else HandyLampClient.HoseState.valueOf(name)
+        }.getOrNull() ?: return
+        val changed = HandyLampClient.applyRemoteHoseState(appContext, state)
         if (changed) updateIcon(appContext)
     }
 }
