@@ -10,6 +10,7 @@ import com.tabslify.services.QuietHoursNotificationService
 import com.tabslify.services.QuietHoursNotificationService.Companion.workerHandler
 import com.tabslify.services.WhatsAppNotificationListener
 import com.tabslify.tabs.focusguard.monitoring.FocusGuardSummaryRunner
+import kotlinx.coroutines.CancellationException
 import java.time.Instant
 
 class DailyDigestWorker(
@@ -23,6 +24,8 @@ class DailyDigestWorker(
             CloudBackup.backupNow(appCtx)
             postSchoolDaySummary(appCtx)
             runCatching { FocusGuardSummaryRunner.run(appCtx) }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             errorInsert(
                 "DailyDigestWorker",
@@ -30,8 +33,9 @@ class DailyDigestWorker(
                 Instant.now().toString(),
                 "ERROR"
             )
+        } finally {
+            DailyDigestScheduler.scheduleNext(appCtx)
         }
-        DailyDigestScheduler.scheduleNext(appCtx)
         return Result.success()
     }
 }

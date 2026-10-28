@@ -32,7 +32,6 @@ import com.tabslify.services.QuietHoursNotificationService.Companion.ACTION_NOTI
 import com.tabslify.services.QuietHoursNotificationService.Companion.ACTION_RESTORE_NOTIFICATION
 import com.tabslify.services.QuietHoursNotificationService.Companion.EXTRA_MESSAGE_ID
 import com.tabslify.services.QuietHoursNotificationService.Companion.EXTRA_SENDER
-import com.tabslify.services.QuietHoursNotificationService.Companion.NOTIFICATION_ID
 import com.tabslify.services.QuietHoursNotificationService.Companion.readMessageIds
 import com.tabslify.tabs.mediaplayer.PodcastShowManager
 import org.json.JSONObject
@@ -103,16 +102,7 @@ val notificationDismissReceiver = object : BroadcastReceiver() {
         if (intent?.action == ACTION_NOTIFICATION_DISMISSED) {
             val notificationId = intent.getIntExtra("notification_id", -1)
 
-            if (notificationId == NOTIFICATION_ID) {
-                val appContext = context.applicationContext
-                Handler(Looper.getMainLooper()).postDelayed({
-                    val serviceIntent =
-                        Intent(appContext, QuietHoursNotificationService::class.java).apply {
-                            action = ACTION_RESTORE_NOTIFICATION
-                        }
-                    appContext.startForegroundService(serviceIntent)
-                }, 100)
-            } else if (notificationId == com.tabslify.core.objects.Config.GAL) {
+            if (notificationId == com.tabslify.core.objects.Config.GAL) {
                 QuietHoursNotificationService.galleryImages = emptyList()
                 QuietHoursNotificationService.currentGalleryIndex = 0
             }

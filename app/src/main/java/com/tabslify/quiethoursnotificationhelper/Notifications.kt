@@ -18,12 +18,12 @@ import com.tabslify.core.activities.MainActivity
 import com.tabslify.core.functions.ExactAlarms
 import com.tabslify.core.functions.showSimpleNotificationExtern
 import com.tabslify.core.objects.prvt
+import com.tabslify.tabs.tiktok.TIKTOK_PUSH_CHANNEL_ID
 import com.tabslify.inactive.ChatService
 import com.tabslify.services.QuietHoursNotificationService
 import com.tabslify.services.QuietHoursNotificationService.Companion.ACTION_CHANGE_END
 import com.tabslify.services.QuietHoursNotificationService.Companion.ACTION_CONTENT_INTENT
 import com.tabslify.services.QuietHoursNotificationService.Companion.ACTION_EXECUTE_COMMAND
-import com.tabslify.services.QuietHoursNotificationService.Companion.ACTION_NOTIFICATION_DISMISSED
 import com.tabslify.services.QuietHoursNotificationService.Companion.ACTION_RESTORE_NOTIFICATION
 import com.tabslify.services.QuietHoursNotificationService.Companion.ACTION_SYNC_LAPTOP
 import com.tabslify.services.QuietHoursNotificationService.Companion.AI_NOTIFY_CHANNEL_ID
@@ -31,7 +31,7 @@ import com.tabslify.services.QuietHoursNotificationService.Companion.ALARM_REQUE
 import com.tabslify.services.QuietHoursNotificationService.Companion.CHANNEL_ID
 import com.tabslify.services.QuietHoursNotificationService.Companion.GALLERY_CHANNEL_ID
 import com.tabslify.services.QuietHoursNotificationService.Companion.MAIL_CHANNEL_ID
-import com.tabslify.services.QuietHoursNotificationService.Companion.NOTIFICATION_ID
+import com.tabslify.services.QuietHoursNotificationService.Companion.MONITOR_CHANNEL_ID
 import com.tabslify.services.QuietHoursNotificationService.Companion.SSN_CHANNEL_ID
 import com.tabslify.services.QuietHoursNotificationService.Companion.THRESHOLD_MINUTES
 import com.tabslify.services.QuietHoursNotificationService.Companion.VIRUSTOTAL_CHANNEL_ID
@@ -157,6 +157,19 @@ fun createNotificationChannel(context: Context) {
 
     notificationManager.createNotificationChannel(
         NotificationChannel(
+            MONITOR_CHANNEL_ID,
+            "Ruhezeiten Status",
+            NotificationManager.IMPORTANCE_LOW
+        ).apply {
+            description = "Lautlose Dauernotification der Ruhezeiten-Überwachung"
+            setShowBadge(false)
+            setSound(null, null)
+            enableVibration(false)
+            lockscreenVisibility = Notification.VISIBILITY_SECRET
+        })
+
+    notificationManager.createNotificationChannel(
+        NotificationChannel(
             GALLERY_CHANNEL_ID,
             "Galerie",
             NotificationManager.IMPORTANCE_LOW
@@ -247,6 +260,18 @@ fun createNotificationChannel(context: Context) {
                 enableVibration(true)
                 enableLights(true)
             })
+        notificationManager.createNotificationChannel(
+            NotificationChannel(
+                TIKTOK_PUSH_CHANNEL_ID,
+                "TikTok Direktnachrichten",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Neue TikTok-Nachrichten, die ein anderes Geraet gemeldet hat"
+                setShowBadge(true)
+                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                enableVibration(true)
+                enableLights(true)
+            })
     }
 
     notificationManager.createNotificationChannel(
@@ -279,16 +304,6 @@ fun createNotificationChannel(context: Context) {
 @SuppressLint("LaunchActivityFromNotification")
 fun createNotification(context: Context): Notification {
     val effectiveQuietHours = isQuietHoursNow(context)
-
-    val deleteBase = Intent(ACTION_NOTIFICATION_DISMISSED)
-    deleteBase.putExtra("notification_id", NOTIFICATION_ID)
-    deleteBase.setPackage(context.packageName)
-    val deletePendingIntent = PendingIntent.getBroadcast(
-        context,
-        999,
-        deleteBase,
-        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-    )
 
     val contentPendingIntent = if (effectiveQuietHours) {
         val contentBase = Intent(context, QuietHoursNotificationService::class.java)
@@ -336,11 +351,13 @@ fun createNotification(context: Context): Notification {
         .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_REPLY)
         .build()
 
-    val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+    val builder = NotificationCompat.Builder(context, MONITOR_CHANNEL_ID)
         .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-        .setPriority(NotificationCompat.PRIORITY_HIGH)
+        .setPriority(NotificationCompat.PRIORITY_LOW)
         .setOngoing(true)
-        .setDeleteIntent(deletePendingIntent)
+        .setSilent(true)
+        .setOnlyAlertOnce(true)
+        .setVisibility(NotificationCompat.VISIBILITY_SECRET)
         .setContentIntent(contentPendingIntent)
         .setOngoing(true)
         .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)

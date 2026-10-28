@@ -128,7 +128,6 @@ import com.tabslify.quiethoursnotificationhelper.startTriggerListenerIfHomeWifi
 import com.tabslify.quiethoursnotificationhelper.stopVoiceNote
 import com.tabslify.quiethoursnotificationhelper.syncTodosWithLaptop
 import com.tabslify.quiethoursnotificationhelper.timeChangeReceiver
-import com.tabslify.quiethoursnotificationhelper.updateNotification
 import com.tabslify.quiethoursnotificationhelper.updateSingleSenderNotification
 import com.tabslify.tabs.audiorecordertab.AudioForegroundService
 import com.tabslify.widget.CommandCodeUsageWidget
@@ -200,6 +199,7 @@ class QuietHoursNotificationService : Service() {
 
     companion object {
         const val CHANNEL_ID = "quiet_hours_channel"
+        const val MONITOR_CHANNEL_ID = "quiet_hours_monitor_channel"
         const val NOTIFICATION_ID = 999999
         const val WIDGET_REFRESH_MS = 3 * 60 * 1000L
         const val SUMMARY_WINDOW_MS = 15 * 60 * 1000L
@@ -517,7 +517,7 @@ class QuietHoursNotificationService : Service() {
                 handler.removeCallbacks(checkRunnable)
 
                 try {
-                    updateNotification(this)
+                    tNotify(this, NOTIFICATION_ID, createNotification(this))
                 } catch (e: Exception) {
                     reportServiceError("prefChangeListener:$key", e)
                 }
@@ -1208,8 +1208,6 @@ class QuietHoursNotificationService : Service() {
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
-        val notification = createNotification(this)
-        startForeground(NOTIFICATION_ID, notification)
 
         val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
         val shouldRestart = prefs.getBoolean("services_master", true) &&
