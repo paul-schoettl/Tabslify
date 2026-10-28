@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.provider.Settings
 import android.util.Log
+import androidx.core.net.toUri
 
 object ExactAlarms {
     const val MIN_WINDOW_MS = 10 * 60_000L
@@ -65,15 +66,36 @@ object ExactAlarms {
         }
     }
 
+    fun canScheduleExact(context: Context): Boolean {
+        return try {
+            (context.getSystemService(Context.ALARM_SERVICE) as AlarmManager)
+                .canScheduleExactAlarms()
+        } catch (e: Exception) {
+            Log.e("ExactAlarms", "Status der genauen-Alarm-Berechtigung unbekannt: ", e)
+            false
+        }
+    }
+
     fun requestPermission(context: Context) {
         try {
             context.startActivity(
-                Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
-                    .setPackage(context.packageName)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                Intent(
+                    Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                    "package:${context.packageName}".toUri()
+                ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             )
         } catch (e: Exception) {
             Log.e("ExactAlarms", "Anfrage der genauen-Alarm-Berechtigung fehlgeschlagen: ", e)
+            try {
+                context.startActivity(
+                    Intent(
+                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        "package:${context.packageName}".toUri()
+                    ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                )
+            } catch (e2: Exception) {
+                Log.e("ExactAlarms", "App-Einstellungen nicht oeffenbar: ", e2)
+            }
         }
     }
 }
