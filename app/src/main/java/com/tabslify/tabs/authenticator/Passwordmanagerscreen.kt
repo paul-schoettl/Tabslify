@@ -224,69 +224,71 @@ fun PasswordManagerScreen(
                             ) {
                                 Icon(Icons.Default.Delete, stringResource(R.string.import_action_secondary), tint = AccentBlue)
                             }
-                            IconButton(
-                                onClick = {
-                                    if (!isSyncing && realDevice) {
-                                        val appContext = context.applicationContext
-                                        val prefs = appContext.getSharedPreferences(
-                                            "sync_prefs",
-                                            Context.MODE_PRIVATE
-                                        )
-                                        val lastSyncTime =
-                                            prefs.getLong("last_sync_pw_timestamp", 0L)
-                                        val currentTime = System.currentTimeMillis()
+                            if (realDevice) {
+                                IconButton(
+                                    onClick = {
+                                        if (!isSyncing) {
+                                            val appContext = context.applicationContext
+                                            val prefs = appContext.getSharedPreferences(
+                                                "sync_prefs",
+                                                Context.MODE_PRIVATE
+                                            )
+                                            val lastSyncTime =
+                                                prefs.getLong("last_sync_pw_timestamp", 0L)
+                                            val currentTime = System.currentTimeMillis()
 
-                                        if (currentTime - lastSyncTime > 20_000L) {
-                                            isSyncing = true
-                                            appScope.launch {
-                                                try {
-                                                    if (Config.masterPassword.isBlank()) {
-                                                        Toast.makeText(
-                                                            appContext,
-                                                            keinMasterPasswortMsg,
-                                                            Toast.LENGTH_LONG
-                                                        ).show()
-                                                        return@launch
-                                                    }
-                                                    val result = syncPasswordEntriesWithCloud(
-                                                        db,
-                                                        twoFaDb,
-                                                        appContext
-                                                    )
-                                                    if (result.error != null) {
-                                                        Toast.makeText(
-                                                            appContext,
-                                                            keinNetzwerkVerfuegbarMsg,
-                                                            Toast.LENGTH_LONG
-                                                        ).show()
-                                                        return@launch
-                                                    }
-                                                    if (result.pendingConflicts.isNotEmpty()) {
-                                                        pendingConflicts = result.pendingConflicts
-                                                    }
-                                                    entries = db.passwordDao().getAll()
-                                                    prefs.edit(commit = true) {
-                                                        putLong(
-                                                            "last_sync_pw_timestamp",
-                                                            System.currentTimeMillis()
+                                            if (currentTime - lastSyncTime > 20_000L) {
+                                                isSyncing = true
+                                                appScope.launch {
+                                                    try {
+                                                        if (Config.masterPassword.isBlank()) {
+                                                            Toast.makeText(
+                                                                appContext,
+                                                                keinMasterPasswortMsg,
+                                                                Toast.LENGTH_LONG
+                                                            ).show()
+                                                            return@launch
+                                                        }
+                                                        val result = syncPasswordEntriesWithCloud(
+                                                            db,
+                                                            twoFaDb,
+                                                            appContext
                                                         )
+                                                        if (result.error != null) {
+                                                            Toast.makeText(
+                                                                appContext,
+                                                                keinNetzwerkVerfuegbarMsg,
+                                                                Toast.LENGTH_LONG
+                                                            ).show()
+                                                            return@launch
+                                                        }
+                                                        if (result.pendingConflicts.isNotEmpty()) {
+                                                            pendingConflicts = result.pendingConflicts
+                                                        }
+                                                        entries = db.passwordDao().getAll()
+                                                        prefs.edit(commit = true) {
+                                                            putLong(
+                                                                "last_sync_pw_timestamp",
+                                                                System.currentTimeMillis()
+                                                            )
+                                                        }
+                                                    } catch (e: Exception) {
+                                                        Toast.makeText(
+                                                            appContext,
+                                                            syncFehlgeschlagenMsg.format(e.message),
+                                                            Toast.LENGTH_LONG
+                                                        ).show()
+                                                    } finally {
+                                                        isSyncing = false
                                                     }
-                                                } catch (e: Exception) {
-                                                    Toast.makeText(
-                                                        appContext,
-                                                        syncFehlgeschlagenMsg.format(e.message),
-                                                        Toast.LENGTH_LONG
-                                                    ).show()
-                                                } finally {
-                                                    isSyncing = false
                                                 }
                                             }
                                         }
-                                    }
-                                },
-                                modifier = Modifier.size(32.dp)
-                            ) {
-                                Icon(Icons.Default.Refresh, stringResource(R.string.import_action_secondary), tint = AccentBlue)
+                                    },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(Icons.Default.Refresh, stringResource(R.string.import_action_secondary), tint = AccentBlue)
+                                }
                             }
                             IconButton(
                                 onClick = {
