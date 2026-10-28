@@ -21,6 +21,7 @@ import androidx.core.content.edit
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.tabslify.R
+import com.tabslify.core.objects.Config
 import com.tabslify.core.objects.prvt
 import com.tabslify.privatetabslifyapp.isOnline
 import com.tabslify.quiethoursnotificationhelper.AiProvider
@@ -141,7 +142,8 @@ class AITabViewModel(application: Application) : AndroidViewModel(application) {
         val json = ctx.getSharedPreferences("ai_prefs", MODE_PRIVATE)
             .getString("ai_history", null) ?: return
         try {
-            history.addAll(Json.decodeFromString<List<ChatMessage>>(json))
+            val loaded = Json.decodeFromString<List<ChatMessage>>(json)
+            history.addAll(loaded.filterNot { !it.own && it.text.isBlank() })
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -178,6 +180,16 @@ class AITabViewModel(application: Application) : AndroidViewModel(application) {
     fun clearHistory() {
         history.clear()
         persistHistory()
+    }
+
+    fun sendPrompt(text: String) {
+        val prompt = text.trim()
+        if (prompt.isEmpty()) return
+        loadHistory()
+        setMode("Gemini")
+        geminiModels.firstOrNull { it.realname == Config.DEF_GEMINI }?.let { selectModel(it) }
+        currentMsg = prompt
+        sendMessage()
     }
 
     fun sendMessage() {
@@ -272,6 +284,14 @@ class AITabViewModel(application: Application) : AndroidViewModel(application) {
                     message = response
                 )
             } catch (e: CancellationException) {
+                if (placeholderIndex < history.size && history[placeholderIndex].text.isBlank()) {
+                    history[placeholderIndex] = ChatMessage(
+                        ctx.getString(R.string.fehler),
+                        placeholderTs,
+                        false,
+                        modeAtSend
+                    )
+                }
                 throw e
             } catch (e: Exception) {
                 if (placeholderIndex < history.size) {

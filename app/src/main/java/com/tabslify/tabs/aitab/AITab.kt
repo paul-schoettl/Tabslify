@@ -60,7 +60,6 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -102,7 +101,6 @@ import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.m3.markdownColor
 import com.mikepenz.markdown.m3.markdownTypography
 import com.tabslify.R
-import com.tabslify.core.objects.Config
 import com.tabslify.core.objects.prvt
 import com.tabslify.core.ui.AlertDialogTabslify
 import com.tabslify.core.ui.BgSurface
@@ -184,9 +182,6 @@ fun AITabContent(
 
     var clearHistoryConfirmation by remember { mutableStateOf(false) }
 
-    val pendingPrompt by svm.pendingAiPrompt.collectAsState()
-    val appliedPrompt by svm.appliedAiPrompt.collectAsState()
-
     LaunchedEffect(vm.history.size) {
         val sel = vm.selectedMsg
         if (sel != null && sel >= vm.history.size) {
@@ -215,20 +210,8 @@ fun AITabContent(
     }
 
     LaunchedEffect(Unit) {
-        vm.selectedModel = vm.availableModels[0]
         vm.loadHistory()
         vm.animateAlpha(alpha)
-    }
-
-    LaunchedEffect(pendingPrompt, appliedPrompt) {
-        val ziel = pendingPrompt ?: return@LaunchedEffect
-        if (appliedPrompt == ziel) return@LaunchedEffect
-        svm.markAiPromptApplied(ziel)
-        vm.setMode("Gemini")
-        val standard = geminiModels.firstOrNull { it.realname == Config.DEF_GEMINI }
-        if (standard != null) vm.selectModel(standard)
-        vm.currentMsg = ziel
-        vm.sendMessage()
     }
 
     if (vm.showLimitReached) {
