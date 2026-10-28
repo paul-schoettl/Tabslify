@@ -97,6 +97,8 @@ fun ExploreTabContent(setGesturesEnabled: (Boolean) -> Unit) {
     val daySegments by vm.daySegments.collectAsStateWithLifecycle()
     val dayStays by vm.dayStays.collectAsStateWithLifecycle()
     val dayPoints by vm.dayPoints.collectAsStateWithLifecycle()
+    val dayExportEnabled by vm.dayExportEnabled.collectAsStateWithLifecycle()
+    val weekExportEnabled by vm.weekExportEnabled.collectAsStateWithLifecycle()
     val totalDistanceKm by vm.totalDistanceKm.collectAsStateWithLifecycle()
     val timeMovingMs by vm.timeMovingMs.collectAsStateWithLifecycle()
     val exportStatus by vm.exportStatus.collectAsStateWithLifecycle()
@@ -230,11 +232,13 @@ fun ExploreTabContent(setGesturesEnabled: (Boolean) -> Unit) {
                 NeonIconButton(
                     imageVector = Icons.Filled.FileDownload,
                     contentDescription = stringResource(R.string.explore_export_tag),
+                    enabled = dayExportEnabled,
                     onClick = { vm.exportData(1) }
                 )
                 NeonIconButton(
                     imageVector = Icons.Filled.Upload,
                     contentDescription = stringResource(R.string.explore_export_7_tage),
+                    enabled = weekExportEnabled,
                     onClick = { vm.exportData(7) }
                 )
                 NeonIconButton(
@@ -560,7 +564,7 @@ private fun NeonIconButton(
         borderWidth = 2.dp,
         neonColors = listOf(Color(0xFF00FFAA), Color(0xFF00CCFF)),
         backgroundAlpha = 0.22f,
-        onClick = onClick
+        onClick = if (enabled) onClick else null
     ) {
         Icon(
             imageVector = imageVector,

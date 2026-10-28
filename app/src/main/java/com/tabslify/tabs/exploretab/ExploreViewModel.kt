@@ -64,6 +64,16 @@ class ExploreViewModel(app: Application) : AndroidViewModel(app) {
         repo.pointsForDayFlow(start, end)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val dayExportEnabled: StateFlow<Boolean> = _selectedDate.flatMapLatest { day ->
+        val (start, end) = dayBounds(day)
+        repo.hasDataFlow(start, end)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    val weekExportEnabled: StateFlow<Boolean> = _selectedDate.flatMapLatest { day ->
+        val (start, end) = dayBounds(day.minusDays(6))
+        repo.hasDataFlow(start, end)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     val totalDistanceKm: StateFlow<Double> = daySegments.map { segments ->
         segments.sumOf { it.distanceMeters.toDouble() } / 1000.0
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)

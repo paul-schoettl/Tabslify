@@ -2,6 +2,7 @@ package com.tabslify.tabs.exploretab
 
 import android.content.Context
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import java.time.LocalDate
 import java.time.ZoneId
 import kotlin.math.floor
@@ -46,6 +47,15 @@ class ExploreRepository(context: Context) {
 
     fun staysForDay(dayStart: Long, dayEnd: Long): Flow<List<Stay>> =
         stayDao.staysForDayFlow(dayStart, dayEnd)
+
+    fun hasDataFlow(from: Long, to: Long): Flow<Boolean> = combine(
+        rawPointDao.countBetweenFlow(from, to),
+        segmentDao.countBetweenFlow(from, to),
+        stayDao.countBetweenFlow(from, to),
+        trackerEventDao.countBetweenFlow(from, to)
+    ) { points, segments, stays, events ->
+        points > 0 || segments > 0 || stays > 0 || events > 0
+    }
 
     suspend fun hasSegmentsForDay(dayStart: Long, dayEnd: Long): Boolean =
         segmentDao.countForDay(dayStart, dayEnd) > 0

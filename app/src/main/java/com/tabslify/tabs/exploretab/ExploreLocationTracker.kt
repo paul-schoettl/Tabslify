@@ -97,6 +97,10 @@ object ExploreLocationTracker {
     private const val GEOFENCE_ID = "HOME"
     private const val GEOFENCE_RADIUS = 100f
     private const val GEOFENCE_TRANSITION_COOLDOWN_MS = 10 * 60_000L
+    private const val PRESENCE_PREFS = "explore_presence"
+    private const val PRESENCE_KEY = "presence"
+    private const val PRESENCE_HOME = "home"
+    private const val PRESENCE_OUTSIDE = "outside"
     private const val RECHECK_TAG = "explore_cooldown_recheck"
     const val HOME_WIFI_SSID = "FRITZ!Box 5590 XO"
     private const val NIGHT_START_HOUR = 0
@@ -159,14 +163,34 @@ object ExploreLocationTracker {
     }
 
     fun onArrivedHome(context: Context) {
-        syncTodosWithLaptop(context.applicationContext)
+        val appCtx = context.applicationContext
+        setPresence(appCtx, PRESENCE_HOME)
+        syncTodosWithLaptop(appCtx)
     }
 
     fun onLeftHome(context: Context) {
+        val appCtx = context.applicationContext
         if (isLaptopConnected) {
-            stopAllSyncServices(context.applicationContext)
+            stopAllSyncServices(appCtx)
         }
-        runCatching { com.tabslify.widget.LampWidgetSync.reportOff(context, "explore_verlassen") }
+        if (presence(appCtx) == PRESENCE_OUTSIDE) {
+            return
+        }
+        setPresence(appCtx, PRESENCE_OUTSIDE)
+        runCatching { com.tabslify.widget.LampWidgetSync.reportOff(appCtx, "explore_verlassen") }
+    }
+
+    private fun presence(context: Context): String? =
+        context.applicationContext
+            .getSharedPreferences(PRESENCE_PREFS, Context.MODE_PRIVATE)
+            .getString(PRESENCE_KEY, null)
+
+    private fun setPresence(context: Context, value: String) {
+        context.applicationContext
+            .getSharedPreferences(PRESENCE_PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putString(PRESENCE_KEY, value)
+            .apply()
     }
 
     fun onGeofenceEnter(context: Context) {

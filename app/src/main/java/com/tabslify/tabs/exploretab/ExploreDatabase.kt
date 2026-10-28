@@ -122,6 +122,9 @@ interface RawPointDao {
     @Query("SELECT * FROM raw_points WHERE timestamp >= :dayStart AND timestamp < :dayEnd ORDER BY timestamp ASC")
     fun pointsBetweenFlow(dayStart: Long, dayEnd: Long): Flow<List<RawPoint>>
 
+    @Query("SELECT COUNT(*) FROM raw_points WHERE timestamp >= :from AND timestamp < :to")
+    fun countBetweenFlow(from: Long, to: Long): Flow<Int>
+
     @Query("DELETE FROM raw_points WHERE timestamp < :cutoff")
     suspend fun deleteBefore(cutoff: Long)
 }
@@ -140,6 +143,9 @@ interface SegmentDao {
     @Query("SELECT COUNT(*) FROM segments WHERE startTime >= :dayStart AND startTime < :dayEnd")
     suspend fun countForDay(dayStart: Long, dayEnd: Long): Int
 
+    @Query("SELECT COUNT(*) FROM segments WHERE startTime >= :from AND startTime < :to")
+    fun countBetweenFlow(from: Long, to: Long): Flow<Int>
+
     @Query("DELETE FROM segments WHERE startTime >= :dayStart AND startTime < :dayEnd")
     suspend fun deleteForDay(dayStart: Long, dayEnd: Long)
 }
@@ -155,6 +161,9 @@ interface StayDao {
     @Query("SELECT * FROM stays WHERE startTime >= :dayStart AND startTime < :dayEnd ORDER BY startTime ASC")
     suspend fun staysBetween(dayStart: Long, dayEnd: Long): List<Stay>
 
+    @Query("SELECT COUNT(*) FROM stays WHERE startTime >= :from AND startTime < :to")
+    fun countBetweenFlow(from: Long, to: Long): Flow<Int>
+
     @Query("DELETE FROM stays WHERE startTime >= :dayStart AND startTime < :dayEnd")
     suspend fun deleteForDay(dayStart: Long, dayEnd: Long)
 }
@@ -166,6 +175,9 @@ interface TrackerEventDao {
 
     @Query("SELECT * FROM tracker_events WHERE timestamp >= :from AND timestamp < :to ORDER BY timestamp ASC")
     suspend fun eventsBetween(from: Long, to: Long): List<TrackerEvent>
+
+    @Query("SELECT COUNT(*) FROM tracker_events WHERE timestamp >= :from AND timestamp < :to")
+    fun countBetweenFlow(from: Long, to: Long): Flow<Int>
 
     @Query("DELETE FROM tracker_events WHERE timestamp < :cutoff")
     suspend fun deleteBefore(cutoff: Long)
