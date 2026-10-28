@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -49,13 +50,13 @@ import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import androidx.core.content.edit
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -64,6 +65,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.tabslify.R
 import com.tabslify.core.activities.Tabslify.Companion.appScope
+import com.tabslify.core.objects.Config
 import com.tabslify.core.objects.Config.client
 import com.tabslify.core.objects.prvt
 import io.github.jan.supabase.postgrest.from
@@ -210,6 +212,10 @@ object BatteryDataRepository {
     suspend fun syncToSupabase(context: Context): Boolean = withContext(Dispatchers.IO) {
         runCatching {
             if (!prvt()) return@withContext false
+            if (!Config.hasAuthSession()) {
+                Log.e("BatterySync", "Überspringe Cloud-Sync, keine Auth-Session")
+                return@withContext false
+            }
 
             val local = readAllSamples()
             val remote = fetchSamplesFromSupabase()
@@ -217,10 +223,12 @@ object BatteryDataRepository {
             val merged = mergeSamples(local, remote)
             if (merged.size < remote.size) return@withContext false
 
-            client.from("Tabslify").upsert(buildJsonObject {
-                put("id", 1)
-                put("battery_samples", json.encodeToString(merged))
-            })
+            Config.safeCall {
+                client.from("Tabslify").upsert(buildJsonObject {
+                    put("id", 1)
+                    put("battery_samples", json.encodeToString(merged))
+                })
+            }
 
             val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
             prefs.edit {
@@ -228,7 +236,10 @@ object BatteryDataRepository {
                     .putInt(PREF_LAST_SYNC_COUNT, merged.size)
             }
             true
-        }.getOrElse { false }
+        }.getOrElse {
+            Log.e("BatterySync", "Cloud-Sync fehlgeschlagen: ${it.message}")
+            false
+        }
     }
 
     private fun sampleFile(): File = File(context.filesDir, FILE_NAME)
@@ -267,6 +278,7 @@ object BatteryDataRepository {
         withContext(Dispatchers.IO) {
             runCatching {
                 if (!prvt()) return@withContext emptyList()
+                if (!Config.hasAuthSession()) return@withContext emptyList()
                 val row = client.from("Tabslify").select().decodeSingle<JsonObject>()
                 val str =
                     row["battery_samples"]?.jsonPrimitive?.content ?: return@withContext emptyList()

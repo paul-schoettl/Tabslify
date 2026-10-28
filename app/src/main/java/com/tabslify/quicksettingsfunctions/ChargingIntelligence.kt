@@ -23,6 +23,7 @@ import com.google.firebase.ai.ai
 import com.google.firebase.ai.type.GenerativeBackend
 import com.tabslify.R
 import com.tabslify.core.activities.Tabslify.Companion.appScope
+import com.tabslify.core.objects.Config
 import com.tabslify.core.objects.Config.DEF_GEMINI
 import com.tabslify.core.objects.Config.client
 import com.tabslify.core.objects.PrefsCleanup
@@ -155,6 +156,7 @@ object ChargeSessionRepository {
                 .getString("all", null)?.let { json.decodeFromString<List<ChargingSession>>(it) }
                 ?: emptyList()
             if (local.isNotEmpty()) return@withContext local
+            if (!Config.hasAuthSession()) return@withContext emptyList()
             val remote = client.from("Tabslify").select().decodeSingle<JsonObject>()
                 .let { it["charging_sessions"]?.jsonPrimitive?.content }
                 ?.let { json.decodeFromString<List<ChargingSession>>(it) }
@@ -174,10 +176,18 @@ object ChargeSessionRepository {
                     ).show()
                     return@runCatching
                 }
-                client.from("Tabslify").upsert(buildJsonObject {
-                    put("id", 1)
-                    put("charging_sessions", json.encodeToString(sessions))
-                })
+                if (!Config.hasAuthSession()) {
+                    Log.e("ChargeSync", "Überspringe Cloud-Sync, keine Auth-Session")
+                    return@runCatching
+                }
+                Config.safeCall {
+                    client.from("Tabslify").upsert(buildJsonObject {
+                        put("id", 1)
+                        put("charging_sessions", json.encodeToString(sessions))
+                    })
+                }
+            }.onFailure {
+                Log.e("ChargeSync", "Cloud-Sync fehlgeschlagen: ${it.message}")
             }
         }
 
