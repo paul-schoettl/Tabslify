@@ -46,6 +46,12 @@ class CommandCodeUsageWidget : AppWidgetProvider() {
                 LampWidgetToggleWorker.enqueue(app)
             }
 
+            ACTION_HOSE_TOGGLE -> {
+                HoseWidgetPending.markTap(app)
+                CommandCodeWidgetRenderer.pushCurrent(app)
+                HoseWidgetToggleWorker.enqueue(app)
+            }
+
             else -> super.onReceive(context, intent)
         }
     }
@@ -53,6 +59,7 @@ class CommandCodeUsageWidget : AppWidgetProvider() {
     companion object {
         const val ACTION_REFRESH = "com.tabslify.widget.COMMANDCODE_REFRESH"
         const val ACTION_LAMP_TOGGLE = "com.tabslify.widget.LAMP_TOGGLE"
+        const val ACTION_HOSE_TOGGLE = "com.tabslify.widget.HOSE_TOGGLE"
 
         fun updateAll(context: Context) {
             val app = context.applicationContext

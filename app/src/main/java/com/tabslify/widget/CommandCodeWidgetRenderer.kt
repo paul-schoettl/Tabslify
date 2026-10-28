@@ -46,14 +46,24 @@ object CommandCodeWidgetRenderer {
             "setAlpha",
             if (LampWidgetPending.isPending(context)) PENDING_ALPHA else NORMAL_ALPHA
         )
+        views.setOnClickPendingIntent(R.id.home_bar_hoses, hosePendingIntent(context))
+        views.setImageViewResource(R.id.hose_widget_icon, hoseIcon(context))
+        views.setInt(
+            R.id.hose_widget_icon,
+            "setAlpha",
+            if (HoseWidgetPending.isPending(context)) PENDING_ALPHA else NORMAL_ALPHA
+        )
 
         val snapshot = WidgetSnapshotStore.read(context)
-        if (state == PaceState.DATA && snapshot != null) {
+        if (snapshot != null) {
             views.setImageViewBitmap(
                 R.id.cc_widget_bar,
                 CommandCodeBarRenderer.render(snapshot.pct, snapshot.pacePct)
             )
-            views.setTextViewText(R.id.cc_widget_pace, paceText(context, snapshot))
+            views.setTextViewText(
+                R.id.cc_widget_pace,
+                if (state == PaceState.DATA) paceText(context, snapshot) else stateText(context, state)
+            )
         } else {
             views.setImageViewBitmap(R.id.cc_widget_bar, CommandCodeBarRenderer.render(0.0, 0.0))
             views.setTextViewText(R.id.cc_widget_pace, stateText(context, state))
@@ -108,6 +118,13 @@ object CommandCodeWidgetRenderer {
             R.drawable.ic_lightbulb_off
         }
 
+    private fun hoseIcon(context: Context): Int = when (HandyLampClient.cachedHoses(context)) {
+        HandyLampClient.HoseState.ON -> R.drawable.ic_hose_on
+        HandyLampClient.HoseState.P_ONLY -> R.drawable.ic_hose_p
+        HandyLampClient.HoseState.HOSE_ONLY -> R.drawable.ic_hose_h
+        else -> R.drawable.ic_hose_off
+    }
+
     private fun refreshPendingIntent(context: Context): PendingIntent =
         PendingIntent.getBroadcast(
             context,
@@ -124,6 +141,14 @@ object CommandCodeWidgetRenderer {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
+    private fun hosePendingIntent(context: Context): PendingIntent =
+        PendingIntent.getBroadcast(
+            context,
+            2,
+            Intent(context, CommandCodeUsageWidget::class.java).setAction(CommandCodeUsageWidget.ACTION_HOSE_TOGGLE),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+
     fun logRender(state: PaceState, cached: Boolean) {
         Log.i(TAG, "Render: Zustand=$state cache=$cached")
     }
@@ -132,6 +157,28 @@ object CommandCodeWidgetRenderer {
 object LampWidgetPending {
 
     private const val PREFS = "lamp_widget_pending"
+    private const val KEY_TAP_AT = "tap_at"
+    private const val WINDOW_MS = 20_000L
+
+    fun markTap(context: Context) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit {putLong(KEY_TAP_AT, System.currentTimeMillis())}
+    }
+
+    fun clear(context: Context) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit {clear()}
+    }
+
+    fun isPending(context: Context): Boolean {
+        val at = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getLong(KEY_TAP_AT, 0L)
+        return at > 0L && System.currentTimeMillis() - at < WINDOW_MS
+    }
+}
+
+object HoseWidgetPending {
+
+    private const val PREFS = "hose_widget_pending"
     private const val KEY_TAP_AT = "tap_at"
     private const val WINDOW_MS = 20_000L
 

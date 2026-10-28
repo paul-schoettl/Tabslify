@@ -35,6 +35,13 @@ class CommandCodeWidgetRefreshWorker(
             }
 
             try {
+                HandyLampClient.refreshHosesBestEffort(app)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+            }
+
+            try {
                 val usage = CommandCodeUsageRepository.load(app)
                 WidgetSnapshotStore.save(app, usage)
             } catch (e: CancellationException) {

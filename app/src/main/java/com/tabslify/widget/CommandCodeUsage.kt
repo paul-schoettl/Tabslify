@@ -3,10 +3,12 @@ package com.tabslify.widget
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
 import android.util.Log
+import androidx.core.content.edit
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.toColorInt
 import com.tabslify.core.objects.Config
 import com.tabslify.quiethoursnotificationhelper.laptopIp
 import com.tabslify.quiethoursnotificationhelper.laptopName
@@ -23,9 +25,6 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
-import androidx.core.content.edit
-import androidx.core.graphics.toColorInt
-import androidx.core.graphics.createBitmap
 
 class CookieExpiredException(message: String) : Exception(message)
 
@@ -40,8 +39,7 @@ data class CommandCodeUsage(
     val pct: Double,
     val pacePct: Double,
     val offlineDays: Int
-) {
-}
+)
 
 object CommandCodeUsageRepository {
 
