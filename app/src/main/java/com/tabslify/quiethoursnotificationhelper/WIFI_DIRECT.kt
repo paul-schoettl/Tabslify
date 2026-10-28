@@ -500,8 +500,10 @@ private var clipboardJob: Job? = null
 private var executeJob: Job? = null
 private var smsJob: Job? = null
 private var spotifyHistoryJob: Job? = null
+private var ipReportJob: Job? = null
 
 private val activeServers = mutableListOf<ServerSocket>()
+private val activeClients = mutableMapOf<Socket, Int>()
 
 private val listenerUnboundSince = java.util.concurrent.ConcurrentHashMap<Int, Long>()
 private const val LISTENER_UNBOUND_GRACE = 15_000L
@@ -613,8 +615,15 @@ fun unregisterWifiReconnectReceiver(context: Context) {
 }
 
 fun shutdownAllWifiDirectServices(context: Context) {
+    synchronized(triggerRepairLock) {
+        triggerProbeRunning = false
+        triggerProbeThread?.interrupt()
+        triggerProbeThread = null
+        triggerResponsive = null
+    }
     triggerJob?.cancel(); triggerJob = null
     triggerWatchdogJob?.cancel(); triggerWatchdogJob = null
+    ipReportJob?.cancel(); ipReportJob = null
     pendingSyncJob?.cancel(); pendingSyncJob = null
     listenerJob?.cancel(); listenerJob = null
     mediaCommandJob?.cancel(); mediaCommandJob = null
@@ -635,6 +644,11 @@ fun shutdownAllWifiDirectServices(context: Context) {
     synchronized(activeServers) {
         activeServers.forEach { runCatching { it.close() } }
         activeServers.clear()
+    }
+
+    synchronized(activeClients) {
+        activeClients.keys.forEach { runCatching { it.close() } }
+        activeClients.clear()
     }
 
     unregisterWifiReconnectReceiver(context)
@@ -678,14 +692,21 @@ private fun launchServer(
                 while (isActive) {
                     try {
                         val client = server.accept()
+                        synchronized(activeClients) { activeClients[client] = port }
                         scope.launch {
-                            client.use {
-                                try {
-                                    handler(it)
-                                } catch (e: Exception) {
-                                    Log.e("CLOUDSA", "$errorTag: Error handling client", e)
-                                    logError(errorTag, e)
+                            try {
+                                client.use {
+                                    try {
+                                        handler(it)
+                                    } catch (_: SocketTimeoutException) {
+                                    } catch (_: SocketException) {
+                                    } catch (e: Exception) {
+                                        Log.e("CLOUDSA", "$errorTag: Error handling client", e)
+                                        logError(errorTag, e)
+                                    }
                                 }
+                            } finally {
+                                synchronized(activeClients) { activeClients.remove(client) }
                             }
                         }
                     } catch (_: SocketTimeoutException) {
@@ -807,7 +828,7 @@ suspend fun callNvidiaVisionApi(
             ans ?: ""
         } else {
             val model = Firebase.ai(backend = GenerativeBackend.googleAI())
-                .generativeModel("gemini-3-flash-preview")
+                .generativeModel(Config.DEF_GEMINI)
             model.generateContentStream(content { image(scaledBmp); text("$systemPrompt\n\n$prompt") })
                 .collect { chunk ->
                     val delta = chunk.text ?: ""
@@ -866,6 +887,7 @@ data class AiResponseEntry(
 fun startTriggerListenerIfHomeWifi(context: Context) {
     startTriggerListener(context)
     registerWifiReconnectReceiver(context)
+    startIpReportHeartbeat(context)
 
     syncScope.launch {
         val ip = fetchIpFromSupabase()
@@ -885,23 +907,8 @@ fun registerWifiReconnectReceiver(context: Context) {
 
     val callback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
-            fun getLocalIp(): String {
-                return try {
-                    NetworkInterface.getNetworkInterfaces()
-                        ?.asSequence()
-                        ?.flatMap { it.inetAddresses.asSequence() }
-                        ?.firstOrNull { addr ->
-                            !addr.isLoopbackAddress && addr.hostAddress?.contains(':') == false
-                        }
-                        ?.hostAddress ?: "Unbekannt"
-                } catch (e: Exception) {
-                    Log.e("CLOUDSA", "[NET] IP-Fehler", e)
-                    "Unbekannt"
-                }
-            }
-
-            val localIp = getLocalIp()
-            if (localIp != "Unbekannt") {
+            val localIp = currentSyncIp(appContext)
+            if (localIp != null) {
                 syncScope.launch { insertMobileIpToSupabase(localIp) }
             }
 
@@ -941,11 +948,7 @@ fun registerWifiReconnectReceiver(context: Context) {
             linkProperties: LinkProperties
         ) {
             Log.d("CLOUDSA", "${linkProperties.linkAddresses}")
-            val localIp = linkProperties.linkAddresses
-                .map { it.address.hostAddress }
-                .firstOrNull { ip ->
-                    ip != null && (ip.startsWith("192.168.") || ip.startsWith("10."))
-                }
+            val localIp = currentSyncIp(appContext)
 
             if (localIp != null) {
                 syncScope.launch {
@@ -967,6 +970,7 @@ fun registerWifiReconnectReceiver(context: Context) {
 @SuppressLint("Wakelock", "WakelockTimeout")
 fun startTriggerListener(context: Context) {
     val ctx = context.applicationContext
+    startTriggerRepairWatch(ctx)
     if (triggerJob?.isActive == true) return
     appContext = ctx.applicationContext
     
@@ -977,6 +981,7 @@ fun startTriggerListener(context: Context) {
         wl.acquire(30_000L)
 
         try {
+            client.soTimeout = TRIGGER_CLIENT_TIMEOUT_MS
             val reader = BufferedReader(InputStreamReader(client.getInputStream()))
             val command = reader.readLine()
             val writer = PrintWriter(client.getOutputStream(), true)
@@ -1057,6 +1062,7 @@ fun startTriggerListener(context: Context) {
                     }
                 }
 
+                command == "PING" -> writer.println("PONG")
                 command == "REQUEST_SESSIONS" -> {
                     syncScope.launch { sendSessionDataToLaptop(context) }
                     writer.println("ACCEPTED")
@@ -1077,6 +1083,101 @@ fun startTriggerListener(context: Context) {
     
     // Start watchdog
     startTriggerWatchdog(context)
+}
+
+@Volatile private var triggerResponsive: Boolean? = null
+@Volatile private var triggerProbeRunning = false
+private var triggerProbeThread: Thread? = null
+private val triggerRepairLock = Any()
+
+private const val TRIGGER_PROBE_INTERVAL_MS = 30_000L
+private const val TRIGGER_PROBE_TIMEOUT_MS = 3_000
+private const val TRIGGER_PROBE_FAILURES = 2
+private const val TRIGGER_CLIENT_TIMEOUT_MS = 15_000
+
+private fun isTriggerListenerResponsive(timeoutMs: Int): Boolean {
+    return try {
+        Socket().use { socket ->
+            socket.connect(InetSocketAddress("127.0.0.1", Config.TRIGGER_PORT), timeoutMs)
+            socket.soTimeout = timeoutMs
+            val writer = PrintWriter(socket.getOutputStream(), true)
+            val reader = BufferedReader(InputStreamReader(socket.getInputStream()))
+            writer.println("PING")
+            reader.readLine() == "PONG"
+        }
+    } catch (_: Exception) {
+        false
+    }
+}
+
+private fun closeClientsForPort(port: Int) {
+    val sockets = synchronized(activeClients) {
+        activeClients.filterValues { it == port }.keys.toList().also { keys ->
+            keys.forEach { activeClients.remove(it) }
+        }
+    }
+    sockets.forEach { runCatching { it.close() } }
+}
+
+private fun repairTriggerListener(context: Context) {
+    synchronized(triggerRepairLock) {
+        if (!triggerProbeRunning) return
+        Log.w("CLOUDSA", "Trigger-Listener antwortet nicht - Self-Repair")
+        triggerJob?.cancel()
+        triggerJob = null
+        closeClientsForPort(Config.TRIGGER_PORT)
+        synchronized(activeServers) {
+            activeServers.removeAll { server ->
+                val isTrigger = runCatching { server.localPort }.getOrNull() == Config.TRIGGER_PORT
+                if (isTrigger) runCatching { server.close() }
+                isTrigger
+            }
+        }
+        triggerResponsive = false
+        startTriggerListener(context.applicationContext)
+        showSimpleNotificationExtern(
+            "🔧 Sync-Self-Repair",
+            "Trigger-Listener neu gestartet",
+            5.seconds,
+            context.applicationContext
+        )
+    }
+}
+
+private fun startTriggerRepairWatch(context: Context) {
+    if (triggerProbeThread?.isAlive == true) return
+    triggerProbeRunning = true
+    val ctx = context.applicationContext
+    triggerProbeThread = Thread({
+        var failures = 0
+        while (triggerProbeRunning) {
+            try {
+                Thread.sleep(TRIGGER_PROBE_INTERVAL_MS)
+            } catch (_: InterruptedException) {
+                break
+            }
+            if (!triggerProbeRunning) break
+            val responsive = isTriggerListenerResponsive(TRIGGER_PROBE_TIMEOUT_MS)
+            triggerResponsive = responsive
+            if (responsive) {
+                failures = 0
+                continue
+            }
+            failures++
+            Log.w("CLOUDSA", "Trigger-Listener antwortet nicht ($failures/$TRIGGER_PROBE_FAILURES)")
+            if (failures >= TRIGGER_PROBE_FAILURES) {
+                failures = 0
+                try {
+                    repairTriggerListener(ctx)
+                } catch (e: Exception) {
+                    Log.e("CLOUDSA", "Self-Repair fehlgeschlagen", e)
+                }
+            }
+        }
+    }, "trigger-self-repair").apply {
+        isDaemon = true
+        start()
+    }
 }
 
 private fun startTriggerWatchdog(context: Context) {
@@ -1281,7 +1382,12 @@ fun getTriggerListenerStatus(): String {
     val jobActive = triggerJob?.isActive == true
     val watchdogActive = triggerWatchdogJob?.isActive == true
     val portOpen = isTriggerPortOpen()
-    return "Job: ${if (jobActive) "aktiv" else "inaktiv"}, Watchdog: ${if (watchdogActive) "aktiv" else "inaktiv"}, Port: ${if (portOpen) "offen" else "geschlossen"}"
+    val response = when (triggerResponsive) {
+        true -> "ja"
+        false -> "nein"
+        null -> "?"
+    }
+    return "Job: ${if (jobActive) "aktiv" else "inaktiv"}, Watchdog: ${if (watchdogActive) "aktiv" else "inaktiv"}, Port: ${if (portOpen) "offen" else "geschlossen"}, Antwort: $response"
 }
 
 fun syncTodosWithLaptop(context: Context, connected: Boolean = false) {
@@ -1302,7 +1408,7 @@ fun syncTodosWithLaptop(context: Context, connected: Boolean = false) {
     syncScope.launch {
         var attemptFailed = true
         try {
-            val localip = getHotspotIp()
+            val localip = currentSyncIp(ctx)
             if (localip != null) insertMobileIpToSupabase(localip)
 
             if (!connected) {
@@ -1310,7 +1416,12 @@ fun syncTodosWithLaptop(context: Context, connected: Boolean = false) {
                     fetchIpFromSupabase()
                 }
                 if (fetched.isNullOrEmpty()) {
-                    notifyMissingIpOnce(context, "Supabase lieferte keine IP")
+                    val reason = if (!Config.hasAuthSession()) {
+                        "Nicht bei Supabase angemeldet – App öffnen"
+                    } else {
+                        "Supabase lieferte keine IP"
+                    }
+                    notifyMissingIpOnce(context, reason)
                     return@launch
                 }
                 laptopIp = fetched
@@ -2743,16 +2854,25 @@ private fun handleExecuteCommand(context: Context, json: JSONObject) {
                 } else {
                     val file = voiceFile(ctx)
                     VoiceState.filePath = file.absolutePath
-                    if (!tryStartVoiceService(ctx, file.absolutePath)) {
-                        postVoiceTapNotification(ctx)
-                    }
                     val deadline = System.currentTimeMillis() + 20_000L
+                    var notified = false
+                    if (!tryStartVoiceService(ctx, file.absolutePath)) {
+                        notified = postVoiceTapNotification(ctx)
+                    } else {
+                        val serviceDeadline = minOf(deadline, System.currentTimeMillis() + 2_500L)
+                        while (!VoiceState.recording && System.currentTimeMillis() < serviceDeadline) {
+                            delay(100.milliseconds)
+                        }
+                        if (!VoiceState.recording) {
+                            notified = postVoiceTapNotification(ctx)
+                        }
+                    }
                     while (!VoiceState.recording && System.currentTimeMillis() < deadline) {
                         delay(250.milliseconds)
                     }
                     ok = VoiceState.recording
                     if (!ok) {
-                        reason = "tap_timeout"
+                        reason = if (notified) "tap_timeout" else "notification_blocked"
                         VoiceState.filePath = null
                     }
                 }
@@ -2940,6 +3060,10 @@ fun sendAiExecuteCommand(context: Context, userInput: String) {
 
 private suspend fun fetchIpFromSupabase(mobile: Boolean = false): String? =
     withContext(Dispatchers.IO) {
+        if (!Config.ensureAuthSession()) {
+            Log.w("CLOUDSA", "Supabase-Session im Hintergrund nicht verfügbar")
+            return@withContext null
+        }
         val column = if (!mobile) "laptop" else "handy"
         repeat(3) { attempt ->
             try {
@@ -2968,11 +3092,22 @@ private suspend fun fetchIpFromSupabase(mobile: Boolean = false): String? =
 
 @Volatile
 private var lastInsertedMobileIp = ""
+@Volatile
+private var lastInsertedMobileIpAt = 0L
+
+private const val IP_REPORT_INTERVAL_MS = 5 * 60_000L
 
 private suspend fun insertMobileIpToSupabase(ipAddress: String): Boolean =
     withContext(Dispatchers.IO) {
         if (!Config.realDevice) return@withContext true
-        if (ipAddress == lastInsertedMobileIp) return@withContext true
+        if (!Config.ensureAuthSession()) {
+            Log.w("CLOUDSA", "Supabase-Session im Hintergrund nicht verfügbar")
+            return@withContext false
+        }
+        val now = System.currentTimeMillis()
+        if (ipAddress == lastInsertedMobileIp && now - lastInsertedMobileIpAt < IP_REPORT_INTERVAL_MS) {
+            return@withContext true
+        }
         repeat(3) { attempt ->
             try {
                 Config.safeCall {
@@ -2986,6 +3121,7 @@ private suspend fun insertMobileIpToSupabase(ipAddress: String): Boolean =
                         }
                 }
                 lastInsertedMobileIp = ipAddress
+                lastInsertedMobileIpAt = System.currentTimeMillis()
                 return@withContext true
             } catch (e: Exception) {
                 if (!isNetworkFailure(e)) {
@@ -3000,24 +3136,69 @@ private suspend fun insertMobileIpToSupabase(ipAddress: String): Boolean =
         false
     }
 
-fun getHotspotIp(): String? {
-    val interfaces = NetworkInterface.getNetworkInterfaces()
+private val MOBILE_INTERFACE_PREFIXES = listOf("rmnet", "ccmni", "pdp", "clat", "dummy", "tun")
 
-    for (intf in interfaces) {
+private fun privateIpv4(linkProperties: LinkProperties?): String? =
+    linkProperties?.linkAddresses?.firstOrNull {
+        it.address is Inet4Address && it.address.isSiteLocalAddress
+    }?.address?.hostAddress
+
+private fun vpnIpv4(context: Context): String? {
+    val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    val network = cm.activeNetwork ?: return null
+    val caps = cm.getNetworkCapabilities(network) ?: return null
+    if (!caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) return null
+    return privateIpv4(cm.getLinkProperties(network))
+}
+
+private fun wifiClientIpv4(context: Context): String? {
+    val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    return cm.allNetworks.firstNotNullOfOrNull { network ->
+        val caps = cm.getNetworkCapabilities(network) ?: return@firstNotNullOfOrNull null
+        if (!caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+            !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        ) {
+            return@firstNotNullOfOrNull null
+        }
+        privateIpv4(cm.getLinkProperties(network))
+    }
+}
+
+private fun hotspotIpv4(): String? {
+    val candidates = mutableListOf<Pair<String, String>>()
+    for (intf in NetworkInterface.getNetworkInterfaces()) {
         if (!intf.isUp || intf.isLoopback) continue
-
+        val name = intf.name.lowercase(Locale.ROOT)
+        if (MOBILE_INTERFACE_PREFIXES.any { name.startsWith(it) }) continue
         for (addr in intf.inetAddresses) {
-            if (!addr.isLoopbackAddress && addr is Inet4Address) {
-                val ip = addr.hostAddress
-                if (ip != null) {
-                    if (ip.startsWith("192.168.") || ip.startsWith("10.") || ip.startsWith("172.16.")) {
-                        return ip
-                    }
-                }
+            if (addr is Inet4Address && addr.isSiteLocalAddress) {
+                addr.hostAddress?.let { candidates.add(name to it) }
             }
         }
     }
-    return null
+    val accessPoint = candidates.firstOrNull { (name, _) ->
+        name.startsWith("ap") || name.startsWith("swlan") || name.contains("softap")
+    }
+    return accessPoint?.second ?: candidates.firstOrNull()?.second
+}
+
+fun currentSyncIp(context: Context): String? {
+    if (isHotspotActive(context)) {
+        return hotspotIpv4() ?: vpnIpv4(context) ?: wifiClientIpv4(context)
+    }
+    return vpnIpv4(context) ?: wifiClientIpv4(context)
+}
+
+private fun startIpReportHeartbeat(context: Context) {
+    if (ipReportJob?.isActive == true) return
+    val ctx = context.applicationContext
+    ipReportJob = syncScope.launch {
+        while (isActive) {
+            val ip = currentSyncIp(ctx)
+            if (ip != null) insertMobileIpToSupabase(ip)
+            delay(IP_REPORT_INTERVAL_MS)
+        }
+    }
 }
 
 private fun isMobileDataActive(context: Context): Boolean {
