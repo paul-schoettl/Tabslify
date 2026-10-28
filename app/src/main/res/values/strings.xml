@@ -1,4 +1,5 @@
 <resources>
     <string name="app_name" translatable="false">Tabslify</string>
     <string name="app_name_debug" translatable="false">Tabslify</string>
+    <string name="wifi_direct_lan_verbindung_zum_pc">Verbindung zum PC im Heimnetz für Sync, Befehle und Benachrichtigungen</string>
 </resources>
