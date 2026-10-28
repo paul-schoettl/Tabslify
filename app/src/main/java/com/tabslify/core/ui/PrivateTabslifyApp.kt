@@ -64,6 +64,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -71,6 +72,30 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.Android
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Calculate
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.Computer
+import androidx.compose.material.icons.filled.DesktopWindows
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.MusicVideo
+import androidx.compose.material.icons.filled.Newspaper
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Close
@@ -124,6 +149,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Color.Companion.Black
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
@@ -139,6 +165,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -212,6 +239,8 @@ import java.time.Instant
 import java.time.ZoneId
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+
+var streamVollbild by mutableStateOf(false)
 
 const val KEY_RECENT_TABS = "recent_tabs"
 const val MAX_RECENT_TABS = 5
@@ -380,6 +409,35 @@ enum class MenuItem(
     ),
 }
 
+val MenuItem.iconVector: ImageVector
+    get() = when (this) {
+        MenuItem.PRIVATE_CLOUD -> Icons.Default.Cloud
+        MenuItem.AITAB -> Icons.Default.AutoAwesome
+        MenuItem.BROWSER -> Icons.Default.Public
+        MenuItem.QUICK -> Icons.Default.Bolt
+        MenuItem.GALLERY -> Icons.Default.PhotoLibrary
+        MenuItem.AUTHENTICATOR -> Icons.Default.Lock
+        MenuItem.WEATHER -> Icons.Default.WbSunny
+        MenuItem.CONTACTS -> Icons.Default.Person
+        MenuItem.RECORDER -> Icons.Default.Mic
+        MenuItem.DATECALCULATOR -> Icons.Default.Calculate
+        MenuItem.MOVIEDISCOVER -> Icons.Default.Movie
+        MenuItem.NOTES -> Icons.AutoMirrored.Filled.MenuBook
+        MenuItem.MEDIAPLAYERTAB -> Icons.Default.MusicNote
+        MenuItem.GMAIL -> Icons.Default.Email
+        MenuItem.TIKTOK -> Icons.Default.MusicVideo
+        MenuItem.Vocabs -> Icons.Default.School
+        MenuItem.EXPLORE -> Icons.Default.Explore
+        MenuItem.CALENDAR -> Icons.Default.CalendarMonth
+        MenuItem.REMOTEDESKTOP -> Icons.Default.DesktopWindows
+        MenuItem.HEISE_NEWS -> Icons.Default.Newspaper
+        MenuItem.PC_MANAGER -> Icons.Default.Computer
+        MenuItem.APKM_INSTALLER -> Icons.Default.Android
+        MenuItem.VIRUSTOTAL -> Icons.Default.Security
+        MenuItem.PUSHUPS -> Icons.Default.FitnessCenter
+        MenuItem.FOCUSGUARD -> Icons.Default.Shield
+    }
+
 @SuppressLint("SetJavaScriptEnabled")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -397,6 +455,7 @@ fun PrivateTabslifyApp(
     }
     var isFullScreen by rememberSaveable { mutableStateOf(false) }
     var isHelpOpen by rememberSaveable { mutableStateOf(false) }
+    var mediaBottomBarHeight by remember { mutableStateOf(0.dp) }
     var webViewUrl by rememberSaveable { mutableStateOf("https://www.google.com") }
     var currentUrl by rememberSaveable { mutableStateOf(webViewUrl) }
     var webViewState by remember { mutableStateOf<WebView?>(null) }
@@ -538,13 +597,25 @@ fun PrivateTabslifyApp(
                         }
                     ),
                 topBar = {
+                    if (selectedMenuItem == MenuItem.REMOTEDESKTOP && streamVollbild) {
+                        Box(Modifier)
+                    } else {
                     TopAppBar(
                         title = {
-                            Text(
-                                text = "${selectedMenuItem.icon} ${stringResource(selectedMenuItem.titleRes)}",
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = selectedMenuItem.iconVector,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = stringResource(selectedMenuItem.titleRes),
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         },
                         actions = {
                             if (selectedMenuItem == MenuItem.MEDIAPLAYERTAB) {
@@ -627,6 +698,7 @@ fun PrivateTabslifyApp(
                             .background(Black.copy(0.6f))
                             .zIndex(10f)
                     )
+                    }
                 },
                 containerColor = Color.Transparent
             ) { paddingValues ->
@@ -662,6 +734,7 @@ fun PrivateTabslifyApp(
 
                         MenuItem.MEDIAPLAYERTAB -> MediaTab(
                             contentPadding = paddingValues,
+                            onBottomBarHeight = { mediaBottomBarHeight = it },
                             onBack = { onMenuClick?.invoke() }
                         )
 
@@ -680,7 +753,8 @@ fun PrivateTabslifyApp(
                     ) {
                         HelpFrame(
                             selectedMenuItem = selectedMenuItem,
-                            onDismiss = { isHelpOpen = false }
+                            onDismiss = { isHelpOpen = false },
+                            bottomPadding = if (selectedMenuItem == MenuItem.MEDIAPLAYERTAB) mediaBottomBarHeight else 0.dp
                         )
                     }
                 }
@@ -2482,20 +2556,21 @@ fun GoodNightScreen(ai: String) {
     }
 }
 
-private val HelpBgTop = Color(0xFF1A1330)
-private val HelpBgBottom = Color(0xFF060509)
+private val HelpBgTop = Color(0xFF1C0F06)
+private val HelpBgBottom = Color(0xFF050505)
 private val HelpChipBg = Color(0x0DFFFFFF)
 private val HelpTextPrimary = Color(0xFFF7F5FB)
 private val HelpTextSecondary = Color(0xD1FFFFFF)
 private val HelpAccentBrush = Brush.linearGradient(
-    listOf(Color(0xFFFF8A4C), Color(0xFFB45CFC), Color(0xFF6B4CFC))
+    listOf(Color(0xFFFF8A4C), Color(0xFFFF5A1F), Color(0xFFB34700))
 )
 
 //@Preview
 @Composable
 fun HelpFrame(
     selectedMenuItem: MenuItem = MenuItem.GMAIL,
-    onDismiss: () -> Unit = {}
+    onDismiss: () -> Unit = {},
+    bottomPadding: Dp = 0.dp
 ) {
     val helpText = Config.helpFrameEntries[selectedMenuItem]?.let { stringResource(it) }
         ?: stringResource(R.string.fur_diesen_bereich)
@@ -2514,8 +2589,10 @@ fun HelpFrame(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .systemBarsPadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 28.dp, vertical = 24.dp)
+                .padding(bottom = bottomPadding)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -2528,7 +2605,12 @@ fun HelpFrame(
                         .background(HelpAccentBrush),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(text = selectedMenuItem.icon, fontSize = 34.sp)
+                    Icon(
+                        imageVector = selectedMenuItem.iconVector,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(34.dp)
+                    )
                 }
                 Spacer(Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {

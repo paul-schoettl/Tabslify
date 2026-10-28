@@ -110,19 +110,19 @@ fun AppBackground(
             AppBgScrim.STRONG -> if (isDay) {
                 Brush.verticalGradient(listOf(BgScrimTop.copy(alpha = 0.92f), BgScrimBottom.copy(alpha = 0.92f)))
             } else {
-                Brush.verticalGradient(listOf(BgScrimTop.copy(alpha = 0.70f), BgScrimBottom.copy(alpha = 0.85f)))
+                Brush.verticalGradient(listOf(BgScrimTop.copy(alpha = 0.72f), BgScrimBottom.copy(alpha = 0.88f)))
             }
 
             AppBgScrim.MEDIUM -> if (isDay) {
-                Brush.verticalGradient(listOf(APP_COLOR.copy(alpha = 0.85f), APP_BLUE.copy(alpha = 0.45f)))
+                Brush.verticalGradient(listOf(Color(0xFF2A160A).copy(alpha = 0.82f), Color(0xFF0A0A0A).copy(alpha = 0.72f)))
             } else {
-                Brush.verticalGradient(listOf(APP_COLOR.copy(alpha = 0.70f), Color(0xFF001A93).copy(alpha = 0.70f)))
+                Brush.verticalGradient(listOf(Color(0xFF1A0D05).copy(alpha = 0.74f), Color(0xFF050505).copy(alpha = 0.86f)))
             }
 
             AppBgScrim.LIGHT -> if (isDay) {
-                Brush.verticalGradient(listOf(APP_COLOR.copy(alpha = 0.75f), Color(0xFF001A93).copy(alpha = 0.75f)))
+                Brush.verticalGradient(listOf(Color(0xFF1A0D05).copy(alpha = 0.65f), Color(0xFF050505).copy(alpha = 0.72f)))
             } else {
-                Brush.verticalGradient(listOf(APP_COLOR.copy(alpha = 0.55f), Color(0xFF001A93).copy(alpha = 0.75f)))
+                Brush.verticalGradient(listOf(Color(0xFF120A05).copy(alpha = 0.52f), Color(0xFF050505).copy(alpha = 0.74f)))
             }
 
             AppBgScrim.NONE -> Brush.verticalGradient(listOf(Color.Transparent, Color.Transparent))

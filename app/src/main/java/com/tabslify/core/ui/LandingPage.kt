@@ -43,12 +43,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -61,6 +63,7 @@ import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
@@ -131,6 +134,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -141,8 +145,10 @@ import androidx.core.content.edit
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.tabslify.BuildConfig
 import com.tabslify.R
+import com.tabslify.core.functions.ExactAlarms
 import com.tabslify.core.functions.canNotify
 import com.tabslify.core.objects.BackupEntry
 import com.tabslify.core.objects.BackupOutcome
@@ -162,6 +168,7 @@ import com.tabslify.quicksettingsfunctions.stopBatteryWorker
 import com.tabslify.services.QuietHoursNotificationService
 import com.tabslify.services.WhatsAppNotificationListener
 import com.tabslify.tabs.ainotify.AiNotifyHost
+import com.tabslify.tabs.aitab.AITabViewModel
 import com.tabslify.tabs.focusguard.FocusGuardService
 import com.tabslify.tabs.focusguard.monitoring.cancelFocusGuardWorkers
 import com.tabslify.tabs.focusguard.monitoring.scheduleFocusGuardWorkers
@@ -185,7 +192,6 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.Calendar
 import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
 import androidx.compose.ui.platform.LocalLocale
@@ -229,7 +235,12 @@ fun getDeviceName(): String {
 }
 
 @Composable
-fun LandingPageOrApp(storage: Storage, startTarget: String?) {
+fun LandingPageOrApp(
+    storage: Storage,
+    startTarget: String?,
+    svm: SharedViewModel = viewModel(),
+    aiVm: AITabViewModel = viewModel()
+) {
     val context = LocalContext.current
     var hasLoadedApp by rememberSaveable { mutableStateOf(startTarget != null) }
     var selectedMenuItem by rememberSaveable { mutableStateOf<MenuItem?>(null) }
@@ -399,6 +410,22 @@ fun LandingPageOrApp(storage: Storage, startTarget: String?) {
         }
     }
 
+    val pendingAiPrompt by svm.pendingAiPrompt.collectAsState()
+    val appliedAiPrompt by svm.appliedAiPrompt.collectAsState()
+
+    LaunchedEffect(pendingAiPrompt, appliedAiPrompt) {
+        val ziel = pendingAiPrompt ?: return@LaunchedEffect
+        if (appliedAiPrompt == ziel) return@LaunchedEffect
+        svm.markAiPromptApplied(ziel)
+        aiVm.sendPrompt(ziel)
+        hasLoadedApp = true
+        selectedMenuItem = MenuItem.AITAB
+        saveRecentTab(context, MenuItem.AITAB)
+        focusManager.clearFocus(force = true)
+        keyboardController?.hide()
+        landingOffsetX.snapTo(-1f)
+    }
+
     var pendingOverlayItem by remember { mutableStateOf<MenuItem?>(null) }
     val overlayScale = remember { Animatable(0f) }
     val overlayAlpha = remember { Animatable(0f) }
@@ -412,7 +439,8 @@ fun LandingPageOrApp(storage: Storage, startTarget: String?) {
                     "ai_questions" -> MenuItem.AITAB
                     "text_aktionen" -> MenuItem.AITAB
                     "apkm" -> MenuItem.APKM_INSTALLER
-                    "gmail" -> MenuItem.GMAIL
+"gmail" -> MenuItem.GMAIL
+                "tiktok" -> MenuItem.TIKTOK
                     "virustotal" -> MenuItem.VIRUSTOTAL
                     else -> null
                 }
@@ -819,12 +847,7 @@ fun LandingPage(
                     (prvt() || (it != MenuItem.GMAIL && it != MenuItem.PRIVATE_CLOUD && it != MenuItem.REMOTEDESKTOP && it != MenuItem.PC_MANAGER && it != MenuItem.FOCUSGUARD && it != MenuItem.HEISE_NEWS))
         }.sortedBy { titleMap[it] }
     }
-    val currentHour = remember { Calendar.getInstance().get(Calendar.HOUR_OF_DAY) }
     val neonOrange = c()
-    val neonGlow = when (currentHour) {
-        in 11..16 -> Color(0xFF2C2C2C)
-        else -> Color(0xFF00177E)
-    }
 
     val txtcolors = Color.White
 
@@ -845,11 +868,10 @@ fun LandingPage(
                             onClick = onClose,
                             modifier = Modifier.align(Alignment.CenterStart)
                         ) {
-                            Text(
-                                "✕",
-                                color = txtcolors,
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = stringResource(R.string.close),
+                                tint = txtcolors
                             )
                         }
                     }
@@ -878,46 +900,34 @@ fun LandingPage(
                 LazyColumn(
                     state = state,
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
                     contentPadding = PaddingValues(bottom = 32.dp)
                 ) {
                     if (recentTabs.isNotEmpty()) {
                         item(key = "recent_header") {
-                            Text(
-                                text = stringResource(R.string.zuletzt_verwendet),
-                                style = MaterialTheme.typography.titleMedium.copy(fontFamily = FontFamily.Default),
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.padding(bottom = 12.dp)
-                            )
+                            LandingSectionLabel(stringResource(R.string.zuletzt_verwendet))
                         }
                         items(items = recentTabs, key = { "recent_${it.ordinal}" }) { menuItem ->
                             TabCard(
                                 menuItem = menuItem,
                                 onClick = { onTabSelected(menuItem) },
-                                neonGlow,
-                                neonOrange
+                                neonOrange = neonOrange
                             )
                         }
                         item(key = "divider") {
                             HorizontalDivider(
-                                modifier = Modifier.padding(vertical = 16.dp),
+                                modifier = Modifier.padding(vertical = 14.dp),
                                 thickness = 1.dp,
-                                color = Color.White.copy(alpha = 0.3f)
+                                color = AccentOrange.copy(alpha = 0.18f)
                             )
-                            Text(
-                                text = stringResource(R.string.alle_tabs),
-                                style = MaterialTheme.typography.titleMedium.copy(fontFamily = FontFamily.Default),
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.padding(bottom = 12.dp)
-                            )
+                            LandingSectionLabel(stringResource(R.string.alle_tabs))
                         }
                     }
                     items(items = allTabsSorted, key = { "all_${it.ordinal}" }) { menuItem ->
                         TabCard(
                             menuItem = menuItem,
                             onClick = { onTabSelected(menuItem) },
-                            neonGlow,
-                            neonOrange
+                            neonOrange = neonOrange
                         )
                     }
                 }
@@ -986,7 +996,6 @@ fun LanguageSelectionDialog(onDismiss: () -> Unit) {
 fun TabCard(
     menuItem: MenuItem,
     onClick: () -> Unit,
-    neonGlow: Color,
     neonOrange: Color
 ) {
     val alpha = remember { Animatable(0f) }
@@ -999,22 +1008,20 @@ fun TabCard(
             isPressed -> 0.4f
             else -> 1f
         },
-        animationSpec = tween(if (isClicked) 200 else if (isPressed) 80 else 250)
+        animationSpec = tween(if (isClicked) 200 else if (isPressed) 80 else 250),
+        label = "tabGlow"
+    )
+    val pressScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.985f else 1f,
+        animationSpec = tween(120),
+        label = "tabPress"
     )
 
     val glowPaint = remember {
         Paint().apply {
             isAntiAlias = true
             maskFilter = android.graphics.BlurMaskFilter(
-                18f, android.graphics.BlurMaskFilter.Blur.OUTER
-            )
-        }
-    }
-    val orangePaint = remember {
-        Paint().apply {
-            isAntiAlias = true
-            maskFilter = android.graphics.BlurMaskFilter(
-                10f, android.graphics.BlurMaskFilter.Blur.OUTER
+                20f, android.graphics.BlurMaskFilter.Blur.OUTER
             )
         }
     }
@@ -1023,16 +1030,22 @@ fun TabCard(
         alpha.animateTo(1f, animationSpec = tween(300))
     }
 
+    val shape = RoundedCornerShape(20.dp)
+    val badgeShape = RoundedCornerShape(14.dp)
+
     Box(
         Modifier
-            .graphicsLayer { this.alpha = alpha.value }
+            .graphicsLayer {
+                this.alpha = alpha.value
+                scaleX = pressScale
+                scaleY = pressScale
+            }
             .drawBehind {
                 val a = glowAlphaState.value
-                glowPaint.color = neonGlow.copy(alpha = 0.6f * a).toArgb()
-                orangePaint.color = neonOrange.copy(alpha = 0.75f * a).toArgb()
+                glowPaint.color = neonOrange.copy(alpha = 0.55f * a).toArgb()
 
                 val canvasSize = size
-                val cornerRadius = 8.dp.toPx()
+                val cornerRadius = 20.dp.toPx()
 
                 drawContext.canvas.nativeCanvas.apply {
                     drawRoundRect(
@@ -1040,57 +1053,119 @@ fun TabCard(
                         cornerRadius, cornerRadius,
                         glowPaint
                     )
-                    drawRoundRect(
-                        0f, 0f, canvasSize.width, canvasSize.height,
-                        cornerRadius, cornerRadius,
-                        orangePaint
-                    )
                 }
             }
             .border(
-                width = 1.5.dp,
-                color = neonOrange.copy(alpha = glowAlphaState.value),
-                shape = RoundedCornerShape(8.dp)
+                width = 1.dp,
+                color = neonOrange.copy(alpha = 0.18f + 0.32f * glowAlphaState.value),
+                shape = shape
             )
     ) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(72.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primary.copy(
-                    alpha = 0.6f
-                )
-            ),
-            shape = RoundedCornerShape(8.dp),
+                .height(84.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF151515)),
+            shape = shape,
             onClick = {
                 isClicked = true
                 onClick()
             },
             interactionSource = interactionSource
         ) {
-            Row(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .background(
+                        Brush.linearGradient(
+                            listOf(Color(0xFF1E1E1E), Color(0xFF101010))
+                        )
+                    )
             ) {
-                Text(
-                    text = stringResource(menuItem.titleRes).uppercase(),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    modifier = Modifier.weight(1f),
-                    textAlign = TextAlign.Left
+                Box(
+                    Modifier
+                        .align(Alignment.CenterStart)
+                        .width(3.dp)
+                        .fillMaxHeight()
+                        .padding(vertical = 14.dp)
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(neonOrange, neonOrange.copy(alpha = 0.05f))
+                            ),
+                            RoundedCornerShape(50)
+                        )
                 )
-                Text(
-                    text = menuItem.icon,
-                    fontSize = 32.sp,
-                    modifier = Modifier.padding(end = 16.dp)
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(start = 18.dp, end = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(badgeShape)
+                            .background(
+                                Brush.linearGradient(
+                                    listOf(
+                                        neonOrange.copy(alpha = 0.30f),
+                                        neonOrange.copy(alpha = 0.08f)
+                                    )
+                                )
+                            )
+                            .border(1.dp, neonOrange.copy(alpha = 0.32f), badgeShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = menuItem.iconVector,
+                            contentDescription = null,
+                            tint = Color(0xFFFFB27A),
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    Spacer(Modifier.width(14.dp))
+                    Text(
+                        text = stringResource(menuItem.titleRes).uppercase(),
+                        color = Color.White,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 16.sp,
+                        letterSpacing = 0.5.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.Left
+                    )
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = neonOrange.copy(alpha = 0.55f + 0.35f * (1f - glowAlphaState.value)),
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun LandingSectionLabel(text: String) {
+    Row(
+        modifier = Modifier.padding(bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            Modifier
+                .size(6.dp)
+                .background(AccentOrange, CircleShape)
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            text = text.uppercase(),
+            color = TextSecondary,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = 1.5.sp
+        )
     }
 }
 
@@ -1161,6 +1236,8 @@ fun isPermissionGranted(context: Context, key: String): Boolean {
             (context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager)
                 .isNotificationPolicyAccessGranted
 
+        "SCHEDULE_EXACT_ALARM" -> ExactAlarms.canScheduleExact(context)
+
         "ACCESS_SUPERUSER" -> granted("android.permission.ACCESS_SUPERUSER")
 
         "SET_ALARM" -> granted("com.android.alarm.permission.SET_ALARM")
@@ -1168,6 +1245,8 @@ fun isPermissionGranted(context: Context, key: String): Boolean {
         "ACCESS_WIFI_STATE" -> granted(Manifest.permission.ACCESS_WIFI_STATE)
 
         "ACCESS_NETWORK_STATE" -> granted(Manifest.permission.ACCESS_NETWORK_STATE)
+
+        "ACCESS_LOCAL_NETWORK" -> granted(Manifest.permission.ACCESS_LOCAL_NETWORK)
 
         else -> false
     }
@@ -1272,9 +1351,16 @@ fun PermissionInfoScreen(onboarding: Boolean = false, onClose: (() -> Unit)? = n
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
+    var pendingPrvtPermissions by remember { mutableStateOf(false) }
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) { permRefreshKey++ }
+    ) {
+        permRefreshKey++
+        if (pendingPrvtPermissions) {
+            pendingPrvtPermissions = false
+            checkPermissionsForPrvt(context)
+        }
+    }
     var selectedPermission by remember { mutableStateOf<String?>(null) }
     var titleDialog by remember { mutableStateOf("") }
     var usagesDialog by remember { mutableStateOf<List<String>>(emptyList()) }
@@ -1322,6 +1408,7 @@ fun PermissionInfoScreen(onboarding: Boolean = false, onClose: (() -> Unit)? = n
     val setAlarm1 = stringResource(R.string.wifi_direct_set_alarm_befehl_vom_notebook)
     val wifiState1 = stringResource(R.string.reportdeviceinformation_wlan_status_hotspot)
     val networkState1 = stringResource(R.string.reportdeviceinformation_netzwerkstatus_konnektivitat)
+    val localNetwork1 = stringResource(R.string.wifi_direct_lan_verbindung_zum_pc)
     val wakeLock1 =
         stringResource(R.string.remotedesktoptab_wake_lock_waehrend_einer_remote_desktop_sitzung)
     val focusguardUsageDesc = stringResource(R.string.focusguard_perm_usage_desc)
@@ -1361,6 +1448,7 @@ fun PermissionInfoScreen(onboarding: Boolean = false, onClose: (() -> Unit)? = n
         wifiState1,
         networkState1,
         wakeLock1,
+        localNetwork1,
         focusguardUsageDesc,
         focusguardOverlayDesc,
         focusguardNotifDesc
@@ -1443,6 +1531,9 @@ fun PermissionInfoScreen(onboarding: Boolean = false, onClose: (() -> Unit)? = n
             "ACCESS_NETWORK_STATE" to listOf(
                 networkState1
             ),
+            "ACCESS_LOCAL_NETWORK" to listOf(
+                localNetwork1
+            ),
             "WAKE_LOCK" to listOf(
                 wakeLock1
             )
@@ -1487,6 +1578,7 @@ fun PermissionInfoScreen(onboarding: Boolean = false, onClose: (() -> Unit)? = n
                 add("RECORD_AUDIO")
                 add("REQUEST_IGNORE_BATTERY_OPTIMIZATIONS")
                 add("SCHEDULE_EXACT_ALARM")
+                if (Build.VERSION.SDK_INT >= 36) add("ACCESS_LOCAL_NETWORK")
                 if (prvt()) {
                     add("BLUETOOTH_CONNECT")
                     add("READ_PHONE_STATE / READ_BASIC_PHONE_STATE")
@@ -1517,6 +1609,7 @@ fun PermissionInfoScreen(onboarding: Boolean = false, onClose: (() -> Unit)? = n
 
             Button(
                 onClick = {
+                    pendingPrvtPermissions = true
                     Config.requestAllRuntimePermissions(allPermissionKeys, permissionLauncher)
                 },
                 shape = RoundedCornerShape(22.dp),
@@ -1973,7 +2066,6 @@ fun SettingsFrame(
         if (masterEnabled && serviceFocusguard) {
             scheduleFocusGuardWorkers(context)
             DailyDigestScheduler.schedule(context)
-            checkPermissionsForPrvt(context)
         } else {
             cancelFocusGuardWorkers(context)
         }

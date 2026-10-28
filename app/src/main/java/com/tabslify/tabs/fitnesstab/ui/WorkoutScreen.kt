@@ -188,7 +188,7 @@ private fun ModeSwitchOverlay(
     }
 }
 
-private val AccentViolet = Color(0xFF7C4DFF)
+private val AccentViolet = Color(0xFFFF5A1F)
 
 @Composable
 private fun ManualWorkoutContent(

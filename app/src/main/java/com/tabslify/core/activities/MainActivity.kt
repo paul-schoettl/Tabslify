@@ -35,6 +35,7 @@ import com.tabslify.core.objects.Config.requestPermission
 import com.tabslify.core.objects.prvt
 import com.tabslify.core.functions.EXTRA_VOICE_START
 import com.tabslify.core.functions.startVoiceRecordingNow
+import com.tabslify.core.ui.AppColorScheme
 import com.tabslify.core.ui.LandingPageOrApp
 import com.tabslify.core.ui.SharedViewModel
 import com.tabslify.core.ui.Typography
@@ -155,7 +156,7 @@ class MainActivity : FragmentActivity() {
         setContent {
             val appColor = rememberAppColor()
             MaterialTheme(
-                colorScheme = MaterialTheme.colorScheme.copy(
+                colorScheme = AppColorScheme.copy(
                     primary = appColor,
                     onSurface = Color.White
                 ),
@@ -163,7 +164,7 @@ class MainActivity : FragmentActivity() {
             ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = appColor
+                    color = AppColorScheme.background
                 ) {
                     if (showJsonEditor && jsonFilePath != null && prvt()) {
                         JsonEditorContent(

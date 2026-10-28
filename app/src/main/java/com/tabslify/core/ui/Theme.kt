@@ -8,6 +8,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.material3.Typography
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -25,27 +26,48 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.tabslify.R
 import java.util.Calendar
 
-val APP_COLOR = Color(0xFF2A2A2A)
-val APP_BLUE =Color(0xFF001FBB)
+val APP_COLOR = Color(0xFF141414)
+val APP_BLUE = Color(0xFFFF7A1A)
 val gruen = Color(0xFF228B22)
 
-val BgDeep = Color(0xFF121212)
-val BgSurface = Color(0xFF1E1E1E)
-val BgCard = Color(0xFF2A2A2A)
-val BgScrimTop = Color(0xFF1A1330)
-val BgScrimBottom = Color(0xFF060509)
-val AccentViolet = Color(0xFF7C4DFF)
-val AccentVioletDim = Color(0xFF4A148C)
+val BgDeep = Color(0xFF070707)
+val BgSurface = Color(0xFF111111)
+val BgCard = Color(0xFF1A1A1A)
+val BgScrimTop = Color(0xFF1C0F06)
+val BgScrimBottom = Color(0xFF050505)
+val AccentOrange = Color(0xFFFF7A1A)
+val AccentOrangeDim = Color(0xFF8A3B0A)
+val AccentOrangeSoft = Color(0xFF2A1608)
+val AccentViolet = AccentOrange
+val AccentVioletDim = AccentOrangeDim
 val TextPrimary = Color(0xFFFFFFFF)
-val TextSecondary = Color(0xFFB0B0B0)
-val TextTertiary = Color(0xFF757575)
+val TextSecondary = Color(0xFFB8B8B8)
+val TextTertiary = Color(0xFF7A7A7A)
+
+val AppColorScheme = darkColorScheme(
+    primary = AccentOrange,
+    onPrimary = Color.Black,
+    primaryContainer = AccentOrangeDim,
+    onPrimaryContainer = TextPrimary,
+    secondary = AccentOrangeDim,
+    onSecondary = TextPrimary,
+    background = BgDeep,
+    onBackground = TextPrimary,
+    surface = BgSurface,
+    onSurface = TextPrimary,
+    surfaceVariant = BgCard,
+    onSurfaceVariant = TextSecondary,
+    outline = TextTertiary,
+    error = Color(0xFFCF6679),
+    onError = Color.Black
+)
 
 fun c(): Color {
     val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
 
     return when (currentHour) {
-        in 11..16 -> Color(0xFF383838)
-        else -> Color(0xFF001FBB)
+        in 11..16 -> Color(0xFFFF9A4D)
+        else -> Color(0xFFFF7A1A)
     }
 }
 

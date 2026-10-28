@@ -66,7 +66,7 @@ import androidx.compose.ui.platform.LocalLocale
 
 private val AccentOrange = Color(0xFFFF8A4C)
 private val AccentGreen = Color(0xFF5BE388)
-private val AccentViolet = Color(0xFF7C4DFF)
+private val AccentViolet = Color(0xFFFF5A1F)
 private val AccentBlue = Color(0xFF4CC9FF)
 private val AccentPink = Color(0xFFE850A5)
 private val AccentYellow = Color(0xFFFFD74C)
