@@ -102,16 +102,12 @@ android {
             getByName(devVariante).apply {
                 java.directories.add("src/dev/java")
                 kotlin.directories.add("src/dev/java")
-                jniLibs.directories.add("src/dev/jniLibs")
             }
         }
     }
 }
 
 dependencies {
-    //noinspection UseTomlInstead
-    debugImplementation("net.java.dev.jna:jna:${libs.versions.jna.get()}@aar")
-    "fastImplementation"("net.java.dev.jna:jna:${libs.versions.jna.get()}@aar")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
@@ -134,6 +130,7 @@ dependencies {
     implementation(libs.realtime.kt)
     implementation(libs.functions.kt)
     implementation(libs.coil.compose)
+    implementation(libs.coil.gif)
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.androidx.room.runtime)
     implementation(libs.kotlinx.serialization.json)
@@ -153,6 +150,7 @@ dependencies {
     "fastImplementation"(libs.leakcanary.android)
     ksp(libs.androidx.room.compiler)
     implementation(libs.ktor.client.okhttp)
+    implementation(libs.ktor.client.websockets)
     implementation(libs.gson)
     implementation(libs.ktor.client.content.negotiation)
     implementation(libs.ktor.serialization.kotlinx.json)
@@ -169,6 +167,7 @@ dependencies {
     implementation(libs.firebase.messaging)
     implementation(libs.haze)
     implementation(libs.haze.blur)
+    testImplementation(libs.junit)
 }
 
 tasks.configureEach {

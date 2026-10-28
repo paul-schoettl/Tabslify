@@ -6,14 +6,13 @@ camerax = "1.6.2"
 coilCompose = "2.7.0"
 core = "3.5.4"
 coreSplashscreen = "1.2.0"
-firebaseAi = "18.0.0"
-firebaseBom = "35.0.2"
-firebaseMessaging = "26.0.0"
+firebaseAi = "18.1.0"
+firebaseBom = "35.1.0"
+firebaseMessaging = "26.0.1"
 firebasePlayintegrity = "20.0.0"
 foundation = "1.12.1"
 gson = "2.14.0"
 haze1 = "2.0.1"
-jna = "5.19.1"
 kotlin = "2.4.21"
 coreKtx = "1.19.1"
 junit = "4.13.2"
@@ -29,8 +28,7 @@ material3 = "1.4.0"
 materialIconsExtendedVersion = "1.7.8"
 mediapipeTasksVision = "1.1.1"
 media3Exoplayer = "1.11.1"
-multiplatformMarkdownRendererAndroid = "0.45.0"
-multiplatformMarkdownRendererM3 = "0.45.0"
+multiplatformMarkdownRendererAndroid = "0.46.0"
 osmdroidAndroid = "6.1.20"
 postgrestKt = "3.8.0"
 realtimeKt = "3.8.0"
@@ -72,6 +70,7 @@ androidx-media3-ui = { module = "androidx.media3:media3-ui", version.ref = "medi
 androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "roomRuntime" }
 androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "roomRuntime" }
 coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coilCompose" }
+coil-gif = { module = "io.coil-kt:coil-gif", version.ref = "coilCompose" }
 core = { module = "com.google.zxing:core", version.ref = "core" }
 firebase-ai = { module = "com.google.firebase:firebase-ai", version.ref = "firebaseAi" }
 firebase-appcheck-debug = { module = "com.google.firebase:firebase-appcheck-debug", version.ref = "firebasePlayintegrity" }
@@ -94,8 +93,9 @@ androidx-compose-material3 = { group = "androidx.compose.material3", name = "mat
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
 ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktorClientOkhttp" }
+ktor-client-websockets = { module = "io.ktor:ktor-client-websockets", version.ref = "ktorClientOkhttp" }
 multiplatform-markdown-renderer-android = { module = "com.mikepenz:multiplatform-markdown-renderer-android", version.ref = "multiplatformMarkdownRendererAndroid" }
-multiplatform-markdown-renderer-m3 = { module = "com.mikepenz:multiplatform-markdown-renderer-m3", version.ref = "multiplatformMarkdownRendererM3" }
+multiplatform-markdown-renderer-m3 = { module = "com.mikepenz:multiplatform-markdown-renderer-m3", version.ref = "multiplatformMarkdownRendererAndroid" }
 osmdroid-android = { module = "org.osmdroid:osmdroid-android", version.ref = "osmdroidAndroid" }
 postgrest-kt = { module = "io.github.jan-tennert.supabase:postgrest-kt", version.ref = "postgrestKt" }
 androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "workRuntimeKtx" }
