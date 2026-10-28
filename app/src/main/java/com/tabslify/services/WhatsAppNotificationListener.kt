@@ -50,6 +50,18 @@ private fun StatusBarNotification.hasContent(): Boolean {
 
 private const val BLOCKED_WINDOW_MS = 10 * 60_000L
 
+private val FORWARD_NOISE_MARKERS = listOf(
+    "app-schutz",
+    "telefon wird gescannt",
+    "usb zur dateiübertragung",
+    "tippe für weitere usb-optionen"
+)
+
+private fun isForwardNoise(title: String, text: String): Boolean {
+    val haystack = "$title $text".lowercase()
+    return FORWARD_NOISE_MARKERS.any { haystack.contains(it) }
+}
+
 class WhatsAppNotificationListener : NotificationListenerService() {
 
     @Volatile
@@ -189,6 +201,7 @@ class WhatsAppNotificationListener : NotificationListenerService() {
                     val title = extras.getCharSequence("android.title")?.toString() ?: ""
                     val text = extras.getCharSequence("android.text")?.toString() ?: ""
                     if (title.isBlank() && text.isBlank()) return@forEach
+                    if (isForwardNoise(title, text)) return@forEach
 
                     val appName = try {
                         packageManager.getApplicationLabel(
