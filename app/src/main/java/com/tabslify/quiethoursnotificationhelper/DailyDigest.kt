@@ -15,6 +15,7 @@ import com.tabslify.R
 import com.tabslify.core.activities.MainActivity
 import com.tabslify.core.functions.errorInsert
 import com.tabslify.core.functions.showSimpleNotificationExtern
+import com.tabslify.core.objects.Config
 import com.tabslify.core.objects.prvt
 import com.tabslify.core.objects.tNotify
 import com.tabslify.services.QuietHoursNotificationService.Companion.SCHOOL_SUMMARY_CHANNEL_ID
@@ -50,7 +51,16 @@ suspend fun runDailyMusicSummary(context: Context) {
             provider = AiProvider.NVIDIA,
             model = "openai/gpt-oss-20b",
             onToken = {}
-        ) ?: return
+        )
+        if (result == null) {
+            errorInsert(
+                "DailyDigest:musicSummaryOhneAntwort",
+                "KI-Antwort blieb leer (Netzwerk/Timeout), ${sessions.size} Sessions fuer ${getTodayKey()} verworfen",
+                Instant.now().toString(),
+                "LOG"
+            )
+            return
+        }
 
         val musicMs = sessions.filter { it.type == "music" }.sumOf { it.listenedMs }
         val podcastMs = sessions.filter { it.type == "podcast" }.sumOf { it.listenedMs }
@@ -93,7 +103,7 @@ suspend fun runDailyMusicSummary(context: Context) {
 }
 
 fun checkPermissionsForPrvt(context: Context) {
-    if (!prvt()) return
+    if (!prvt() || !Config.realDevice) return
     try {
         val dpm =
             context.getSystemService(Context.DEVICE_POLICY_SERVICE) as android.app.admin.DevicePolicyManager
