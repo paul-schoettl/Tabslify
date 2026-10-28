@@ -8,7 +8,10 @@ import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
+import android.os.Handler
 import android.os.LocaleList
+import android.os.Looper
 import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
@@ -26,6 +29,7 @@ import com.tabslify.core.ui.getDeviceName
 import io.github.jan.supabase.annotations.SupabaseInternal
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.status.SessionStatus
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.functions.Functions
 import io.github.jan.supabase.postgrest.Postgrest
@@ -35,7 +39,9 @@ import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.websocket.WebSockets
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
@@ -74,7 +80,7 @@ object Config {
         }
     }
 
-    const val DEF_GEMINI = "gemini-2.5-flash"
+    const val DEF_GEMINI = "gemini-3-flash-preview"
     const val MAX_GEMINI = "gemini-3-flash-preview"
 
     const val SUPABASE_BUCKET = "Files"
@@ -257,6 +263,9 @@ object Config {
                 permissions.add(Manifest.permission.READ_MEDIA_IMAGES)
                 permissions.add(Manifest.permission.READ_MEDIA_VIDEO)
                 permissions.add(Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED)
+                if (Build.VERSION.SDK_INT >= 36) {
+                    permissions.add(Manifest.permission.ACCESS_LOCAL_NETWORK)
+                }
                 launcher.launch(permissions.toTypedArray())
             }
 
@@ -306,6 +315,7 @@ object Config {
             "RECEIVE_BOOT_COMPLETED" -> launcher.launch(arrayOf(Manifest.permission.RECEIVE_BOOT_COMPLETED))
             "RECORD_AUDIO" -> launcher.launch(arrayOf(Manifest.permission.RECORD_AUDIO))
             "BLUETOOTH_CONNECT" -> launcher.launch(arrayOf(Manifest.permission.BLUETOOTH_CONNECT))
+            "ACCESS_LOCAL_NETWORK" -> launcher.launch(arrayOf(Manifest.permission.ACCESS_LOCAL_NETWORK))
             "READ_PHONE_STATE / READ_BASIC_PHONE_STATE" -> launcher.launch(arrayOf(Manifest.permission.READ_PHONE_STATE))
             "READ_SMS" -> launcher.launch(arrayOf(Manifest.permission.READ_SMS))
 
@@ -426,6 +436,25 @@ object Config {
         return null
     }
 
+    fun hasAuthSession(): Boolean = client.auth.currentSessionOrNull() != null
+
+    suspend fun ensureAuthSession(timeoutMs: Long = 8_000L): Boolean {
+        if (hasAuthSession()) return true
+        val loaded = try {
+            client.auth.loadFromStorage(autoRefresh = true)
+        } catch (e: Exception) {
+            Log.e("Config", "Session reload failed: ${e.message}")
+            return false
+        }
+        if (!loaded) return false
+        withTimeoutOrNull(timeoutMs) {
+            client.auth.sessionStatus.first {
+                it is SessionStatus.Authenticated || it is SessionStatus.NotAuthenticated
+            }
+        }
+        return hasAuthSession()
+    }
+
     suspend fun <T> safeCall(block: suspend () -> T): T {
         return try {
             block()
@@ -501,7 +530,10 @@ object Config {
 }
 
 fun toast(context: Context, text: String) {
-    Toast.makeText(context, text, Toast.LENGTH_LONG).show()
+    val appContext = context.applicationContext
+    Handler(Looper.getMainLooper()).post {
+        Toast.makeText(appContext, text, Toast.LENGTH_LONG).show()
+    }
 }
 
 fun prvt(): Boolean {
