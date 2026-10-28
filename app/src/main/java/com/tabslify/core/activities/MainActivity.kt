@@ -149,6 +149,7 @@ class MainActivity : FragmentActivity() {
         if (apkmUri != null) pendingApkmUri = apkmUri
         startTarget = if (apkmUri != null) "apkm" else intent.getStringExtra("target")
         applyEmailDeepLink(intent)
+        applyTikTokDeepLink(intent)
         applyAiNotifyDeepLink(intent)
         applyVirusTotalDeepLink(intent)
         applyTextActionDeepLink(intent)
@@ -206,10 +207,18 @@ class MainActivity : FragmentActivity() {
             intent.getStringExtra("target")?.let { startTarget = it }
         }
         applyEmailDeepLink(intent)
+        applyTikTokDeepLink(intent)
         applyAiNotifyDeepLink(intent)
         applyVirusTotalDeepLink(intent)
         applyTextActionDeepLink(intent)
         applyVoiceDeepLink(intent)
+    }
+
+    private fun applyTikTokDeepLink(intent: Intent) {
+        val convId = intent.getStringExtra("tiktok_conv")?.takeIf { it.isNotEmpty() }
+        if (convId != null) {
+            sharedViewModel.setPendingTikTokOpen(convId)
+        }
     }
 
     private fun applyEmailDeepLink(intent: Intent) {

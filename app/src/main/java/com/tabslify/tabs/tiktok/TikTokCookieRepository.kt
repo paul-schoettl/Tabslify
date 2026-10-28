@@ -56,6 +56,11 @@ object TikTokCookieRepository {
         fresh
     }
 
+    fun cachedCookie(context: Context): String =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getString(KEY_COOKIE, "")
+            .orEmpty()
+
     private fun isFromPc(context: Context): Boolean =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getBoolean(KEY_FROM_PC, false)

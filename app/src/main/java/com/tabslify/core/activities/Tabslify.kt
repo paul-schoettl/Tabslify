@@ -2,9 +2,11 @@ package com.tabslify.core.activities
 
 import android.app.Application
 import android.content.Context
+import android.os.Build
 import android.widget.Toast
 import coil.Coil
 import coil.ImageLoader
+import coil.decode.ImageDecoderDecoder
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import com.google.firebase.Firebase
@@ -21,6 +23,9 @@ import com.tabslify.core.objects.PrefsBackup
 import com.tabslify.core.objects.prvt
 import com.tabslify.quicksettingsfunctions.BatteryDataRepository
 import com.tabslify.tabs.ainotify.AI_NOTIFY_TOPIC
+import com.tabslify.tabs.tiktok.TIKTOK_PUSH_TOPIC
+import com.tabslify.tabs.tiktok.TikTokDmClient
+import com.tabslify.tabs.tiktok.TikTokFrontier
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -96,6 +101,7 @@ class Tabslify : Application() {
         if (prvt()) {
             FirebaseMessaging.getInstance().subscribeToTopic(AI_NOTIFY_TOPIC)
             FirebaseMessaging.getInstance().subscribeToTopic("emails")
+            FirebaseMessaging.getInstance().subscribeToTopic(TIKTOK_PUSH_TOPIC)
             serviceScope.launch {
                 client.auth.awaitInitialization()
                 runCatching { PrefsBackup.autoBackup(this@Tabslify) }
@@ -115,6 +121,11 @@ class Tabslify : Application() {
                     .build()
             }
             .respectCacheHeaders(false)
+            .components {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    add(ImageDecoderDecoder.Factory())
+                }
+            }
             .build()
         Coil.setImageLoader(imageLoader)
 

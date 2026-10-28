@@ -23,6 +23,13 @@ import com.tabslify.tabs.ainotify.AI_NOTIFY_TOPIC
 import com.tabslify.tabs.ainotify.AiNotifyQuestion
 import com.tabslify.tabs.ainotify.AiNotifySession
 import com.tabslify.tabs.ainotify.AiNotifyStore
+import com.tabslify.tabs.tiktok.TIKTOK_PUSH_CHANNEL
+import com.tabslify.tabs.tiktok.TIKTOK_PUSH_CHANNEL_ID
+import com.tabslify.tabs.tiktok.TIKTOK_PUSH_TAG
+import com.tabslify.tabs.tiktok.TIKTOK_PUSH_TARGET
+import com.tabslify.tabs.tiktok.TIKTOK_PUSH_TOPIC
+import com.tabslify.tabs.tiktok.TikTokPushStore
+import com.tabslify.tabs.tiktok.tiktokPushNotificationId
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 
@@ -37,12 +44,18 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 .subscribeToTopic(AI_NOTIFY_TOPIC)
             FirebaseMessaging.getInstance()
                 .subscribeToTopic("emails")
+            FirebaseMessaging.getInstance()
+                .subscribeToTopic(TIKTOK_PUSH_TOPIC)
         }
     }
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
         println("Message received: $remoteMessage")
+        if (remoteMessage.data["channel"] == TIKTOK_PUSH_CHANNEL && prvt()) {
+            handleTikTokPush(remoteMessage.data)
+            return
+        }
         if (remoteMessage.data["channel"] == AI_NOTIFY_CHANNEL && prvt()) {
             handleAiNotify(remoteMessage.data)
             return
@@ -109,6 +122,42 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             } catch (_: Exception) {
             }
         }
+    }
+
+    private fun handleTikTokPush(data: Map<String, String>) {
+        val appContext = applicationContext
+        val convId = data["conv_id"].orEmpty()
+        if (convId.isEmpty()) return
+        if (TikTokPushStore.isOwnReport(appContext, data["origin"].orEmpty())) return
+        val conversation = TikTokPushStore.conversation(appContext, convId)
+        val title = data["title"]?.takeIf { it.isNotEmpty() }
+            ?: conversation?.name?.takeIf { it.isNotEmpty() }
+            ?: "TikTok"
+        val body = data["body"]?.takeIf { it.isNotEmpty() }
+            ?: conversation?.lastMessage?.takeIf { it.isNotEmpty() }
+            ?: "Neue Nachricht"
+        val intentBase = Intent(appContext, MainActivity::class.java)
+        intentBase.action = Intent.ACTION_VIEW
+        intentBase.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        intentBase.setPackage(appContext.packageName)
+        intentBase.putExtra("target", TIKTOK_PUSH_TARGET)
+        intentBase.putExtra("tiktok_conv", convId)
+        val pendingIntent = PendingIntent.getActivity(
+            appContext,
+            System.currentTimeMillis().toInt(),
+            intentBase,
+            PendingIntent.FLAG_IMMUTABLE
+        )
+        val notification = NotificationCompat.Builder(appContext, TIKTOK_PUSH_CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setGroup("SSN").setSilent(false)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .build()
+        tNotify(appContext, tiktokPushNotificationId(convId), notification, TIKTOK_PUSH_TAG)
     }
 
     private fun handleAiNotify(data: Map<String, String>) {

@@ -33,6 +33,17 @@ class SharedViewModel : ViewModel() {
         _pendingEmailOpen.value = null
     }
 
+    private val _pendingTikTokOpen = MutableStateFlow<String?>(null)
+    val pendingTikTokOpen = _pendingTikTokOpen
+
+    fun setPendingTikTokOpen(convId: String?) {
+        _pendingTikTokOpen.value = convId
+    }
+
+    fun clearPendingTikTokOpen() {
+        _pendingTikTokOpen.value = null
+    }
+
     private val _pendingAiSession = MutableStateFlow<String?>(null)
     val pendingAiSession = _pendingAiSession
 
