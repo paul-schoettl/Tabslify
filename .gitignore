@@ -27,3 +27,4 @@ opencode.json
 memory_leak_audit/
 supabase/
 TODOS.txt
+.opencode/opencode.jsonc
