@@ -102,7 +102,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Laptop
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.QuestionMark
@@ -446,6 +445,8 @@ fun PrivateTabslifyApp(
     startTarget: String?,
     initialMenuItem: MenuItem,
     onMenuClick: (() -> Unit)? = null,
+    helpVisible: Boolean = false,
+    onHelpVisibleChange: (Boolean) -> Unit = {},
     viewModel: TabNavigationViewModel = viewModel(),
     svm: SharedViewModel = viewModel()
 ) {
@@ -454,7 +455,6 @@ fun PrivateTabslifyApp(
         mutableStateOf(initialMenuItem)
     }
     var isFullScreen by rememberSaveable { mutableStateOf(false) }
-    var isHelpOpen by rememberSaveable { mutableStateOf(false) }
     var mediaBottomBarHeight by remember { mutableStateOf(0.dp) }
     var webViewUrl by rememberSaveable { mutableStateOf("https://www.google.com") }
     var currentUrl by rememberSaveable { mutableStateOf(webViewUrl) }
@@ -505,7 +505,7 @@ fun PrivateTabslifyApp(
     }
 
     LaunchedEffect(selectedMenuItem) {
-        isHelpOpen = false
+        onHelpVisibleChange(false)
         gesturesEnabled = when (selectedMenuItem) {
             MenuItem.EXPLORE -> false
             MenuItem.REMOTEDESKTOP -> false
@@ -602,19 +602,21 @@ fun PrivateTabslifyApp(
                     } else {
                     TopAppBar(
                         title = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = selectedMenuItem.iconVector,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    text = stringResource(selectedMenuItem.titleRes),
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold
-                                )
+                            if (onMenuClick == null) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = selectedMenuItem.iconVector,
+                                        contentDescription = null,
+                                        tint = TextPrimary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(
+                                        text = stringResource(selectedMenuItem.titleRes),
+                                        color = TextPrimary,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                             }
                         },
                         actions = {
@@ -628,7 +630,7 @@ fun PrivateTabslifyApp(
                                     else mediaViewModel.setTab(MediaTab.HOME)
                                 }) {
                                     val color by animateColorAsState(
-                                        targetValue = if (mediaState.currentTab == MediaTab.DOWNLOADER) MaterialTheme.colorScheme.primary else Color.White,
+                                        targetValue = if (mediaState.currentTab == MediaTab.DOWNLOADER) MaterialTheme.colorScheme.primary else TextSecondary,
                                         animationSpec = tween(durationMillis = 300),
                                         label = "containerColor"
                                     )
@@ -645,7 +647,7 @@ fun PrivateTabslifyApp(
                                     else mediaViewModel.setTab(MediaTab.HOME)
                                 }) {
                                     val color by animateColorAsState(
-                                        targetValue = if (mediaState.currentTab == MediaTab.RECORDER) MaterialTheme.colorScheme.primary else Color.White,
+                                        targetValue = if (mediaState.currentTab == MediaTab.RECORDER) MaterialTheme.colorScheme.primary else TextSecondary,
                                         animationSpec = tween(durationMillis = 300),
                                         label = "containerColor"
                                     )
@@ -656,34 +658,21 @@ fun PrivateTabslifyApp(
                                     )
                                 }
                             }
-                            IconButton(onClick = { isHelpOpen = true }) {
-                                Icon(
-                                    imageVector = Icons.Default.QuestionMark,
-                                    contentDescription = stringResource(R.string.hilfe_offnen),
-                                    tint = Color.White
-                                )
+                            if (onMenuClick == null) {
+                                IconButton(onClick = { onHelpVisibleChange(true) }) {
+                                    Icon(
+                                        imageVector = Icons.Default.QuestionMark,
+                                        contentDescription = stringResource(R.string.hilfe_offnen),
+                                        tint = TextSecondary
+                                    )
+                                }
+                            } else {
+                                Spacer(Modifier.size(48.dp))
                             }
                         },
 
                         navigationIcon = {
-                            if (onMenuClick != null) {
-                                IconButton(onClick = { onMenuClick() }) {
-                                    Icon(
-                                        imageVector = Icons.Default.Menu,
-                                        contentDescription = stringResource(R.string.menu_offnen),
-                                        tint = Color.White
-                                    )
-                                }
-                            } else {
-                                Icon(
-                                    imageVector = Icons.Default.Menu,
-                                    contentDescription = stringResource(R.string.menu_offnen),
-                                    tint = Color.White,
-                                    modifier = Modifier
-                                        .alpha(0f)
-                                        .size(48.dp)
-                                )
-                            }
+                            Spacer(Modifier.size(48.dp))
                         },
                         colors = TopAppBarDefaults.topAppBarColors(
                             containerColor = Color.Transparent,
@@ -747,13 +736,13 @@ fun PrivateTabslifyApp(
                         else -> selectedMenuItem.content(setGesturesEnabled)
                     }
                     AnimatedVisibility(
-                        visible = isHelpOpen,
+                        visible = helpVisible,
                         enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
                         exit = slideOutVertically(targetOffsetY = { it }) + fadeOut()
                     ) {
                         HelpFrame(
                             selectedMenuItem = selectedMenuItem,
-                            onDismiss = { isHelpOpen = false },
+                            onDismiss = { onHelpVisibleChange(false) },
                             bottomPadding = if (selectedMenuItem == MenuItem.MEDIAPLAYERTAB) mediaBottomBarHeight else 0.dp
                         )
                     }
@@ -2556,13 +2545,13 @@ fun GoodNightScreen(ai: String) {
     }
 }
 
-private val HelpBgTop = Color(0xFF1C0F06)
-private val HelpBgBottom = Color(0xFF050505)
+private val HelpBgTop = BgSurface
+private val HelpBgBottom = BgDeep
 private val HelpChipBg = Color(0x0DFFFFFF)
 private val HelpTextPrimary = Color(0xFFF7F5FB)
 private val HelpTextSecondary = Color(0xD1FFFFFF)
 private val HelpAccentBrush = Brush.linearGradient(
-    listOf(Color(0xFFFF8A4C), Color(0xFFFF5A1F), Color(0xFFB34700))
+    listOf(Accent, AccentDim)
 )
 
 //@Preview

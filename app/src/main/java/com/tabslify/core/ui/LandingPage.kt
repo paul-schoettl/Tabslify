@@ -5,6 +5,7 @@ import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.graphics.Paint
 import android.net.TrafficStats
 import android.os.Build
@@ -13,6 +14,7 @@ import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
@@ -27,6 +29,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -43,19 +46,20 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridState
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -63,8 +67,8 @@ import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.QuestionMark
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -115,6 +119,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
@@ -128,6 +134,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
@@ -136,6 +144,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
@@ -244,9 +253,12 @@ fun LandingPageOrApp(
     val context = LocalContext.current
     var hasLoadedApp by rememberSaveable { mutableStateOf(startTarget != null) }
     var selectedMenuItem by rememberSaveable { mutableStateOf<MenuItem?>(null) }
+    var isLandingShown by remember { mutableStateOf(!hasLoadedApp) }
+    var showSettings by remember { mutableStateOf(false) }
+    var isHelpOpen by remember { mutableStateOf(false) }
     var masterPw by remember { mutableStateOf(PasswordStorage.loadPassword(context)) }
-    val landingListState = rememberSaveable(saver = LazyListState.Saver) {
-        LazyListState()
+    val landingListState = rememberSaveable(saver = LazyGridState.Saver) {
+        LazyGridState()
     }
     var reloadKey by remember { mutableIntStateOf(0) }
     realDevice = !getDeviceName().trim().contains("sdk_gphone", ignoreCase = true)
@@ -386,6 +398,9 @@ fun LandingPageOrApp(
     }
 
     val landingOffsetX = remember { Animatable(if (!hasLoadedApp) 0f else -1f) }
+    val hazeState = remember { HazeState() }
+    var topBarHeight by remember { mutableStateOf(0.dp) }
+    val density = LocalDensity.current
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -393,6 +408,9 @@ fun LandingPageOrApp(
     fun openLanding() {
         focusManager.clearFocus(force = true)
         keyboardController?.hide()
+        showSettings = false
+        isHelpOpen = false
+        isLandingShown = true
         landingReloadTrigger++
         scope.launch {
             landingOffsetX.animateTo(0f, tween(360, easing = FastOutSlowInEasing))
@@ -400,6 +418,8 @@ fun LandingPageOrApp(
     }
 
     fun closeLanding(force: Boolean = false, then: (() -> Unit)? = null) {
+        showSettings = false
+        isLandingShown = false
         scope.launch {
             landingOffsetX.animateTo(
                 -1f,
@@ -412,23 +432,49 @@ fun LandingPageOrApp(
 
     val pendingAiPrompt by svm.pendingAiPrompt.collectAsState()
     val appliedAiPrompt by svm.appliedAiPrompt.collectAsState()
+    val pendingAiChatOpen by svm.pendingAiChatOpen.collectAsState()
 
     LaunchedEffect(pendingAiPrompt, appliedAiPrompt) {
         val ziel = pendingAiPrompt ?: return@LaunchedEffect
         if (appliedAiPrompt == ziel) return@LaunchedEffect
-        svm.markAiPromptApplied(ziel)
-        aiVm.sendPrompt(ziel)
+        aiVm.startNewChatWithPrompt(ziel)
         hasLoadedApp = true
         selectedMenuItem = MenuItem.AITAB
         saveRecentTab(context, MenuItem.AITAB)
         focusManager.clearFocus(force = true)
         keyboardController?.hide()
+        isLandingShown = false
         landingOffsetX.snapTo(-1f)
+        svm.markAiPromptApplied(ziel)
+    }
+
+    LaunchedEffect(pendingAiChatOpen) {
+        val chatId = pendingAiChatOpen ?: return@LaunchedEffect
+        aiVm.openChat(chatId)
+        hasLoadedApp = true
+        selectedMenuItem = MenuItem.AITAB
+        saveRecentTab(context, MenuItem.AITAB)
+        focusManager.clearFocus(force = true)
+        keyboardController?.hide()
+        isLandingShown = false
+        landingOffsetX.snapTo(-1f)
+        svm.setPendingAiChatOpen(null)
     }
 
     var pendingOverlayItem by remember { mutableStateOf<MenuItem?>(null) }
     val overlayScale = remember { Animatable(0f) }
     val overlayAlpha = remember { Animatable(0f) }
+    val sharedItem = pendingOverlayItem ?: selectedMenuItem
+    val sharedIsLanding = isLandingShown && pendingOverlayItem == null
+    val sharedHasLoadedApp = hasLoadedApp || pendingOverlayItem != null
+    val appTitle = stringResource(R.string.tabslify)
+    val tabTitle = sharedItem?.let { stringResource(it.titleRes) }.orEmpty()
+    val sharedTitleTarget = if (sharedIsLanding || tabTitle.isEmpty()) appTitle else tabTitle
+    val sharedTitle = rememberScrambledTitle(
+        target = sharedTitleTarget,
+        initial = tabTitle.ifEmpty { appTitle },
+        animate = sharedIsLanding
+    )
 
     Box(modifier = Modifier.fillMaxSize()) {
 
@@ -436,6 +482,7 @@ fun LandingPageOrApp(
             val targetMenuItem = selectedMenuItem ?: startTarget?.let { target ->
                 when (target) {
                     "weather" -> MenuItem.WEATHER
+                    "aitab" -> MenuItem.AITAB
                     "ai_questions" -> MenuItem.AITAB
                     "text_aktionen" -> MenuItem.AITAB
                     "apkm" -> MenuItem.APKM_INSTALLER
@@ -453,7 +500,9 @@ fun LandingPageOrApp(
                             storage = storage,
                             startTarget = null,
                             initialMenuItem = targetMenuItem,
-                            onMenuClick = { openLanding() }
+                            onMenuClick = { openLanding() },
+                            helpVisible = isHelpOpen,
+                            onHelpVisibleChange = { isHelpOpen = it }
                         )
                     }
                 }
@@ -479,9 +528,9 @@ fun LandingPageOrApp(
                 }
         ) {
             LandingPage(
-                showCloseButton = hasLoadedApp,
-                onClose = { closeLanding() },
                 onTabSelected = { menuItem -> pendingOverlayItem = menuItem },
+                hazeState = hazeState,
+                topBarHeight = topBarHeight,
                 state = landingListState,
                 reloadTrigger = landingReloadTrigger
             )
@@ -513,7 +562,18 @@ fun LandingPageOrApp(
             LaunchedEffect(item) {
                 repeat(5) { withFrameNanos { } }
                 val captured = graphicsLayer.toImageBitmap()
-                previewBitmap = captured
+                val topPx = with(density) { topBarHeight.roundToPx() }
+                previewBitmap = if (topPx > 0 && captured.height > topPx) {
+                    Bitmap.createBitmap(
+                        captured.asAndroidBitmap(),
+                        0,
+                        topPx,
+                        captured.width,
+                        captured.height - topPx
+                    ).asImageBitmap()
+                } else {
+                    captured
+                }
 
                 snapshotFlow { previewBitmap }.filterNotNull().first()
 
@@ -546,6 +606,7 @@ fun LandingPageOrApp(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
+                        .padding(top = topBarHeight)
                         .graphicsLayer {
                             scaleX = overlayScale.value
                             scaleY = overlayScale.value
@@ -562,6 +623,24 @@ fun LandingPageOrApp(
                 }
             }
         }
+
+        SharedTopBar(
+            titleText = sharedTitle,
+            isLandingShown = sharedIsLanding,
+            hasLoadedApp = sharedHasLoadedApp,
+            selectedMenuItem = sharedItem,
+            hazeState = hazeState,
+            onMenuClick = { if (sharedIsLanding) closeLanding() else openLanding() },
+            onHelpClick = { isHelpOpen = true },
+            onSettingsClick = { showSettings = true },
+            onHeightChanged = { topBarHeight = it },
+            interactive = pendingOverlayItem == null
+        )
+
+        SettingsFrame(
+            visible = showSettings,
+            onClose = { showSettings = false }
+        )
     }
 }
 
@@ -574,7 +653,7 @@ fun MasterPasswordSetupScreen(modifier: Modifier, onPasswordSaved: (String) -> U
     Box(
         modifier
             .fillMaxSize()
-            .background(Color(0xFF17171C)), contentAlignment = Alignment.Center
+            .background(BgDeep), contentAlignment = Alignment.Center
     ) {
         Column(
             Modifier
@@ -590,7 +669,7 @@ fun MasterPasswordSetupScreen(modifier: Modifier, onPasswordSaved: (String) -> U
             )
             Text(
                 stringResource(R.string.wird_einmalig_gesetzt_mindestens_20),
-                color = Color(0xFF8A8A9F),
+                color = TextSecondary,
                 fontSize = 13.sp
             )
 
@@ -612,13 +691,13 @@ fun MasterPasswordSetupScreen(modifier: Modifier, onPasswordSaved: (String) -> U
             if (input.isNotEmpty() && input != confirmed)
                 Text(
                     stringResource(R.string.passworter_stimmen_nicht_uberein),
-                    color = Color(0xFFE74C3C),
+                    color = ErrorRed,
                     fontSize = 12.sp
                 )
             if (input.isNotEmpty() && input.length < 20)
                 Text(
                     stringResource(R.string.mindestens_20_zeichen),
-                    color = Color(0xFFE74C3C),
+                    color = ErrorRed,
                     fontSize = 12.sp
                 )
 
@@ -642,7 +721,7 @@ fun CoordinatesSetupScreen(modifier: Modifier, onCoordinatesSaved: (Double, Doub
     Box(
         modifier
             .fillMaxSize()
-            .background(Color(0xFF17171C)), contentAlignment = Alignment.Center
+            .background(BgDeep), contentAlignment = Alignment.Center
     ) {
         Column(
             Modifier
@@ -658,7 +737,7 @@ fun CoordinatesSetupScreen(modifier: Modifier, onCoordinatesSaved: (Double, Doub
             )
             Text(
                 stringResource(R.string.bitte_gib_deine_standard_koordinaten),
-                color = Color(0xFF8A8A9F),
+                color = TextSecondary,
                 fontSize = 13.sp
             )
 
@@ -678,13 +757,13 @@ fun CoordinatesSetupScreen(modifier: Modifier, onCoordinatesSaved: (Double, Doub
             if (latInput.isNotEmpty() && latDouble == null)
                 Text(
                     stringResource(R.string.ungultiger_breitengrad),
-                    color = Color(0xFFE74C3C),
+                    color = ErrorRed,
                     fontSize = 12.sp
                 )
             if (lonInput.isNotEmpty() && lonDouble == null)
                 Text(
                     stringResource(R.string.ungultiger_langengrad),
-                    color = Color(0xFFE74C3C),
+                    color = ErrorRed,
                     fontSize = 12.sp
                 )
 
@@ -825,20 +904,221 @@ fun SupabaseLoginScreen(onLoggedIn: () -> Unit) {
 }
 
 @Composable
+private fun rememberScrambledTitle(
+    target: String,
+    initial: String,
+    animate: Boolean
+): String {
+    var display by remember { mutableStateOf(initial) }
+
+    LaunchedEffect(target, animate) {
+        if (!animate || display == target) {
+            display = target
+            return@LaunchedEffect
+        }
+        val source = display
+        val durationMs = 450f
+        val startNanos = withFrameNanos { it }
+        var frameNanos = startNanos
+        while (true) {
+            val elapsedMs = (frameNanos - startNanos) / 1_000_000f
+            val progress = (elapsedMs / durationMs).coerceIn(0f, 1f)
+            display = scrambleTitle(source, target, progress, frameNanos)
+            if (progress >= 1f) break
+            frameNanos = withFrameNanos { it }
+        }
+    }
+
+    return display
+}
+
+private fun scrambleTitle(
+    source: String,
+    target: String,
+    progress: Float,
+    frameNanos: Long
+): String {
+    val charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    val length = maxOf(source.length, target.length)
+    return buildString {
+        for (i in 0 until length) {
+            val start = 0.03f + i * 0.035f
+            val end = start + 0.40f
+            when {
+                progress >= end -> append(if (i < target.length) target[i] else ' ')
+                progress >= start -> {
+                    val index = ((frameNanos / 45_000_000L + i) % charset.length).toInt()
+                    append(charset[index])
+                }
+
+                else -> append(if (i < source.length) source[i] else ' ')
+            }
+        }
+    }
+}
+
+@Composable
+private fun SharedTopBar(
+    titleText: String,
+    isLandingShown: Boolean,
+    hasLoadedApp: Boolean,
+    selectedMenuItem: MenuItem?,
+    hazeState: HazeState,
+    onMenuClick: () -> Unit,
+    onHelpClick: () -> Unit,
+    onSettingsClick: () -> Unit,
+    onHeightChanged: (Dp) -> Unit,
+    interactive: Boolean = true,
+    modifier: Modifier = Modifier
+) {
+    val density = LocalDensity.current
+    val closeLabel = stringResource(R.string.close)
+    val menuLabel = stringResource(R.string.menu_offnen)
+    val helpRotation by animateFloatAsState(
+        targetValue = if (isLandingShown) 90f else 0f,
+        animationSpec = tween(220),
+        label = "helpRotation"
+    )
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .onGloballyPositioned {
+                onHeightChanged(with(density) { it.size.height.toDp() })
+            }
+    ) {
+        if (isLandingShown) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                    .hazeBlur(
+                        input = HazeInput.Sources(state = hazeState),
+                        style = HazeBlurStyle {
+                            backgroundColor(BgDeep)
+                            colorEffects(
+                                listOf(HazeColorEffect.tint(BgDeep.copy(alpha = 0.72f)))
+                            )
+                            blurRadius(60.dp)
+                            noiseFactor(0f)
+                            progressive(
+                                HazeProgressive.verticalGradient(
+                                    startIntensity = 1f,
+                                    endIntensity = 0f
+                                )
+                            )
+                        }
+                    )
+                    .drawWithContent {
+                        drawContent()
+                        val fadePx = 24.dp.toPx()
+                        val bottomStop = (1f - fadePx / size.height).coerceIn(0f, 1f)
+                        drawRect(
+                            brush = Brush.verticalGradient(
+                                0f to Color.Black,
+                                bottomStop to Color.Black,
+                                1f to Color.Transparent
+                            ),
+                            blendMode = BlendMode.DstIn
+                        )
+                    }
+            )
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .height(64.dp)
+                .padding(start = 4.dp, end = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (hasLoadedApp) {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            enabled = interactive,
+                            onClickLabel = if (isLandingShown) closeLabel else menuLabel
+                        ) { onMenuClick() }
+                        .semantics {
+                            contentDescription = if (isLandingShown) closeLabel else menuLabel
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    MorphMenuIcon(open = isLandingShown, tint = TextSecondary)
+                }
+            } else {
+                Spacer(Modifier.size(48.dp))
+            }
+            if (!isLandingShown && selectedMenuItem != null) {
+                Icon(
+                    imageVector = selectedMenuItem.iconVector,
+                    contentDescription = null,
+                    tint = TextPrimary,
+                    modifier = Modifier.size(20.dp)
+                )
+            } else {
+                Spacer(Modifier.size(20.dp))
+            }
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = titleText,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+            if (!isLandingShown && selectedMenuItem == MenuItem.MEDIAPLAYERTAB) {
+                Spacer(Modifier.width(96.dp))
+            }
+            IconButton(
+                onClick = if (isLandingShown) onSettingsClick else onHelpClick,
+                enabled = interactive,
+                modifier = Modifier.size(48.dp)
+            ) {
+                AnimatedContent(
+                    targetState = isLandingShown,
+                    transitionSpec = {
+                        (fadeIn(tween(220)) + scaleIn(initialScale = 0.7f, animationSpec = tween(220))) togetherWith
+                            (fadeOut(tween(160)) + scaleOut(targetScale = 0.7f, animationSpec = tween(160)))
+                    },
+                    modifier = Modifier.graphicsLayer { rotationZ = helpRotation },
+                    label = "helpSettings"
+                ) { landing ->
+                    Icon(
+                        imageVector = if (landing) Icons.Default.Settings else Icons.Default.QuestionMark,
+                        contentDescription = stringResource(
+                            if (landing) R.string.open_settings_frame else R.string.hilfe_offnen
+                        ),
+                        tint = TextSecondary
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun LandingPage(
     onTabSelected: (MenuItem) -> Unit,
-    showCloseButton: Boolean = false,
-    onClose: () -> Unit = {},
-    state: LazyListState = rememberLazyListState(),
+    hazeState: HazeState,
+    topBarHeight: Dp,
+    state: LazyGridState = rememberLazyGridState(),
     reloadTrigger: Int = 0
 ) {
     val context = LocalContext.current
     var recentTabs by remember { mutableStateOf(loadRecentTabs(context)) }
-    var showSettings by remember { mutableStateOf(false) }
 
     LaunchedEffect(reloadTrigger) {
         recentTabs = loadRecentTabs(context)
     }
+    val visibleRecentTabs = remember(recentTabs) { recentTabs.take(2) }
+
     val titleMap = MenuItem.entries.associateWith { stringResource(it.titleRes) }
 
     val allTabsSorted = remember(titleMap) {
@@ -847,98 +1127,56 @@ fun LandingPage(
                     (prvt() || (it != MenuItem.GMAIL && it != MenuItem.PRIVATE_CLOUD && it != MenuItem.REMOTEDESKTOP && it != MenuItem.PC_MANAGER && it != MenuItem.FOCUSGUARD && it != MenuItem.HEISE_NEWS))
         }.sortedBy { titleMap[it] }
     }
-    val neonOrange = c()
-
-    val txtcolors = Color.White
+    val txtcolors = TextPrimary
 
     AppBackground(scrim = AppBgScrim.MEDIUM) {
         CompositionLocalProvider(LocalContentColor provides txtcolors) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 16.dp, top = 40.dp)
-                ) {
-                    if (showCloseButton) {
-                        IconButton(
-                            onClick = onClose,
-                            modifier = Modifier.align(Alignment.CenterStart)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = stringResource(R.string.close),
-                                tint = txtcolors
-                            )
-                        }
-                    }
-                    Text(
-                        text = stringResource(R.string.tabslify),
-                        style = MaterialTheme.typography.headlineLarge,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.align(Alignment.Center),
-                        textAlign = TextAlign.Center
-                    )
-
-                    Row(
-                        modifier = Modifier.align(Alignment.CenterEnd),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        IconButton(onClick = { showSettings = true }) {
-                            Icon(
-                                Icons.Default.Settings,
-                                contentDescription = stringResource(R.string.open_settings_frame),
-                                tint = Color.White
-                            )
-                        }
-                    }
-                }
-
-                LazyColumn(
+            Box(modifier = Modifier.fillMaxSize()) {
+                LazyVerticalGrid(
                     state = state,
-                    modifier = Modifier.fillMaxWidth(),
+                    columns = GridCells.Fixed(2),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 18.dp)
+                        .hazeSource(state = hazeState),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                     contentPadding = PaddingValues(bottom = 32.dp)
                 ) {
-                    if (recentTabs.isNotEmpty()) {
-                        item(key = "recent_header") {
+                    item(key = "header_spacer", span = { GridItemSpan(maxLineSpan) }) {
+                        Spacer(Modifier.height(topBarHeight))
+                    }
+                    if (visibleRecentTabs.isNotEmpty()) {
+                        item(key = "recent_header", span = { GridItemSpan(maxLineSpan) }) {
                             LandingSectionLabel(stringResource(R.string.zuletzt_verwendet))
                         }
-                        items(items = recentTabs, key = { "recent_${it.ordinal}" }) { menuItem ->
+                        items(items = visibleRecentTabs, key = { "recent_${it.ordinal}" }) { menuItem ->
                             TabCard(
                                 menuItem = menuItem,
-                                onClick = { onTabSelected(menuItem) },
-                                neonOrange = neonOrange
+                                onClick = { onTabSelected(menuItem) }
                             )
                         }
-                        item(key = "divider") {
-                            HorizontalDivider(
-                                modifier = Modifier.padding(vertical = 14.dp),
-                                thickness = 1.dp,
-                                color = AccentOrange.copy(alpha = 0.18f)
-                            )
-                            LandingSectionLabel(stringResource(R.string.alle_tabs))
+                        item(key = "divider", span = { GridItemSpan(maxLineSpan) }) {
+                            Column {
+                                HorizontalDivider(
+                                    modifier = Modifier.padding(vertical = 14.dp),
+                                    thickness = 1.dp,
+                                    color = Border
+                                )
+                                LandingSectionLabel(stringResource(R.string.alle_tabs))
+                            }
                         }
                     }
                     items(items = allTabsSorted, key = { "all_${it.ordinal}" }) { menuItem ->
                         TabCard(
                             menuItem = menuItem,
-                            onClick = { onTabSelected(menuItem) },
-                            neonOrange = neonOrange
+                            onClick = { onTabSelected(menuItem) }
                         )
                     }
                 }
             }
         }
     }
-
-    SettingsFrame(
-        visible = showSettings,
-        onClose = { showSettings = false }
-    )
 }
 
 @Composable
@@ -953,7 +1191,7 @@ fun LanguageSelectionDialog(onDismiss: () -> Unit) {
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF2A2A2A),
+        containerColor = BgCard,
         title = {
             Text(
                 text = stringResource(R.string.language_title),
@@ -975,7 +1213,7 @@ fun LanguageSelectionDialog(onDismiss: () -> Unit) {
                     ) {
                         Text(
                             text = if (selected) "✓ $label" else label,
-                            color = if (selected) Color(0xFF4CAF50) else Color.White,
+                            color = if (selected) Accent else TextPrimary,
                             fontSize = 16.sp,
                             textAlign = TextAlign.Start,
                             modifier = Modifier.fillMaxWidth()
@@ -986,7 +1224,7 @@ fun LanguageSelectionDialog(onDismiss: () -> Unit) {
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.abbrechen), color = Color.Gray)
+                Text(stringResource(R.string.abbrechen), color = TextTertiary)
             }
         }
     )
@@ -995,178 +1233,77 @@ fun LanguageSelectionDialog(onDismiss: () -> Unit) {
 @Composable
 fun TabCard(
     menuItem: MenuItem,
-    onClick: () -> Unit,
-    neonOrange: Color
+    onClick: () -> Unit
 ) {
-    val alpha = remember { Animatable(0f) }
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-    var isClicked by remember { mutableStateOf(false) }
-    val glowAlphaState = animateFloatAsState(
-        targetValue = when {
-            isClicked -> 0f
-            isPressed -> 0.4f
-            else -> 1f
-        },
-        animationSpec = tween(if (isClicked) 200 else if (isPressed) 80 else 250),
-        label = "tabGlow"
-    )
     val pressScale by animateFloatAsState(
-        targetValue = if (isPressed) 0.985f else 1f,
+        targetValue = if (isPressed) 0.97f else 1f,
         animationSpec = tween(120),
         label = "tabPress"
     )
+    val shape = RoundedCornerShape(16.dp)
+    val badgeShape = RoundedCornerShape(12.dp)
 
-    val glowPaint = remember {
-        Paint().apply {
-            isAntiAlias = true
-            maskFilter = android.graphics.BlurMaskFilter(
-                20f, android.graphics.BlurMaskFilter.Blur.OUTER
-            )
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        alpha.animateTo(1f, animationSpec = tween(300))
-    }
-
-    val shape = RoundedCornerShape(20.dp)
-    val badgeShape = RoundedCornerShape(14.dp)
-
-    Box(
-        Modifier
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(112.dp)
             .graphicsLayer {
-                this.alpha = alpha.value
                 scaleX = pressScale
                 scaleY = pressScale
-            }
-            .drawBehind {
-                val a = glowAlphaState.value
-                glowPaint.color = neonOrange.copy(alpha = 0.55f * a).toArgb()
-
-                val canvasSize = size
-                val cornerRadius = 20.dp.toPx()
-
-                drawContext.canvas.nativeCanvas.apply {
-                    drawRoundRect(
-                        0f, 0f, canvasSize.width, canvasSize.height,
-                        cornerRadius, cornerRadius,
-                        glowPaint
-                    )
-                }
-            }
-            .border(
-                width = 1.dp,
-                color = neonOrange.copy(alpha = 0.18f + 0.32f * glowAlphaState.value),
-                shape = shape
-            )
-    ) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(84.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF151515)),
-            shape = shape,
-            onClick = {
-                isClicked = true
-                onClick()
             },
-            interactionSource = interactionSource
+        colors = CardDefaults.cardColors(containerColor = BgCard),
+        shape = shape,
+        border = BorderStroke(1.dp, Border),
+        onClick = onClick,
+        interactionSource = interactionSource
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.linearGradient(
-                            listOf(Color(0xFF1E1E1E), Color(0xFF101010))
-                        )
-                    )
+                    .size(40.dp)
+                    .clip(badgeShape)
+                    .background(AccentSoft)
+                    .border(1.dp, Accent.copy(alpha = 0.24f), badgeShape),
+                contentAlignment = Alignment.Center
             ) {
-                Box(
-                    Modifier
-                        .align(Alignment.CenterStart)
-                        .width(3.dp)
-                        .fillMaxHeight()
-                        .padding(vertical = 14.dp)
-                        .background(
-                            Brush.verticalGradient(
-                                listOf(neonOrange, neonOrange.copy(alpha = 0.05f))
-                            ),
-                            RoundedCornerShape(50)
-                        )
+                Icon(
+                    imageVector = menuItem.iconVector,
+                    contentDescription = null,
+                    tint = Accent,
+                    modifier = Modifier.size(22.dp)
                 )
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(start = 18.dp, end = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(46.dp)
-                            .clip(badgeShape)
-                            .background(
-                                Brush.linearGradient(
-                                    listOf(
-                                        neonOrange.copy(alpha = 0.30f),
-                                        neonOrange.copy(alpha = 0.08f)
-                                    )
-                                )
-                            )
-                            .border(1.dp, neonOrange.copy(alpha = 0.32f), badgeShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = menuItem.iconVector,
-                            contentDescription = null,
-                            tint = Color(0xFFFFB27A),
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                    Spacer(Modifier.width(14.dp))
-                    Text(
-                        text = stringResource(menuItem.titleRes).uppercase(),
-                        color = Color.White,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 16.sp,
-                        letterSpacing = 0.5.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f),
-                        textAlign = TextAlign.Left
-                    )
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = null,
-                        tint = neonOrange.copy(alpha = 0.55f + 0.35f * (1f - glowAlphaState.value)),
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
             }
+            Text(
+                text = stringResource(menuItem.titleRes),
+                color = TextPrimary,
+                fontWeight = FontWeight.Medium,
+                fontSize = 14.sp,
+                lineHeight = 17.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
 
 @Composable
 private fun LandingSectionLabel(text: String) {
-    Row(
-        modifier = Modifier.padding(bottom = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            Modifier
-                .size(6.dp)
-                .background(AccentOrange, CircleShape)
-        )
-        Spacer(Modifier.width(8.dp))
-        Text(
-            text = text.uppercase(),
-            color = TextSecondary,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-            letterSpacing = 1.5.sp
-        )
-    }
+    Text(
+        text = text,
+        color = TextTertiary,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Medium,
+        letterSpacing = 0.4.sp,
+        modifier = Modifier.padding(top = 6.dp, bottom = 2.dp)
+    )
 }
 
 private fun isUsageStatsGranted(context: Context): Boolean {
@@ -1300,7 +1437,7 @@ private fun PermissionButton(
                     modifier = Modifier
                         .clip(RoundedCornerShape(100))
                         .background(
-                            if (granted) Color(0xFF00C853).copy(alpha = 0.22f)
+                            if (granted) SuccessGreen.copy(alpha = 0.22f)
                             else Color.White.copy(alpha = 0.10f)
                         )
                         .padding(horizontal = 9.dp, vertical = 3.dp)
@@ -1309,7 +1446,7 @@ private fun PermissionButton(
                         if (granted) "● Erteilt" else "○ Nicht erteilt",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (granted) Color(0xFF69F0AE)
+                        color = if (granted) SuccessGreen
                         else Color.White.copy(alpha = 0.55f)
                     )
                 }
@@ -1545,7 +1682,7 @@ fun PermissionInfoScreen(onboarding: Boolean = false, onClose: (() -> Unit)? = n
             .fillMaxSize()
             .then(
                 if (onboarding) Modifier.systemGestureExclusion()
-                else Modifier.background(Color(0xFF0C1017))
+                else Modifier.background(BgDeep)
             )
     ) {
         val hazeState = remember { HazeState() }
@@ -1559,7 +1696,7 @@ fun PermissionInfoScreen(onboarding: Boolean = false, onClose: (() -> Unit)? = n
         }
         val permissionButtonShape = remember { RoundedCornerShape(22.dp) }
         val permissionBorderBrush = remember {
-            Brush.linearGradient(colors = listOf(Color(0xFFFF368A), Color(0xFF7C4DFF)))
+            Brush.linearGradient(colors = listOf(Accent, AccentDim))
         }
         val allPermissionKeys = remember {
             buildList {
@@ -1656,8 +1793,8 @@ fun PermissionInfoScreen(onboarding: Boolean = false, onClose: (() -> Unit)? = n
                     .hazeBlur(
                         input = HazeInput.Sources(state = hazeState),
                         style = HazeBlurStyle {
-                            backgroundColor(Color(0xFF0C1017))
-                            colorEffects(listOf(HazeColorEffect.tint(Color(0xFF0C1017).copy(alpha = 0.7f))))
+                            backgroundColor(BgDeep)
+                            colorEffects(listOf(HazeColorEffect.tint(BgDeep.copy(alpha = 0.7f))))
                             blurRadius(60.dp)
                             noiseFactor(0f)
                             progressive(
@@ -1737,8 +1874,8 @@ fun PermissionInfoScreen(onboarding: Boolean = false, onClose: (() -> Unit)? = n
                             SpanStyle(
                                 brush = Brush.linearGradient(
                                     colors = listOf(
-                                        Color(0xFFFF368A),
-                                        Color(0xFF7C4DFF)
+                                        Accent,
+                                        AccentDim
                                     )
                                 )
                             )
@@ -1750,8 +1887,8 @@ fun PermissionInfoScreen(onboarding: Boolean = false, onClose: (() -> Unit)? = n
                             SpanStyle(
                                 brush = Brush.linearGradient(
                                     colors = listOf(
-                                        Color(0xFFFF368A),
-                                        Color(0xFF7C4DFF)
+                                        Accent,
+                                        AccentDim
                                     )
                                 )
                             )
@@ -1763,8 +1900,8 @@ fun PermissionInfoScreen(onboarding: Boolean = false, onClose: (() -> Unit)? = n
                             SpanStyle(
                                 brush = Brush.linearGradient(
                                     colors = listOf(
-                                        Color(0xFFFF368A),
-                                        Color(0xFF7C4DFF)
+                                        Accent,
+                                        AccentDim
                                     )
                                 )
                             )
@@ -1776,8 +1913,8 @@ fun PermissionInfoScreen(onboarding: Boolean = false, onClose: (() -> Unit)? = n
                             SpanStyle(
                                 brush = Brush.linearGradient(
                                     colors = listOf(
-                                        Color(0xFFFF368A),
-                                        Color(0xFF7C4DFF)
+                                        Accent,
+                                        AccentDim
                                     )
                                 )
                             )
@@ -1853,7 +1990,7 @@ fun LiveTrafficPanel(modifier: Modifier = Modifier) {
 
     NeonBox(
         modifier = modifier.fillMaxWidth(),
-        neonColors = listOf(Color(0xFFFF8A00), Color(0xFFFF0066)),
+        neonColors = listOf(Accent, AccentDim),
         backgroundAlpha = 0.15f
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
@@ -1876,12 +2013,12 @@ fun LiveTrafficPanel(modifier: Modifier = Modifier) {
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
-                    Text("⬇️ Rx", color = Color(0xFF4CAF50), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text("⬇️ Rx", color = SuccessGreen, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     Text("${formatBytes(rxRate.toLong())}/s", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                     Text("total ${formatBytes(rxTotal)}", color = Color.White.copy(alpha = 0.5f), fontSize = 11.sp)
                 }
                 Column(horizontalAlignment = Alignment.End) {
-                    Text("⬆️ Tx", color = Color(0xFF2196F3), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text("⬆️ Tx", color = Accent, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     Text("${formatBytes(txRate.toLong())}/s", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                     Text("total ${formatBytes(txTotal)}", color = Color.White.copy(alpha = 0.5f), fontSize = 11.sp)
                 }
@@ -2177,7 +2314,7 @@ fun SettingsFrame(
 
                 NeonBox(
                     modifier = Modifier.fillMaxWidth(),
-                    neonColors = listOf(Color(0xFF00FFAA), Color(0xFF00CCFF)),
+                    neonColors = listOf(Accent, AccentDim),
                     backgroundAlpha = 0.15f
                 ) {
                     Column(modifier = Modifier.fillMaxWidth()) {
@@ -2369,7 +2506,7 @@ fun SettingsFrame(
 
                 NeonBox(
                     modifier = Modifier.fillMaxWidth(),
-                    neonColors = listOf(Color(0xFF00E5FF), Color(0xFF7C4DFF)),
+                    neonColors = listOf(Accent, AccentDim),
                     backgroundAlpha = 0.15f
                 ) {
                     Column(modifier = Modifier.fillMaxWidth()) {
@@ -2481,7 +2618,7 @@ fun SettingsFrame(
                                                 Spacer(modifier = Modifier.height(4.dp))
                                                 Text(
                                                     text = stringResource(R.string.keine_benachrichtigungsberechtigung),
-                                                    color = Color(0xFFFF5252),
+                                                    color = ErrorRed,
                                                     fontSize = 11.sp,
                                                     fontWeight = FontWeight.Bold
                                                 )
@@ -2698,7 +2835,7 @@ fun SettingsFrame(
 
                     NeonBox(
                         modifier = Modifier.fillMaxWidth(),
-                        neonColors = listOf(Color(0xFF00FFAA), Color(0xFF00CCFF)),
+                        neonColors = listOf(Accent, AccentDim),
                         backgroundAlpha = 0.15f
                     ) {
                         Column(modifier = Modifier.fillMaxWidth()) {
@@ -2802,7 +2939,7 @@ fun SettingsFrame(
 
                     NeonBox(
                         modifier = Modifier.fillMaxWidth(),
-                        neonColors = listOf(Color(0xFF00E5FF), Color(0xFFE8622A)),
+                        neonColors = listOf(Accent, AccentDim),
                         backgroundAlpha = 0.15f
                     ) {
                         Column(modifier = Modifier.fillMaxWidth()) {
@@ -2831,7 +2968,7 @@ fun SettingsFrame(
                                 Box {
                                     Text(
                                         text = aiPrefGlobal.uppercase(),
-                                        color = Color(0xFF00E5FF),
+                                        color = Accent,
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold,
                                         modifier = Modifier
@@ -3033,7 +3170,7 @@ fun SettingsFrame(
 
                     NeonBox(
                         modifier = Modifier.fillMaxWidth(),
-                        neonColors = listOf(Color(0xFFFFC107), Color(0xFF7C4DFF)),
+                        neonColors = listOf(Accent, AccentDim),
                         backgroundAlpha = 0.15f
                     ) {
                         Column(modifier = Modifier.fillMaxWidth()) {
@@ -3180,7 +3317,7 @@ fun SettingsFrame(
                         Text(stringResource(R.string.abbrechen))
                     }
                 },
-                containerColor = Color(0xFF121212)
+                containerColor = BgCard
             )
         }
 
@@ -3217,7 +3354,7 @@ fun SettingsFrame(
             Box(
                 Modifier
                     .fillMaxSize()
-                    .background(Color(0xFF0C1017))
+                    .background(BgDeep)
                     .windowInsetsPadding(WindowInsets.systemBars)
             ) {
                 Column(
@@ -3235,7 +3372,7 @@ fun SettingsFrame(
                     ) {
                         Text(
                             stringResource(R.string.koordinaten_andern),
-                            style = MaterialTheme.typography.headlineMedium,
+                        style = MaterialTheme.typography.headlineMedium,
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(start = 5.dp),
@@ -3287,14 +3424,14 @@ fun SettingsFrame(
                     if (latInput.isNotEmpty() && latDouble == null)
                         Text(
                             stringResource(R.string.ungultiger_breitengrad),
-                            color = Color(0xFFE74C3C),
+                            color = ErrorRed,
                             fontSize = 12.sp,
                             modifier = Modifier.padding(top = 4.dp)
                         )
                     if (lonInput.isNotEmpty() && lonDouble == null)
                         Text(
                             stringResource(R.string.ungultiger_langengrad),
-                            color = Color(0xFFE74C3C),
+                            color = ErrorRed,
                             fontSize = 12.sp,
                             modifier = Modifier.padding(top = 4.dp)
                         )
@@ -3325,7 +3462,7 @@ fun SettingsFrame(
                     if (savedHint) {
                         Text(
                             stringResource(R.string.gespeichert_punkt),
-                            color = Color(0xFF00FFAA),
+                            color = SuccessGreen,
                             fontSize = 13.sp,
                             modifier = Modifier.padding(top = 8.dp)
                         )

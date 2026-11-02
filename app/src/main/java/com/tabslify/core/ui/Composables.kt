@@ -3,9 +3,11 @@ package com.tabslify.core.ui
 import android.graphics.Paint
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -52,19 +54,25 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asAndroidPath
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.graphicsLayer
@@ -98,6 +106,50 @@ import java.util.Calendar
 enum class AppBgScrim { STRONG, MEDIUM, LIGHT, NONE }
 
 @Composable
+fun MorphMenuIcon(
+    open: Boolean,
+    modifier: Modifier = Modifier,
+    tint: Color = TextSecondary
+) {
+    val progress by animateFloatAsState(
+        targetValue = if (open) 1f else 0f,
+        animationSpec = tween(220),
+        label = "menuMorph"
+    )
+    val morph = progress
+
+    Canvas(modifier = modifier.size(24.dp)) {
+        val w = size.width
+        val h = size.height
+        val stroke = 2.dp.toPx()
+
+        fun lerp(from: Float, to: Float) = from + (to - from) * morph
+
+        drawLine(
+            color = tint,
+            start = Offset(lerp(0.18f * w, 0.26f * w), lerp(0.32f * h, 0.26f * h)),
+            end = Offset(lerp(0.82f * w, 0.74f * w), lerp(0.32f * h, 0.74f * h)),
+            strokeWidth = stroke,
+            cap = StrokeCap.Round
+        )
+        drawLine(
+            color = tint,
+            start = Offset(lerp(0.18f * w, 0.74f * w), lerp(0.68f * h, 0.26f * h)),
+            end = Offset(lerp(0.82f * w, 0.26f * w), lerp(0.68f * h, 0.74f * h)),
+            strokeWidth = stroke,
+            cap = StrokeCap.Round
+        )
+        drawLine(
+            color = tint.copy(alpha = (1f - morph).coerceIn(0f, 1f)),
+            start = Offset(lerp(0.18f * w, 0.5f * w), 0.5f * h),
+            end = Offset(lerp(0.82f * w, 0.5f * w), 0.5f * h),
+            strokeWidth = stroke,
+            cap = StrokeCap.Round
+        )
+    }
+}
+
+@Composable
 fun AppBackground(
     modifier: Modifier = Modifier,
     scrim: AppBgScrim = AppBgScrim.NONE,
@@ -105,27 +157,33 @@ fun AppBackground(
 ) {
     val isDay = remember { Calendar.getInstance().get(Calendar.HOUR_OF_DAY) in 11..16 }
     val bgPicture = if (isDay) R.drawable.day else R.drawable.night
+    val neutralFilter = remember {
+        ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0f) })
+    }
     val scrimBrush = remember(scrim, isDay) {
         when (scrim) {
-            AppBgScrim.STRONG -> if (isDay) {
-                Brush.verticalGradient(listOf(BgScrimTop.copy(alpha = 0.92f), BgScrimBottom.copy(alpha = 0.92f)))
-            } else {
-                Brush.verticalGradient(listOf(BgScrimTop.copy(alpha = 0.72f), BgScrimBottom.copy(alpha = 0.88f)))
-            }
+            AppBgScrim.STRONG -> Brush.verticalGradient(
+                listOf(BgScrimTop.copy(alpha = 0.84f), BgScrimBottom.copy(alpha = 0.92f))
+            )
 
-            AppBgScrim.MEDIUM -> if (isDay) {
-                Brush.verticalGradient(listOf(Color(0xFF2A160A).copy(alpha = 0.82f), Color(0xFF0A0A0A).copy(alpha = 0.72f)))
-            } else {
-                Brush.verticalGradient(listOf(Color(0xFF1A0D05).copy(alpha = 0.74f), Color(0xFF050505).copy(alpha = 0.86f)))
-            }
+            AppBgScrim.MEDIUM -> Brush.verticalGradient(
+                listOf(BgSurface.copy(alpha = 0.66f), Color(0xFF08080B).copy(alpha = 0.80f))
+            )
 
-            AppBgScrim.LIGHT -> if (isDay) {
-                Brush.verticalGradient(listOf(Color(0xFF1A0D05).copy(alpha = 0.65f), Color(0xFF050505).copy(alpha = 0.72f)))
-            } else {
-                Brush.verticalGradient(listOf(Color(0xFF120A05).copy(alpha = 0.52f), Color(0xFF050505).copy(alpha = 0.74f)))
-            }
+            AppBgScrim.LIGHT -> Brush.verticalGradient(
+                listOf(BgSurface.copy(alpha = 0.48f), BgScrimBottom.copy(alpha = 0.70f))
+            )
 
             AppBgScrim.NONE -> Brush.verticalGradient(listOf(Color.Transparent, Color.Transparent))
+        }
+    }
+    val accentWash = remember(scrim) {
+        if (scrim == AppBgScrim.NONE) {
+            Brush.verticalGradient(listOf(Color.Transparent, Color.Transparent))
+        } else {
+            Brush.verticalGradient(
+                listOf(Accent.copy(alpha = 0.08f), Color.Transparent, Color.Transparent)
+            )
         }
     }
 
@@ -134,12 +192,20 @@ fun AppBackground(
             painter = painterResource(id = bgPicture),
             contentDescription = null,
             contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
+            colorFilter = neutralFilter,
+            modifier = Modifier
+                .fillMaxSize()
+                .alpha(0.70f)
         )
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(scrimBrush)
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(accentWash)
         )
         content()
     }
@@ -463,7 +529,7 @@ fun FeedCard(
                     Icon(
                         if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
                         contentDescription = null,
-                        tint = if (isFavorite) Color(0xFFE8622A) else Color(0xFF4A4850)
+                        tint = if (isFavorite) Accent else Color(0xFF4A4850)
                     )
                 }
                 IconButton(onClick = onToggleExpand) {
@@ -471,12 +537,12 @@ fun FeedCard(
                         CircularProgressIndicator(
                             modifier = Modifier.size(20.dp),
                             strokeWidth = 2.dp,
-                            color = Color(0xFFE8622A)
+                            color = Accent
                         )
                     } else {
                         Icon(
                             if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                            contentDescription = null, tint = Color(0xFFE8622A)
+                            contentDescription = null, tint = Accent
                         )
                     }
                 }
@@ -493,7 +559,7 @@ fun FeedCard(
                     ) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(24.dp),
-                            color = Color(0xFFE8622A)
+                            color = Accent
                         )
                     }
 
@@ -558,7 +624,7 @@ fun FeedCard(
                                 Icon(
                                     Icons.Default.PlayArrow,
                                     contentDescription = null,
-                                    tint = Color(0xFFE8622A),
+                                    tint = Accent,
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
@@ -572,7 +638,7 @@ fun FeedCard(
                                     Icon(
                                         Icons.Default.CheckCircle,
                                         contentDescription = null,
-                                        tint = Color(0xFFE8622A),
+                                        tint = Accent,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
@@ -586,7 +652,7 @@ fun FeedCard(
                                             progress = { active.percent / 100f },
                                             modifier = Modifier.size(26.dp),
                                             strokeWidth = 2.5.dp,
-                                            color = Color(0xFFE8622A),
+                                            color = Accent,
                                             trackColor = Color.White.copy(0.12f)
                                         )
                                         Text(
@@ -598,7 +664,7 @@ fun FeedCard(
                                         CircularProgressIndicator(
                                             modifier = Modifier.size(22.dp),
                                             strokeWidth = 2.5.dp,
-                                            color = Color(0xFFE8622A)
+                                            color = Accent
                                         )
                                     }
                                 }
@@ -611,7 +677,7 @@ fun FeedCard(
                                     Icon(
                                         Icons.Default.KeyboardArrowDown,
                                         contentDescription = null,
-                                        tint = Color(0xFFE8622A),
+                                        tint = Accent,
                                         modifier = Modifier.size(18.dp)
                                     )
                                 }

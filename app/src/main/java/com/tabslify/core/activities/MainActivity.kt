@@ -23,7 +23,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.core.animation.doOnEnd
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -38,8 +37,8 @@ import com.tabslify.core.functions.startVoiceRecordingNow
 import com.tabslify.core.ui.AppColorScheme
 import com.tabslify.core.ui.LandingPageOrApp
 import com.tabslify.core.ui.SharedViewModel
+import com.tabslify.core.ui.TextPrimary
 import com.tabslify.core.ui.Typography
-import com.tabslify.core.ui.rememberAppColor
 import com.tabslify.inactive.ChatService
 import com.tabslify.quicksettingsfunctions.startBatteryWorker
 import com.tabslify.services.QuietHoursNotificationService
@@ -153,13 +152,12 @@ class MainActivity : FragmentActivity() {
         applyAiNotifyDeepLink(intent)
         applyVirusTotalDeepLink(intent)
         applyTextActionDeepLink(intent)
+        applyAiChatDeepLink(intent)
         applyVoiceDeepLink(intent)
         setContent {
-            val appColor = rememberAppColor()
             MaterialTheme(
                 colorScheme = AppColorScheme.copy(
-                    primary = appColor,
-                    onSurface = Color.White
+                    onSurface = TextPrimary
                 ),
                 typography = Typography,
             ) {
@@ -211,6 +209,7 @@ class MainActivity : FragmentActivity() {
         applyAiNotifyDeepLink(intent)
         applyVirusTotalDeepLink(intent)
         applyTextActionDeepLink(intent)
+        applyAiChatDeepLink(intent)
         applyVoiceDeepLink(intent)
     }
 
@@ -245,6 +244,12 @@ class MainActivity : FragmentActivity() {
         val prompt = intent.getStringExtra("ai_prompt")?.trim()
         if (!prompt.isNullOrEmpty()) {
             sharedViewModel.setPendingAiPrompt(prompt)
+        }
+    }
+
+    private fun applyAiChatDeepLink(intent: Intent) {
+        intent.getStringExtra("ai_chat_id")?.takeIf { it.isNotEmpty() }?.let { chatId ->
+            sharedViewModel.setPendingAiChatOpen(chatId)
         }
     }
 

@@ -2494,8 +2494,11 @@ suspend fun askServer(
     return withContext(Dispatchers.IO) {
         try {
             if (laptopIp == "") throw Exception("Keine laptopIp is vorhanden")
+            val historyText = history.joinToString("\n") {
+                "${if (it.own) "User" else "Assistant"}: ${it.text}"
+            }
             val request =
-                "MODEL=$model PICTURE=${pic ?: "NONE"} ${question}. Here is the chat history:$history "
+                "MODEL=$model PICTURE=${pic ?: "NONE"} ${question}. Here is the chat history:\n$historyText"
             Socket(laptopIp, Config.AI_PORT).use { sock ->
                 sock.getOutputStream().write(request.toByteArray(Charsets.UTF_8))
                 sock.shutdownOutput()

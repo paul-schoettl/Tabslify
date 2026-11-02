@@ -52,7 +52,7 @@
     </plurals>
     <string name="tabslify">Tabslify</string>
     <string name="so_bedienst_du_die_private">How to use the Private Cloud:\n\n1. Enter your master password when opening to unlock the storage.\n2. Tap the plus or upload icon to upload files from your device.\n3. Tap a file to download or open it.\n4. Long-press a file to rename or delete it.\n\nAll content is encrypted with your master password and synced between your devices.</string>
-    <string name="so_bedienst_du_den_ki">How to use the AI chat:\n\n1. Tap the input field at the bottom and type your question.\n2. With vision models: use the image icon to attach a photo for the AI to analyze.\n3. Tap Send – the answer appears in the chat history.\n4. Scroll up to re-read earlier messages.</string>
+    <string name="so_bedienst_du_den_ki">How to use the AI chat:\n\n1. Use the history icon to open your chats and start a new chat with +.\n2. Tap the input field at the bottom and type your question.\n3. Use the three-dot menu to rename the chat, set instructions or delete it.\n4. Long-press a message to copy, edit, delete or regenerate it.\n5. With vision models, use the image icon to attach a photo.\n6. The AI uses the latest messages of the current chat as context.</string>
     <string name="so_bedienst_du_den_browser">How to use the browser:\n\n1. Enter a web address in the address bar or a search term.\n2. Confirm with Enter / tap the Open button to load the page.</string>
     <string name="so_bedienst_du_die_schnellubersicht">How to use the quick overview:\n\n1. Scroll through the tiles for battery history, network info and charging statistics.\n2. Tap a tile to show details.</string>
     <string name="so_bedienst_du_die_galerie">How to use the gallery:\n\n1. Swipe up and down to browse through your photos and videos.\n2. Tap an image to open it fullscreen.\n3. Pinch two fingers apart to zoom.</string>
@@ -812,6 +812,24 @@
     <string name="aitab_answer">AITab answer</string>
     <string name="kein_netzwerk">No network</string>
     <string name="wahle_einen_modus">Choose a mode</string>
+    <string name="ai_chats">Chats</string>
+    <string name="ai_chat_new">New chat</string>
+    <string name="ai_chat_name">Chat name</string>
+    <string name="ai_chat_rename">Rename chat</string>
+    <string name="ai_chat_instruction_edit">Edit instructions</string>
+    <string name="ai_chat_instruction_title">Instructions for this chat</string>
+    <string name="ai_chat_instruction_hint">Additional instruction that applies only to this chat.</string>
+    <string name="ai_chat_instruction_active">Instructions active</string>
+    <string name="ai_chat_options">More options</string>
+    <string name="ai_chat_delete">Delete chat</string>
+    <string name="ai_chat_delete_title">Delete chat?</string>
+    <string name="ai_chat_delete_text">This chat and all messages will be permanently deleted.</string>
+    <string name="ai_chat_empty_hint">Ask your first question.</string>
+    <string name="ai_chat_no_messages">No messages yet</string>
+    <string name="ai_message_delete">Delete message</string>
+    <string name="ai_message_delete_title">Delete message?</string>
+    <string name="ai_message_delete_text">This message will be permanently deleted.</string>
+    <string name="ai_message_regenerate">Regenerate</string>
     <string name="aufnahme_lauft">🎙️ Recording in progress</string>
     <string name="audio_aufnahme">Audio recording</string>
     <string name="explore_tracking_lauft">🗺️ Tabslify is tracking your day</string>

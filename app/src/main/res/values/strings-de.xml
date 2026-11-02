@@ -69,7 +69,7 @@
     <!-- app/src/main/java/com/tabslify/core/functions/ErrorInsert.kt:22  ||  %1$s=e.message -->
     <!-- app/src/main/java/com/tabslify/core/objects/Config.kt:78 -->
     <string name="so_bedienst_du_die_private">So bedienst du die Private Cloud:\n\n1. Gib beim Öffnen dein Master-Passwort ein, um den Speicher zu entsperren.\n2. Tippe auf das Plus- bzw. Upload-Symbol, um Dateien vom Gerät hochzuladen.\n3. Tippe eine Datei an, um sie herunterzuladen oder zu öffnen.\n4. Halte eine Datei gedrückt, um sie umzubenennen oder zu löschen.\n\nAlle Inhalte werden mit deinem Master-Passwort verschlüsselt und zwischen deinen Geräten synchronisiert.</string> <!-- app/src/main/java/com/tabslify/core/objects/Config.kt:81 -->
-    <string name="so_bedienst_du_den_ki">So bedienst du den KI-Chat:\n\n1. Tippe unten in das Eingabefeld und schreibe deine Frage.\n2. Bei vision Models: Über das Bild-Symbol hängst du ein Foto an, das die KI analysieren soll.\n3. Tippe auf Senden – die Antwort erscheint im Chatverlauf.\n4. Scrolle nach oben, um frühere Nachrichten nachzulesen.</string> <!-- app/src/main/java/com/tabslify/core/objects/Config.kt:82 -->
+    <string name="so_bedienst_du_den_ki">So bedienst du den KI-Chat:\n\n1. Über das Verlaufs-Symbol öffnest du deine Chats und startest mit + einen neuen Chat.\n2. Tippe unten ins Eingabefeld und schreibe deine Frage.\n3. Über das Drei-Punkte-Menü benennst du den Chat um, hinterlegst eine Anweisung oder löschst ihn.\n4. Lange auf eine Nachricht drücken: kopieren, bearbeiten, löschen oder neu generieren.\n5. Bei Vision-Modellen hängst du über das Bild-Symbol ein Foto an.\n6. Die KI nutzt die letzten Nachrichten des aktuellen Chats als Kontext.</string> <!-- app/src/main/java/com/tabslify/core/objects/Config.kt:82 -->
     <string name="so_bedienst_du_den_browser">So bedienst du den Browser:\n\n1. Gib eine Webadresse in die Adresszeile ein oder einen Suchbegriff.\n2. Bestätige mit Enter / Tippe auf den Öffnen-Button, um die Seite zu laden.</string> <!-- app/src/main/java/com/tabslify/core/objects/Config.kt:83 -->
     <string name="so_bedienst_du_die_schnellubersicht">So bedienst du die Schnellübersicht:\n\n1. Scrolle durch die Kacheln für Akku-Verlauf, Netzwerk-Infos und Lade-Statistiken.\n2. Tippe eine Kachel an, um Details einzublenden.</string> <!-- app/src/main/java/com/tabslify/core/objects/Config.kt:84 -->
     <string name="so_bedienst_du_die_galerie">So bedienst du die Galerie:\n\n1. Wische nach oben und unten, um durch deine Fotos und Videos zu blättern.\n2. Tippe ein Bild an, um es im Vollbild zu öffnen.\n3. Ziehe zwei Finger auseinander, um zu zoomen.</string> <!-- app/src/main/java/com/tabslify/core/objects/Config.kt:85 -->
@@ -1430,6 +1430,24 @@
     <string name="aitab_answer">AITab answer</string> <!-- app/src/main/java/com/tabslify/tabs/aitab/ViewModel.kt:227 -->
     <string name="kein_netzwerk">Kein Netzwerk</string> <!-- app/src/main/java/com/tabslify/tabs/aitab/ViewModel.kt:252 -->
     <string name="wahle_einen_modus">Wähle einen Modus</string> <!-- app/src/main/java/com/tabslify/tabs/aitab/ViewModel.kt:276 -->
+    <string name="ai_chats">Chats</string>
+    <string name="ai_chat_new">Neuer Chat</string>
+    <string name="ai_chat_name">Chat-Name</string>
+    <string name="ai_chat_rename">Chat umbenennen</string>
+    <string name="ai_chat_instruction_edit">Anweisung bearbeiten</string>
+    <string name="ai_chat_instruction_title">Anweisung für diesen Chat</string>
+    <string name="ai_chat_instruction_hint">Zusätzliche Anweisung, die nur in diesem Chat gilt.</string>
+    <string name="ai_chat_instruction_active">Anweisung aktiv</string>
+    <string name="ai_chat_options">Weitere Optionen</string>
+    <string name="ai_chat_delete">Chat löschen</string>
+    <string name="ai_chat_delete_title">Chat löschen?</string>
+    <string name="ai_chat_delete_text">Dieser Chat und alle Nachrichten werden dauerhaft entfernt.</string>
+    <string name="ai_chat_empty_hint">Stelle deine erste Frage.</string>
+    <string name="ai_chat_no_messages">Noch keine Nachrichten</string>
+    <string name="ai_message_delete">Nachricht löschen</string>
+    <string name="ai_message_delete_title">Nachricht löschen?</string>
+    <string name="ai_message_delete_text">Diese Nachricht wird dauerhaft entfernt.</string>
+    <string name="ai_message_regenerate">Neu generieren</string>
     <string name="aufnahme_lauft">🎙️ Aufnahme läuft</string> <!-- app/src/main/java/com/tabslify/tabs/audiorecordertab/AudioForegroundService.kt:75 -->
     <string name="audio_aufnahme">Audio Aufnahme</string> <!-- app/src/main/java/com/tabslify/tabs/audiorecordertab/AudioForegroundService.kt:88 -->
     <string name="explore_tracking_lauft">🗺️ Tabslify verfolgt deinen Tag</string>

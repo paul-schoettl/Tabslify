@@ -1098,3 +1098,56 @@ Beides klärt der Request-Mitschnitt der App (`retry_request`-Tabelle der IM-DB:
   den Catch-all `{"status_msg":"url doesn't match"}`.
 - Browser-Weg offen: `/messages` lädt sein DM-Bundle als eigene Chunks
   (`data-chunk="messages"`, 14 Dateien) — dort steht der Web-Aufruf für die Voice-URL.
+
+### 23.7 Signierter unmask-Request funktioniert (01.11.2026, ohne Gerät)
+
+Der DM-Call lässt sich mit dem **vorhandenen Client-Signer** (`TikTokSignatur`, rein JVM)
+nachbauen — Stichprobe mit Web-Cookie, App-Params (aid 1233, `musical_ly`, googleplay) und
+`x-gorgon`/`x-ladon`/`x-argus`:
+
+| Host | Ergebnis |
+|---|---|
+| `api16-normal-useastred.tiktokv.eu` | **HTTP 200**, `status_code:0` (Pfad + Signatur gültig) |
+| `api16-normal-c-useast1a.tiktokv.com` | HTTP 403 (anderer Edge/Region) |
+| `p0-tiktok-dm-private-useastred.tiktokv.eu` | HTTP 403 TLB (auch signiert) |
+
+Param-Matrix: `inbox_type=0` gültig; `inbox_type` 1/2 → `status_code:5 "Ungültige Parameter"`.
+`scene` 0–3 gültig, ab 4 `Ungültige Parameter`. Eine **erfundene** `selected_server_message_id`
+ergibt `status_code:5`, eine echte `status_code:0` — der Request ist damit inhaltlich korrekt.
+
+**Die URL steht nicht in der Antwort.** Der App-Code (`MessageExtKt$updateUnmask$1` →
+`X/C57070Yg9`, jadx) ruft
+`unmask(conversation.inboxType, conversationType, conversationId, conversationShortId, msgId, 3, cb)`
+auf, **ignoriert** das `BaseResponse` und setzt nur die Property `a:unmasked=1`. Der Response-Body
+ist `{"log_pb":…,"status_code":0,"status_msg":""}` — ohne `data`. Auch ein anschließender
+Conversation-Re-Fetch (`im-api/v1/message/get_by_conversation`) liefert für `f24` nur
+`vid + type=3 + leer` — keine URL.
+
+→ Die Medien-URL kommt **nachgelagert über den IM-Push** (Frontier-WS `im-ws.tiktok.com/ws/v2`)
+als Message-Update mit `f24.f20`-Rollen-Einträgen. Der Client muss also: signiertes `unmask`
+(scene=3, inbox_type der Conversation) senden, den Frontier-Push auswerten
+(`medienAusF24` existiert) und die Datei mit dem Web-Cookie (`sessionid`, siehe 23.6) laden.
+
+Werkzeuge (nicht im Repo): `/tmp/opencode/probe/run.sh`, `Probe.kt` (Signer+Matrix),
+`conv.py` (Web-Conversation inkl. Voice-`server_message_id`/`vid`).
+
+### 23.8 Client-Umsetzung (01.11.2026)
+
+`TikTokDmClient.mediaUrl()` fragt jetzt **signiert** an:
+
+- Host `https://api16-normal-useastred.tiktokv.eu/tiktok/v1/im/media_message/unmask`
+- App-Params (`appParams`: aid 1233, `musical_ly`, `channel=googleplay`, `version 39.8.2`,
+  `device_id`/`install_id`/`iid` aus der Web-Session) + `conversation_type`,
+  `conversation_id`, `conversation_short_id`, `inbox_type=0`, `selected_server_message_id`,
+  **`scene=3`** (Wert aus dem App-Code).
+- Header aus `TikTokSignatur.signiere()` (`x-gorgon`, `x-ladon`, `x-argus`, `x-khronos`,
+  `x-ss-req-ticket`, `x-tt-trace-id`), App-UA, `Content-Type: application/x-www-form-urlencoded`.
+- Antwort wird geloggt (`Unmask msg=… status=… url=…`); `TikTokProto.parseAntwortUrl()`
+  greift weiterhin, falls doch eine URL im Body steht.
+- `TikTokProto.parseMessage()` übernimmt eine später gelieferte `f24.f20`-Play-URL jetzt auch
+  für `voice` (`mediaUrl`/`mediaStream`/`mediaDuration`), nicht nur für Video.
+
+Offen: Der Push, der die URL nach dem `unmask` liefert, ist noch nicht verifiziert (A14 ohne
+App-Session, Web spielt keine Voice). Verifikation auf dem echten Gerät: Logcat-Zeile
+`Unmask msg=… status=0` + `TikTokDump`-Frame `frontier/antwort` bzw. `frontier`-Log
+„Frontier-Frame ohne bekannte Nutzlast".

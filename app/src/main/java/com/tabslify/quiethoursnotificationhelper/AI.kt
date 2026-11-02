@@ -119,10 +119,11 @@ private suspend fun sendGeminiRequest(
     ctx: Context? = null,
     model: String = DEF_GEMINI,
     onToken: ((String) -> Unit)? = null,
-    target: AiTarget = AiTarget.AITab
+    target: AiTarget = AiTarget.AITab,
+    systemPrompt: String? = null
 ): String? {
     fun buildGeminiPrompt(history: List<ChatMessage>, userMessage: String) = buildString {
-        append(aiSystemPrompt(target))
+        append(systemPrompt ?: aiSystemPrompt(target))
         history.forEach { msg ->
             append(if (msg.own) "User: " else "Assistant: ")
             append(msg.text)
@@ -406,14 +407,15 @@ suspend fun sendAiRequest(
     provider: AiProvider? = null,
     serviceKey: String = "default",
     model: String? = null,
-    onToken: ((String) -> Unit)? = null
+    onToken: ((String) -> Unit)? = null,
+    systemPrompt: String? = null
 ): String? {
     val resolvedProvider = provider ?: when (getPreferredAiProvider(context, serviceKey)) {
         "nvidia" -> AiProvider.NVIDIA
         "openrouter" -> AiProvider.OPENROUTER
         else -> AiProvider.GEMINI
     }
-    val systemPrompt = aiSystemPrompt(target)
+    val resolvedSystemPrompt = systemPrompt ?: aiSystemPrompt(target)
 
     return when (resolvedProvider) {
         AiProvider.NVIDIA -> {
@@ -426,7 +428,7 @@ suspend fun sendAiRequest(
                 action = "nvidia",
                 apiKeyName = "nvidia",
                 logTag = "Nvidia",
-                systemPrompt = systemPrompt,
+                systemPrompt = resolvedSystemPrompt,
                 pic = pic,
                 onToken = onToken
             )
@@ -436,7 +438,7 @@ suspend fun sendAiRequest(
             context = context,
             userMessage = userMessage,
             history = history,
-            systemPrompt = systemPrompt,
+            systemPrompt = resolvedSystemPrompt,
             pic = pic,
             model = model,
             onToken = onToken
@@ -444,7 +446,17 @@ suspend fun sendAiRequest(
 
         AiProvider.GEMINI -> {
             val resolvedModel = model ?: DEF_GEMINI
-            sendGeminiRequest(history, userMessage, pic, audioUri, context, resolvedModel, onToken, target)
+            sendGeminiRequest(
+                history,
+                userMessage,
+                pic,
+                audioUri,
+                context,
+                resolvedModel,
+                onToken,
+                target,
+                resolvedSystemPrompt
+            )
         }
     }
 }

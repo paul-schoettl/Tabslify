@@ -86,10 +86,10 @@ fun BackHintOverlay(onDismiss: () -> Unit) {
     }.coerceIn(0f, 1f)
 
     val edgeBrush = Brush.verticalGradient(
-        listOf(Color(0xFFFF8A4C), Color(0xFFFF5A1F), Color(0xFFB34700))
+        listOf(Accent, AccentDim)
     )
     val buttonBrush = Brush.horizontalGradient(
-        listOf(Color(0xFFFF8A4C), Color(0xFFFF5A1F))
+        listOf(Accent, AccentDim)
     )
 
     Box(
@@ -147,7 +147,7 @@ fun BackHintOverlay(onDismiss: () -> Unit) {
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .clip(RoundedCornerShape(100))
-                        .background(Color(0x29FF7A1A))
+                        .background(Accent.copy(alpha = 0.16f))
                         .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
                     Text("💡", fontSize = 12.sp)

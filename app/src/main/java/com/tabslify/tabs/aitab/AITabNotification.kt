@@ -17,8 +17,9 @@ fun isAppInForeground(): Boolean {
 
 fun sendAITabBackgroundNotification(
     context: Context,
-    title: String = context.getString(R.string.ai_tab_antwort),
-    message: String
+    title: String = "",
+    message: String,
+    chatId: String? = null
 ) {
     if (isAppInForeground()) return
 
@@ -28,18 +29,19 @@ fun sendAITabBackgroundNotification(
     intentBase.action = Intent.ACTION_VIEW
     intentBase.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
     intentBase.putExtra("target", "aitab")
+    if (chatId != null) intentBase.putExtra("ai_chat_id", chatId)
     intentBase.setPackage(context.packageName)
 
     val pendingIntent = PendingIntent.getActivity(
         context,
-        System.currentTimeMillis().toInt(),
+        chatId?.hashCode() ?: System.currentTimeMillis().toInt(),
         intentBase,
         PendingIntent.FLAG_IMMUTABLE
     )
 
     val notification = NotificationCompat.Builder(context, "ai_tab_notification_channel")
         .setSmallIcon(android.R.drawable.ic_dialog_info)
-        .setContentTitle(title)
+        .setContentTitle(title.ifBlank { context.getString(R.string.ai_tab_antwort) })
         .setContentText(message)
         .setStyle(NotificationCompat.BigTextStyle().bigText(message))
         .setPriority(NotificationCompat.PRIORITY_HIGH)

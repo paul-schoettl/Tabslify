@@ -1,55 +1,40 @@
 package com.tabslify.core.ui
 
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.tabslify.R
-import java.util.Calendar
 
-val APP_COLOR = Color(0xFF141414)
-val APP_BLUE = Color(0xFFFF7A1A)
-val gruen = Color(0xFF228B22)
+val APP_COLOR = Color(0xFF08080B)
+val APP_BLUE = Color(0xFF7C6CFF)
+val gruen = Color(0xFF4ADE80)
 
-val BgDeep = Color(0xFF070707)
-val BgSurface = Color(0xFF111111)
-val BgCard = Color(0xFF1A1A1A)
-val BgScrimTop = Color(0xFF1C0F06)
-val BgScrimBottom = Color(0xFF050505)
-val AccentOrange = Color(0xFFFF7A1A)
-val AccentOrangeDim = Color(0xFF8A3B0A)
-val AccentOrangeSoft = Color(0xFF2A1608)
-val AccentViolet = AccentOrange
-val AccentVioletDim = AccentOrangeDim
-val TextPrimary = Color(0xFFFFFFFF)
-val TextSecondary = Color(0xFFB8B8B8)
-val TextTertiary = Color(0xFF7A7A7A)
+val BgDeep = Color(0xFF08080B)
+val BgSurface = Color(0xFF101014)
+val BgCard = Color(0xFF16161B)
+val BgScrimTop = Color(0xFF101014)
+val BgScrimBottom = Color(0xFF050507)
+val Border = Color(0xFF26262E)
+val Accent = Color(0xFF7C6CFF)
+val AccentDim = Color(0xFF4A3FA0)
+val AccentSoft = Color(0xFF221F3A)
+val AccentViolet = Accent
+val AccentVioletDim = AccentDim
+val TextPrimary = Color(0xFFF4F4F7)
+val TextSecondary = Color(0xFFA6A6B2)
+val TextTertiary = Color(0xFF6E6E7C)
+val SuccessGreen = Color(0xFF4ADE80)
+val ErrorRed = Color(0xFFF87171)
 
 val AppColorScheme = darkColorScheme(
-    primary = AccentOrange,
-    onPrimary = Color.Black,
-    primaryContainer = AccentOrangeDim,
+    primary = Accent,
+    onPrimary = Color.White,
+    primaryContainer = AccentDim,
     onPrimaryContainer = TextPrimary,
-    secondary = AccentOrangeDim,
+    secondary = AccentDim,
     onSecondary = TextPrimary,
     background = BgDeep,
     onBackground = TextPrimary,
@@ -58,72 +43,15 @@ val AppColorScheme = darkColorScheme(
     surfaceVariant = BgCard,
     onSurfaceVariant = TextSecondary,
     outline = TextTertiary,
-    error = Color(0xFFCF6679),
+    error = ErrorRed,
     onError = Color.Black
 )
-
-fun c(): Color {
-    val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
-
-    return when (currentHour) {
-        in 11..16 -> Color(0xFFFF9A4D)
-        else -> Color(0xFFFF7A1A)
-    }
-}
-
-@Composable
-fun rememberAppColor(): Color {
-    var targetColor by remember { mutableStateOf(c()) }
-    val lifecycle = LocalLifecycleOwner.current.lifecycle
-    val context = LocalContext.current
-
-    val color by animateColorAsState(
-        targetValue = targetColor,
-        animationSpec = tween(
-            durationMillis = 1500,
-            easing = LinearEasing
-        ),
-        label = "appColorAnimation"
-    )
-
-    DisposableEffect(lifecycle) {
-        val receiver = object : BroadcastReceiver() {
-            override fun onReceive(ctx: Context?, intent: Intent?) {
-                if (intent?.action == Intent.ACTION_TIME_TICK) {
-                    targetColor = c()
-                }
-            }
-        }
-
-        val observer = LifecycleEventObserver { _, event ->
-            when (event) {
-                Lifecycle.Event.ON_RESUME -> {
-                    targetColor = c()
-                    context.registerReceiver(receiver, IntentFilter(Intent.ACTION_TIME_TICK))
-                }
-
-                Lifecycle.Event.ON_PAUSE -> {
-                    context.unregisterReceiver(receiver)
-                }
-
-                else -> {}
-            }
-        }
-
-        lifecycle.addObserver(observer)
-        onDispose {
-            lifecycle.removeObserver(observer)
-            runCatching { context.unregisterReceiver(receiver) }
-        }
-    }
-
-    return color
-}
 
 val AppFontFamily = FontFamily(
     Font(R.font.smb_regular, FontWeight.Normal),
     Font(R.font.smb, FontWeight.Bold),
 )
+
 private val baseline = Typography()
 
 val Typography = Typography(

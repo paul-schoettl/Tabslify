@@ -38,9 +38,17 @@ object TikTokDmClient {
     private const val TAG = "TikTokTab"
     private const val PROFILE_URL = "https://www.tiktok.com/tiktok/v1/im/user/profile/"
     private const val UNMASK_URL =
-        "https://p0-tiktok-dm-private-useastred.tiktokv.eu/tiktok/v1/im/media_message/unmask"
-    private const val UNMASK_INBOX_TYP = 1
-    private val UNMASK_SZENEN = 1..5
+        "https://api16-normal-useastred.tiktokv.eu/tiktok/v1/im/media_message/unmask"
+    private const val UNMASK_INBOX_TYP = 0
+    private const val UNMASK_SZENE = 3
+    private const val APP_VERSION_NAME = "39.8.2"
+    private const val APP_VERSION_CODE = "390802"
+    private const val APP_CHANNEL = "googleplay"
+    private const val APP_DEVICE_TYPE = "Pixel 7"
+    private const val APP_OS_VERSION = "13"
+    private const val APP_USER_AGENT =
+        "com.zhiliaoapp.musically/2023508030 (Linux; U; Android 13; de_DE; Pixel 7; " +
+            "Build/TD1A.220804.031; Cronet/58.0.2991.0)"
     private const val PREFS_STREAK = "tiktok_streaks"
     private const val CACHE_MESSAGE_LIMIT = 2000
     private const val CACHE_RETENTION_MS = 90L * 24L * 60L * 60L * 1000L
@@ -720,27 +728,125 @@ object TikTokDmClient {
         nachricht: TikTokMessage
     ): String {
         if (nachricht.id.isEmpty() || meta.convId.isEmpty()) return ""
-        for (szene in UNMASK_SZENEN) {
-            val params = buildParams(session) + mapOf(
-                "inbox_type" to UNMASK_INBOX_TYP.toString(),
-                "conversation_type" to meta.convType.toString(),
-                "conversation_id" to meta.convId,
-                "conversation_short_id" to meta.convShortId.toString(),
-                "selected_server_message_id" to nachricht.id,
-                "scene" to szene.toString()
+        val felder = appParams(session) + mapOf(
+            "conversation_type" to meta.convType.toString(),
+            "conversation_id" to meta.convId,
+            "conversation_short_id" to meta.convShortId.toString(),
+            "inbox_type" to UNMASK_INBOX_TYP.toString(),
+            "selected_server_message_id" to nachricht.id,
+            "scene" to UNMASK_SZENE.toString()
+        )
+        val query = felder.entries
+            .sortedBy { it.key }
+            .joinToString("&") { (key, value) ->
+                "$key=" + java.net.URLEncoder.encode(value, "UTF-8")
+            }
+        val unix = System.currentTimeMillis() / 1000L
+        val kopf = runCatching {
+            TikTokSignatur.signiere(
+                params = query,
+                payload = "",
+                cookie = session.cookie,
+                unix = unix,
+                deviceId = session.deviceId,
+                versionName = APP_VERSION_NAME,
+                deviceType = APP_DEVICE_TYPE,
+                osVersion = APP_OS_VERSION,
+                channel = APP_CHANNEL
             )
-            val query = params.entries
-                .sortedBy { it.key }
-                .joinToString("&") { (key, value) ->
-                    "$key=" + java.net.URLEncoder.encode(value, "UTF-8")
-                }
-            val antwort = runCatching { post("$UNMASK_URL?$query", session.cookie, ByteArray(0)) }
-                .getOrNull() ?: continue
-            val url = TikTokProto.parseAntwortUrl(antwort)
-            if (url.isNotEmpty()) return url
-            Log.i(TAG, "Unmask szene=$szene -> ${String(antwort).take(160)}")
+        }.getOrNull() ?: return ""
+        val antwort = runCatching {
+            postMitKopf("$UNMASK_URL?$query", session.cookie, APP_USER_AGENT, kopf)
+        }.getOrNull() ?: return ""
+        val url = TikTokProto.parseAntwortUrl(antwort)
+        Log.i(
+            TAG,
+            "Unmask msg=${nachricht.id} status=${TikTokProto.statusCode(antwort)} " +
+                "url=${if (url.isEmpty()) "-" else "ja"}"
+        )
+        return url
+    }
+
+    private fun appParams(session: TikTokSession): Map<String, String> {
+        val zeit = System.currentTimeMillis()
+        val kennung = session.deviceId.ifEmpty { "0" }
+        val hex = kennung.toLongOrNull()?.let { String.format("%016x", it) } ?: kennung
+        return linkedMapOf(
+            "ab_version" to APP_VERSION_NAME,
+            "ac" to "wifi",
+            "ac2" to "wifi5g",
+            "aid" to "1233",
+            "app_language" to "de",
+            "app_name" to "musical_ly",
+            "app_type" to "normal",
+            "build_number" to APP_VERSION_NAME,
+            "carrier_region" to "DE",
+            "cdid" to "cdid-$kennung",
+            "channel" to APP_CHANNEL,
+            "current_region" to "DE",
+            "device_brand" to "Google",
+            "device_id" to kennung,
+            "device_platform" to "android",
+            "device_type" to APP_DEVICE_TYPE,
+            "dpi" to "420",
+            "host_abi" to "arm64-v8a",
+            "iid" to kennung,
+            "install_id" to kennung,
+            "is_pad" to "0",
+            "language" to "de",
+            "last_install_time" to (zeit / 1000L - 86_400L * 30L).toString(),
+            "locale" to "de_DE",
+            "manifest_version_code" to APP_VERSION_CODE,
+            "openudid" to hex,
+            "os" to "android",
+            "os_api" to "33",
+            "os_version" to APP_OS_VERSION,
+            "region" to "DE",
+            "residence" to "DE",
+            "resolution" to "1080*2400",
+            "ssmix" to "0",
+            "timezone_name" to "Europe/Berlin",
+            "timezone_offset" to "7200",
+            "ts" to (zeit / 1000L).toString(),
+            "uoo" to "0",
+            "update_version_code" to APP_VERSION_CODE,
+            "version_code" to APP_VERSION_CODE,
+            "version_name" to APP_VERSION_NAME,
+            "_rticket" to zeit.toString()
+        )
+    }
+
+    private fun postMitKopf(
+        url: String,
+        cookie: String,
+        userAgent: String,
+        kopf: Map<String, String>
+    ): ByteArray {
+        val quelle = quelleVon(url)
+        TikTokDump.schreibe(context, quelle, "anfrage", url.toByteArray())
+        val connection = URL(url).openConnection() as HttpURLConnection
+        try {
+            connection.requestMethod = "POST"
+            connection.connectTimeout = 10_000
+            connection.readTimeout = 15_000
+            connection.doOutput = true
+            connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
+            connection.setRequestProperty("Accept", "application/json")
+            connection.setRequestProperty("User-Agent", userAgent)
+            connection.setRequestProperty("Cookie", cookie)
+            for ((name, wert) in kopf) connection.setRequestProperty(name, wert)
+            connection.outputStream.use { it.write(ByteArray(0)) }
+            val code = connection.responseCode
+            val antwort = if (code in 200..299) {
+                connection.inputStream.use { it.readBytes() }
+            } else {
+                connection.errorStream?.use { it.readBytes() } ?: ByteArray(0)
+            }
+            TikTokDump.schreibe(context, quelle, "antwort", antwort, code)
+            return antwort
+        } finally {
+            connection.disconnect()
         }
-        return ""
     }
 
     private suspend fun merge(convId: String, page: TikTokPage, replace: Boolean) {        val current = _feed.value

@@ -136,7 +136,7 @@ private val pages = listOf(
         titleRes = R.string.notification_permission_title,
         subtitleRes = R.string.notification_permission_subtitle,
         icon = Icons.Filled.Notifications,
-        iconBrush = Brush.linearGradient(listOf(Color(0xFFFF8A4C), Color(0xFFFF5C7A)))
+        iconBrush = Brush.linearGradient(listOf(Accent, Color(0xFF5C8CFF)))
     ),
     OnboardPage(
         kind = PageKind.PERMISSIONS,
@@ -147,8 +147,8 @@ private val pages = listOf(
 private data class GridTile(val icon: ImageVector, val brush: Brush)
 
 private val gridTiles = listOf(
-    GridTile(Icons.AutoMirrored.Filled.Chat, Brush.linearGradient(listOf(Color(0xFFFF8A4C), Color(0xFFFF5C7A)))),
-    GridTile(Icons.Filled.Lock, Brush.linearGradient(listOf(Color(0xFFFFB05C), Color(0xFFFF8A4C)))),
+    GridTile(Icons.AutoMirrored.Filled.Chat, Brush.linearGradient(listOf(Accent, Color(0xFF5C8CFF)))),
+    GridTile(Icons.Filled.Lock, Brush.linearGradient(listOf(Color(0xFF9A8CFF), Accent))),
     GridTile(Icons.Filled.Public, Brush.linearGradient(listOf(Color(0xFFD95CFF), Color(0xFFB45CFC)))),
     GridTile(Icons.Filled.School, Brush.linearGradient(listOf(Color(0xFF7A5CFF), Color(0xFF6B4CFC)))),
     GridTile(Icons.Filled.CalendarMonth, Brush.linearGradient(listOf(Color(0xFF5C8CFF), Color(0xFF5C6BFC)))),

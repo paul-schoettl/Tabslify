@@ -630,14 +630,20 @@ object TikTokProto {
         val vid = bytesField(fields, 24)?.let { stringField(readFields(it), 1) }.orEmpty()
         val card = contentPb?.let { parseContentPb(it, vid) }
         val rohCard = obj?.let { classify(it, card) } ?: Classified("")
-        val classified = if (card?.mediaKind == KIND_VIDEO && medien.play.isNotEmpty()) {
-            rohCard.copy(
+        val classified = when {
+            rohCard.mediaKind == KIND_VOICE && medien.play.isNotEmpty() -> rohCard.copy(
+                mediaUrl = medien.play,
+                mediaStream = medien.play,
+                mediaDuration = if (medien.dauerMs > 0L) medien.dauerMs else rohCard.mediaDuration
+            )
+
+            card?.mediaKind == KIND_VIDEO && medien.play.isNotEmpty() -> rohCard.copy(
                 mediaUrl = medien.cover.ifEmpty { rohCard.mediaUrl },
                 mediaStream = medien.play,
                 mediaDuration = medien.dauerMs
             )
-        } else {
-            rohCard
+
+            else -> rohCard
         }
         if (obj == null && classified.text.isEmpty() && classified.mediaUrl.isEmpty() && streak.first == 0 && scene.isEmpty() && badge == null) return null
         val id = longField(fields, 3)?.toString().orEmpty()
