@@ -36,9 +36,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tabslify.R
+import com.tabslify.core.ui.Accent
+import com.tabslify.core.ui.AccentDim
 import com.tabslify.core.ui.BgCard
 import com.tabslify.core.ui.NeonBox
 import com.tabslify.core.ui.PloppingButton
+import com.tabslify.core.ui.SuccessGreen
 import com.tabslify.core.ui.TextPrimary
 import com.tabslify.core.ui.TextSecondary
 import com.tabslify.tabs.fitnesstab.FitnessViewModel
@@ -75,19 +78,19 @@ fun ExerciseDetailScreen(
                 }
             }}
             if (exercise.tipsRes.isNotEmpty()) {
-                item { Section(R.string.fitness_ex_detail_tips, Icons.Default.Lightbulb, Color(0xFFFFC107)) {
+                item { Section(R.string.fitness_ex_detail_tips, Icons.Default.Lightbulb, AccentDim) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         exercise.tipsRes.forEach { tipRes ->
-                            BulletRow(text = stringResource(tipRes), dotColor = Color(0xFFFFC107))
+                            BulletRow(text = stringResource(tipRes), dotColor = AccentDim)
                         }
                     }
                 }}
             }
             if (exercise.mistakesRes.isNotEmpty()) {
-                item { Section(R.string.fitness_ex_detail_mistakes, Icons.Default.ErrorOutline, Color(0xFFFF5C9A)) {
+                item { Section(R.string.fitness_ex_detail_mistakes, Icons.Default.ErrorOutline, Color(0xFFB45CFC)) {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         exercise.mistakesRes.forEach { mRes ->
-                            BulletRow(text = stringResource(mRes), dotColor = Color(0xFFFF5C9A))
+                            BulletRow(text = stringResource(mRes), dotColor = Color(0xFFB45CFC))
                         }
                     }
                 }}
@@ -167,12 +170,12 @@ private fun HeroHeader(exercise: Exercise) {
                 Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                     MetaBadge(
                         icon = Icons.Default.LocalFireDepartment,
-                        iconColor = Color(0xFFFF8A4C),
+                        iconColor = Accent,
                         text = stringResource(R.string.fitness_ex_detail_calmin, exercise.caloriesPerMinute)
                     )
                     MetaBadge(
                         icon = Icons.Default.Schedule,
-                        iconColor = Color(0xFF6B4CFC),
+                        iconColor = Accent,
                         text = trackingLabel(exercise.trackingType)
                     )
                 }
@@ -357,7 +360,7 @@ private fun StartCTA(exercise: Exercise, vm: FitnessViewModel) {
                         .clip(RoundedCornerShape(20.dp))
                         .background(
                             Brush.horizontalGradient(
-                                listOf(Color(0xFFFF8A4C), Color(0xFFB45CFC), Color(0xFF6B4CFC))
+                                listOf(Accent, Color(0xFFB45CFC), Accent)
                             )
                         )
                         .padding(vertical = 18.dp),
@@ -381,7 +384,7 @@ private fun StartCTA(exercise: Exercise, vm: FitnessViewModel) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(20.dp))
-                        .background(Color(0xFF2A2A2A))
+                        .background(BgCard)
                         .border(1.5.dp, accent.copy(alpha = 0.4f), RoundedCornerShape(20.dp))
                         .padding(vertical = 16.dp),
                     contentAlignment = Alignment.Center
@@ -486,9 +489,9 @@ private fun difficultyLabel(d: Difficulty): String = stringResource(
 )
 
 private fun difficultyAccent(d: Difficulty): Color = when (d) {
-    Difficulty.BEGINNER -> Color(0xFF4CAF50)
-    Difficulty.INTERMEDIATE -> Color(0xFFFFC107)
-    Difficulty.ADVANCED -> Color(0xFFF44336)
+    Difficulty.BEGINNER -> SuccessGreen
+    Difficulty.INTERMEDIATE -> AccentDim
+    Difficulty.ADVANCED -> Color(0xFFB45CFC)
 }
 
 @Composable
@@ -505,22 +508,22 @@ private fun equipmentLabel(e: Equipment): String = stringResource(
 )
 
 private fun equipmentAccent(e: Equipment): Color = when (e) {
-    Equipment.NONE -> Color(0xFF4CFCC1)
+    Equipment.NONE -> SuccessGreen
     Equipment.RESISTANCE_BAND -> Color(0xFFB45CFC)
-    Equipment.DUMBBELL -> Color(0xFFFF8A4C)
-    Equipment.BARBELL -> Color(0xFFF44336)
-    Equipment.KETTLEBELL -> Color(0xFFFFC107)
-    Equipment.PULLUP_BAR -> Color(0xFF2196F3)
-    Equipment.BENCH -> Color(0xFF00BCD4)
+    Equipment.DUMBBELL -> Accent
+    Equipment.BARBELL -> Color(0xFFB45CFC)
+    Equipment.KETTLEBELL -> AccentDim
+    Equipment.PULLUP_BAR -> Color(0xFF4CC9FF)
+    Equipment.BENCH -> Color(0xFF4CC9FF)
 }
 
 private fun accentFor(e: Exercise): Color = when (e.muscleGroup) {
-    MuscleGroup.CHEST -> Color(0xFFFF8A4C)
-    MuscleGroup.BACK -> Color(0xFF4CAF50)
-    MuscleGroup.LEGS -> Color(0xFF6B4CFC)
+    MuscleGroup.CHEST -> Accent
+    MuscleGroup.BACK -> SuccessGreen
+    MuscleGroup.LEGS -> Accent
     MuscleGroup.CORE -> Color(0xFFB45CFC)
-    MuscleGroup.SHOULDERS -> Color(0xFFFFC107)
-    MuscleGroup.ARMS -> Color(0xFFFF5C9A)
-    MuscleGroup.CARDIO -> Color(0xFFE040FB)
-    MuscleGroup.FULLBODY -> Color(0xFF00BCD4)
+    MuscleGroup.SHOULDERS -> AccentDim
+    MuscleGroup.ARMS -> Color(0xFFB45CFC)
+    MuscleGroup.CARDIO -> Color(0xFFB45CFC)
+    MuscleGroup.FULLBODY -> Color(0xFF4CC9FF)
 }

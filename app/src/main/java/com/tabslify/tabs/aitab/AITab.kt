@@ -117,6 +117,7 @@ import com.tabslify.R
 import com.tabslify.core.TabNavigationViewModel
 import com.tabslify.core.objects.prvt
 import com.tabslify.core.ui.Accent
+import com.tabslify.core.ui.AccentDim
 import com.tabslify.core.ui.AccentViolet
 import com.tabslify.core.ui.AlertDialogTabslify
 import com.tabslify.core.ui.BgCard
@@ -136,6 +137,8 @@ import dev.chrisbanes.haze.blur.HazeColorEffect
 import dev.chrisbanes.haze.blur.hazeBlur
 import dev.chrisbanes.haze.hazeSource
 import kotlin.math.roundToInt
+import com.tabslify.core.ui.BgDeep
+import com.tabslify.core.ui.ErrorRed
 
 @Composable
 fun AITabContent(
@@ -501,7 +504,7 @@ fun AITabContent(
                                         placeholder = {
                                             Text(
                                                 stringResource(R.string.nachricht_bearbeiten),
-                                                color = Color(0xFF888888)
+                                                color = TextSecondary
                                             )
                                         },
                                         colors = TextFieldDefaults.colors(
@@ -571,7 +574,7 @@ fun AITabContent(
                                 cornerRadius = RoundedCornerShape(2.dp, 10.dp, 10.dp, 10.dp),
                                 backgroundAlpha = 0.91f,
                                 borderWidth = 2.8.dp,
-                                neonColors = listOf(Color(0xFF00DE8C), Color(0xFF00A5D5)),
+                                neonColors = listOf(Accent, AccentDim),
                             ) {
                                 Column(
                                     modifier = Modifier.padding(
@@ -591,7 +594,7 @@ fun AITabContent(
                                     if (msg.mode != null) {
                                         Text(
                                             text = msg.mode,
-                                            color = Color.Gray,
+                                            color = TextTertiary,
                                             fontSize = 10.sp,
                                             modifier = Modifier.padding(top = 4.dp)
                                         )
@@ -628,11 +631,11 @@ fun AITabContent(
                             .hazeBlur(
                                 input = HazeInput.Sources(state = hazeState),
                                 style = HazeBlurStyle {
-                                    backgroundColor(Color(0xFF0C1017))
+                                    backgroundColor(BgDeep)
                                     colorEffects(
                                         listOf(
                                             HazeColorEffect.tint(
-                                                Color(0xFF0C1017).copy(
+                                                BgDeep.copy(
                                                     alpha = 0.7f
                                                 )
                                             )
@@ -692,7 +695,7 @@ fun AITabContent(
                                     if (isPrivate) "Server" else null
                                 ).forEachIndexed { index, mode ->
                                     val containerColor by animateColorAsState(
-                                        targetValue = if (vm.currentMode == mode) Color(0xFF555555) else Color(
+                                        targetValue = if (vm.currentMode == mode) TextTertiary else Color(
                                             0xFF333333
                                         ),
                                         animationSpec = tween(durationMillis = 300),
@@ -714,7 +717,7 @@ fun AITabContent(
                                             DropdownMenu(
                                                 expanded = vm.showAiModels,
                                                 onDismissRequest = { vm.showAiModels = false },
-                                                containerColor = Color(0xFF333333),
+                                                containerColor = BgSurface,
                                                 shape = RoundedCornerShape(30.dp),
                                                 modifier = Modifier.padding(10.dp, 0.dp)
                                             ) {
@@ -749,7 +752,7 @@ fun AITabContent(
                                                     val containerColorModel by animateColorAsState(
                                                         targetValue = if (vm.selectedModel == model) Color(
                                                             0xFF555555
-                                                        ) else Color(0xFF333333),
+                                                        ) else BgSurface,
                                                         animationSpec = tween(durationMillis = 300),
                                                         label = "containerColor"
                                                     )
@@ -810,8 +813,8 @@ fun AITabContent(
                                         .fillMaxWidth()
                                         .height(6.dp)
                                         .clip(RoundedCornerShape(12.dp)),
-                                    color = Color(0xFF00FFAA),
-                                    trackColor = Color(0xFF444444),
+                                    color = Accent,
+                                    trackColor = BgSurface,
                                     strokeCap = ProgressIndicatorDefaults.LinearStrokeCap,
                                 )
                                 Row(
@@ -893,7 +896,7 @@ fun AITabContent(
                             .size(uploadButtonWeight)
                             .alpha(uploadButtonAlpha)
                             .background(
-                                if (vm.selectedImageUri != null) Color(0xFF555555) else Color(
+                                if (vm.selectedImageUri != null) TextTertiary else Color(
                                     0xFF333333
                                 ),
                                 RoundedCornerShape(50)
@@ -912,7 +915,7 @@ fun AITabContent(
                             .size(audioButtonWeight)
                             .alpha(audioButtonAlpha)
                             .background(
-                                if (vm.selectedAudioUri != null) Color(0xFF555555) else Color(
+                                if (vm.selectedAudioUri != null) TextTertiary else Color(
                                     0xFF333333
                                 ),
                                 RoundedCornerShape(50)
@@ -934,15 +937,15 @@ fun AITabContent(
                         placeholder = {
                             Text(
                                 stringResource(R.string.nachricht_eingeben),
-                                color = Color(0xFF888888)
+                                color = TextSecondary
                             )
                         },
                         colors = TextFieldDefaults.colors(
                             focusedTextColor = White,
                             unfocusedTextColor = White,
                             cursorColor = White,
-                            focusedContainerColor = Color(0xFF2A2A2A),
-                            unfocusedContainerColor = Color(0xFF2A2A2A),
+                            focusedContainerColor = BgCard,
+                            unfocusedContainerColor = BgCard,
                             focusedIndicatorColor = Transparent,
                             unfocusedIndicatorColor = Transparent
                         ),
@@ -956,7 +959,7 @@ fun AITabContent(
                         modifier = Modifier
                             .clip(RoundedCornerShape(50))
                             .background(
-                                if (vm.isLoading) Color(0xFF2A2A2A) else Color(0xFF333333)
+                                if (vm.isLoading) BgCard else BgSurface
                             )
                             .size(48.dp)
                             .clickable(enabled = !vm.isLoading) { vm.sendMessage() },
@@ -1103,7 +1106,7 @@ fun AITabContent(
                             Spacer(Modifier.height(12.dp))
                             ChatMenuAction(
                                 text = stringResource(R.string.ai_message_delete),
-                                color = Color(0xFFEF5350),
+                                color = ErrorRed,
                                 onClick = {
                                     val chatId = vm.activeChatId
                                     val index = vm.selectedMsg
@@ -1220,7 +1223,7 @@ private fun AiChatHeader(
                     text = {
                         Text(
                             stringResource(R.string.ai_chat_delete),
-                            color = Color(0xFFEF5350),
+                            color = ErrorRed,
                             fontSize = 14.sp
                         )
                     },
@@ -1419,7 +1422,7 @@ private fun AiChatRow(
                     text = {
                         Text(
                             stringResource(R.string.ai_chat_delete),
-                            color = Color(0xFFEF5350),
+                            color = ErrorRed,
                             fontSize = 14.sp
                         )
                     },

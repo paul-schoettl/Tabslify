@@ -55,9 +55,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import com.tabslify.R
+import com.tabslify.core.ui.Accent
+import com.tabslify.core.ui.AccentDim
 import com.tabslify.core.ui.BgCard
+import com.tabslify.core.ui.BgSurface
+import com.tabslify.core.ui.Border
 import com.tabslify.core.ui.Callout
 import com.tabslify.core.ui.CalloutType
+import com.tabslify.core.ui.ErrorRed
+import com.tabslify.core.ui.SuccessGreen
 import com.tabslify.core.ui.TextPrimary
 import com.tabslify.core.ui.TextSecondary
 import kotlinx.coroutines.Dispatchers
@@ -126,7 +132,7 @@ fun VirusTotalTabContent() {
                     },
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (selected) Color(0xFF6B6BFF) else BgCard
+                        containerColor = if (selected) Accent else BgCard
                     )
                 ) {
                     Text(
@@ -238,7 +244,7 @@ fun VirusTotalTabContent() {
                         .padding(24.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = Color(0xFF6B6BFF))
+                    CircularProgressIndicator(color = Accent)
                 }
             }
 
@@ -337,12 +343,12 @@ private fun VirusTotalHistoryRow(
 ) {
     val statusColor = when (val state = job.state) {
         is VirusTotalState.Result -> when {
-            state.stats.malicious > 0 -> Color(0xFFF44336)
-            state.stats.suspicious > 0 -> Color(0xFFFFAB00)
-            else -> Color(0xFF4CAF50)
+            state.stats.malicious > 0 -> ErrorRed
+            state.stats.suspicious > 0 -> AccentDim
+            else -> SuccessGreen
         }
-        is VirusTotalState.Error -> Color(0xFFF44336)
-        else -> Color(0xFF6B6BFF)
+        is VirusTotalState.Error -> ErrorRed
+        else -> Accent
     }
 
     Card(
@@ -350,7 +356,7 @@ private fun VirusTotalHistoryRow(
             .fillMaxWidth()
             .clickable { onSelect() },
         colors = CardDefaults.cardColors(
-            containerColor = if (selected) Color(0xFF2A2A3A) else BgCard
+            containerColor = if (selected) BgSurface else BgCard
         ),
         shape = RoundedCornerShape(12.dp)
     ) {
@@ -488,11 +494,11 @@ private fun VirusTotalStatRow(label: String, value: Int) {
 
 @Composable
 private fun tabTextFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedBorderColor = Color(0xFF6B6BFF),
-    unfocusedBorderColor = Color(0xFF44444F),
+    focusedBorderColor = Accent,
+    unfocusedBorderColor = Border,
     focusedTextColor = Color.White,
     unfocusedTextColor = Color.White,
-    cursorColor = Color(0xFF6B6BFF)
+    cursorColor = Accent
 )
 
 private fun VirusTotalMode.labelRes(): Int = when (this) {

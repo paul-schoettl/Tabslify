@@ -124,6 +124,12 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.time.Instant
 import java.time.LocalDateTime
+import com.tabslify.core.ui.Accent
+import com.tabslify.core.ui.BgCard
+import com.tabslify.core.ui.BgDeep
+import com.tabslify.core.ui.BgSurface
+import com.tabslify.core.ui.Border
+import com.tabslify.core.ui.TextTertiary
 import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -223,7 +229,7 @@ private fun parseInlineMarkdown(line: String): Pair<androidx.compose.ui.text.Ann
                         val start = builder.length
                         builder.pushStyle(
                             SpanStyle(
-                                color = Color(0xFF64B5F6),
+                                color = Color(0xFF4CC9FF),
                                 fontWeight = FontWeight.SemiBold
                             )
                         )
@@ -300,7 +306,7 @@ private fun DottedMarkdownText(
                                         val dashWidth = 0.3.dp.toPx()
                                         val gapWidth = 7.dp.toPx()
                                         val paint = Paint().apply {
-                                            this.color = Color(0xFF64B5F6).toArgb()
+                                            this.color = Color(0xFF4CC9FF).toArgb()
                                             this.strokeWidth = strokeWidth
                                             this.style = Paint.Style.STROKE
                                             this.strokeCap = Paint.Cap.ROUND
@@ -865,7 +871,7 @@ private fun HeiseNewsCard(
             .fillMaxWidth()
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF1C1C22).copy(alpha = 0.92f)),
+        colors = CardDefaults.cardColors(containerColor = BgCard.copy(alpha = 0.92f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
     ) {
         Column(Modifier.padding(14.dp)) {
@@ -1002,7 +1008,7 @@ private fun HeiseArticleDetail(
                 Card(
                     shape = RoundedCornerShape(18.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFF1C1C22).copy(
+                        containerColor = BgCard.copy(
                             alpha = 0.92f
                         )
                     ),
@@ -1051,7 +1057,7 @@ private fun HeiseArticleDetail(
 
                         if (!summaryError.isNullOrBlank()) {
                             Spacer(Modifier.height(8.dp))
-                            Text(summaryError, color = Color(0xFFFF8A80), fontSize = 12.sp)
+                            Text(summaryError, color = Color(0xFFB45CFC), fontSize = 12.sp)
                         }
                     }
                 }
@@ -1061,7 +1067,7 @@ private fun HeiseArticleDetail(
                 Card(
                     shape = RoundedCornerShape(18.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFF1C1C22).copy(
+                        containerColor = BgCard.copy(
                             alpha = 0.92f
                         )
                     ),
@@ -1093,8 +1099,8 @@ private fun HeiseArticleDetail(
                                             .widthIn(max = 280.dp)
                                             .clip(RoundedCornerShape(14.dp))
                                             .background(
-                                                if (message.own) Color(0xFF3B4CCA).copy(alpha = 0.85f)
-                                                else Color(0xFF2A2A32)
+                                                if (message.own) Accent.copy(alpha = 0.85f)
+                                                else BgSurface
                                             )
                                             .padding(horizontal = 12.dp, vertical = 8.dp)
                                     ) {
@@ -1142,7 +1148,7 @@ private fun HeiseArticleDetail(
                         }
 
                         if (!chatError.isNullOrBlank()) {
-                            Text(chatError, color = Color(0xFFFF8A80), fontSize = 12.sp)
+                            Text(chatError, color = Color(0xFFB45CFC), fontSize = 12.sp)
                             Spacer(Modifier.height(8.dp))
                         }
 
@@ -1164,7 +1170,7 @@ private fun HeiseArticleDetail(
                                         if (isAiBusy) stringResource(R.string.bitte_warten) else stringResource(
                                             R.string.frage_zum_artikel_stellen
                                         ),
-                                        color = Color(0xFF888888)
+                                        color = TextTertiary
                                     )
                                 },
                                 colors = TextFieldDefaults.colors(
@@ -1172,9 +1178,9 @@ private fun HeiseArticleDetail(
                                     unfocusedTextColor = Color.White,
                                     disabledTextColor = Color.White.copy(alpha = 0.5f),
                                     cursorColor = Color.White,
-                                    focusedContainerColor = Color(0xFF2A2A2A),
-                                    unfocusedContainerColor = Color(0xFF2A2A2A),
-                                    disabledContainerColor = Color(0xFF232328),
+                                    focusedContainerColor = BgCard,
+                                    unfocusedContainerColor = BgCard,
+                                    disabledContainerColor = BgCard,
                                     focusedIndicatorColor = Color.Transparent,
                                     unfocusedIndicatorColor = Color.Transparent,
                                     disabledIndicatorColor = Color.Transparent
@@ -1191,7 +1197,7 @@ private fun HeiseArticleDetail(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(50))
-                                    .background(Color(0xFF333333))
+                                    .background(Border)
                                     .size(44.dp)
                                     .clickable(enabled = !isAiBusy && chatInput.isNotBlank()) {
                                         onSendChat(chatInput)
@@ -1216,7 +1222,7 @@ private fun HeiseArticleDetail(
                 Card(
                     shape = RoundedCornerShape(18.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = Color(0xFF1C1C22).copy(
+                        containerColor = BgCard.copy(
                             alpha = 0.92f
                         )
                     ),
@@ -1245,7 +1251,7 @@ private fun HeiseArticleDetail(
                             }
 
                             !articleError.isNullOrBlank() -> {
-                                Text(articleError, color = Color(0xFFFF8A80), fontSize = 13.sp)
+                                Text(articleError, color = Color(0xFFB45CFC), fontSize = 13.sp)
                                 Spacer(Modifier.height(8.dp))
                                 TextButton(onClick = onRetryArticle) { Text(stringResource(R.string.erneut_laden)) }
                             }
@@ -1284,8 +1290,8 @@ private fun HeiseArticleDetail(
                     .hazeBlur(
                         input = HazeInput.Sources(state = hazeState),
                         style = HazeBlurStyle {
-                            backgroundColor(Color(0xFF0C1017))
-                            colorEffects(listOf(HazeColorEffect.tint(Color(0xFF0C1017).copy(alpha = 0.7f))))
+                            backgroundColor(BgDeep)
+                            colorEffects(listOf(HazeColorEffect.tint(BgDeep.copy(alpha = 0.7f))))
                             blurRadius(60.dp)
                             noiseFactor(0f)
                             progressive(

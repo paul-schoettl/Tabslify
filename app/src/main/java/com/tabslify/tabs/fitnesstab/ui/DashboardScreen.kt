@@ -52,10 +52,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.tabslify.R
+import com.tabslify.core.ui.Accent
+import com.tabslify.core.ui.AccentDim
 import com.tabslify.core.ui.BgCard
 import com.tabslify.core.ui.BgSurface
 import com.tabslify.core.ui.NeonBox
 import com.tabslify.core.ui.PloppingButton
+import com.tabslify.core.ui.SuccessGreen
 import com.tabslify.core.ui.TextPrimary
 import com.tabslify.core.ui.TextSecondary
 import com.tabslify.tabs.fitnesstab.FitnessViewModel
@@ -185,8 +188,8 @@ private fun ProfileDialog(vm: FitnessViewModel) {
                 valueRange = 10f..80f,
                 steps = 69,
                 colors = SliderDefaults.colors(
-                    thumbColor = Color(0xFF6B4CFC),
-                    activeTrackColor = Color(0xFF6B4CFC)
+                    thumbColor = Accent,
+                    activeTrackColor = Accent
                 )
             )
 
@@ -210,8 +213,8 @@ private fun ProfileDialog(vm: FitnessViewModel) {
                 valueRange = 30f..150f,
                 steps = 119,
                 colors = SliderDefaults.colors(
-                    thumbColor = Color(0xFFFF6B4C),
-                    activeTrackColor = Color(0xFFFF6B4C)
+                    thumbColor = Accent,
+                    activeTrackColor = Accent
                 )
             )
 
@@ -237,7 +240,7 @@ private fun ProfileDialog(vm: FitnessViewModel) {
                         .clip(RoundedCornerShape(10.dp))
                         .background(
                             Brush.horizontalGradient(
-                                listOf(Color(0xFFFF8A4C), Color(0xFFB45CFC), Color(0xFF6B4CFC))
+                                listOf(Accent, Color(0xFFB45CFC), Accent)
                             )
                         )
                         .clickable { vm.updateProfile(age, weight) }
@@ -255,7 +258,7 @@ private fun StreakCard(streakDays: Int) {
     NeonBox(
         modifier = Modifier.fillMaxWidth(),
         cornerRadius = RoundedCornerShape(22.dp),
-        neonColors = listOf(Color(0xFFFF8A4C), Color(0xFFFF5C9A)),
+        neonColors = listOf(Accent, Color(0xFFB45CFC)),
         backgroundAlpha = 0.18f,
         borderWidth = 2.5.dp
     ) {
@@ -270,13 +273,13 @@ private fun StreakCard(streakDays: Int) {
                 modifier = Modifier
                     .size(56.dp)
                     .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xFFFF8A4C).copy(alpha = 0.18f)),
+                    .background(Accent.copy(alpha = 0.18f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Whatshot,
                     contentDescription = null,
-                    tint = Color(0xFFFF8A4C),
+                    tint = Accent,
                     modifier = Modifier.size(30.dp)
                 )
             }
@@ -326,18 +329,18 @@ private fun TodayStatsGrid(vm: FitnessViewModel) {
             StatCard(
                 modifier = Modifier.weight(1f),
                 icon = Icons.Default.Schedule,
-                iconColor = Color(0xFF6B4CFC),
+                iconColor = Accent,
                 label = stringResource(R.string.fitness_dashboard_minutes),
                 value = stringResource(R.string.fitness_dashboard_minutes_value, today.totalMinutes),
-                bg = Color(0xFF6B4CFC).copy(alpha = 0.15f)
+                bg = Accent.copy(alpha = 0.15f)
             )
             StatCard(
                 modifier = Modifier.weight(1f),
                 icon = Icons.Default.LocalFireDepartment,
-                iconColor = Color(0xFFFF6B4C),
+                iconColor = Accent,
                 label = stringResource(R.string.fitness_dashboard_calories),
                 value = stringResource(R.string.fitness_dashboard_calories_value, today.totalCalories),
-                bg = Color(0xFFFF6B4C).copy(alpha = 0.15f)
+                bg = Accent.copy(alpha = 0.15f)
             )
         }
         Row(
@@ -355,10 +358,10 @@ private fun TodayStatsGrid(vm: FitnessViewModel) {
             StatCard(
                 modifier = Modifier.weight(1f),
                 icon = Icons.Default.Repeat,
-                iconColor = Color(0xFF4CFCC1),
+                iconColor = SuccessGreen,
                 label = stringResource(R.string.fitness_dashboard_reps),
                 value = stringResource(R.string.fitness_dashboard_reps_value, today.totalReps),
-                bg = Color(0xFF4CFCC1).copy(alpha = 0.15f)
+                bg = SuccessGreen.copy(alpha = 0.15f)
             )
         }
         if (today.totalDistanceKm > 0f) {
@@ -445,7 +448,7 @@ private fun GoalProgress(vm: FitnessViewModel) {
         ) {
             Text(
                 text = if (bothReached) stringResource(R.string.fitness_dashboard_goal_reached) else "🎯",
-                color = if (bothReached) Color(0xFF4CFCC1) else TextPrimary,
+                color = if (bothReached) SuccessGreen else TextPrimary,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -459,14 +462,14 @@ private fun GoalProgress(vm: FitnessViewModel) {
             valueText = stringResource(R.string.fitness_dashboard_minutes_value, today.totalMinutes),
             goalText = stringResource(R.string.fitness_dashboard_goal_minutes, goalMin),
             progress = minPct,
-            colors = listOf(Color(0xFF6B4CFC), Color(0xFFB45CFC))
+            colors = listOf(Accent, Color(0xFFB45CFC))
         )
         GoalBar(
             label = stringResource(R.string.fitness_dashboard_calories),
             valueText = stringResource(R.string.fitness_dashboard_calories_value, today.totalCalories),
             goalText = stringResource(R.string.fitness_dashboard_goal_calories, goalKcal),
             progress = kcalPct,
-            colors = listOf(Color(0xFFFF6B4C), Color(0xFFFF8A4C))
+            colors = listOf(Accent, AccentDim)
         )
     }
 }
@@ -536,7 +539,7 @@ private fun QuickStart(vm: FitnessViewModel) {
                         .clip(RoundedCornerShape(20.dp))
                         .background(
                             Brush.horizontalGradient(
-                                listOf(Color(0xFFFF8A4C), Color(0xFFB45CFC), Color(0xFF6B4CFC))
+                                listOf(Accent, Color(0xFFB45CFC), Accent)
                             )
                         )
                         .padding(vertical = 18.dp),
@@ -662,9 +665,9 @@ private fun WeekBars(recentDays: Map<String, DayStats>, goalMin: Int) {
                                         .clip(RoundedCornerShape(8.dp))
                                         .background(
                                             if (isToday) Brush.horizontalGradient(
-                                                listOf(Color(0xFFFF8A4C), Color(0xFFB45CFC))
+                                                listOf(Accent, Color(0xFFB45CFC))
                                             ) else Brush.horizontalGradient(
-                                                listOf(Color(0xFF6B4CFC), Color(0xFFB45CFC))
+                                                listOf(Accent, Color(0xFFB45CFC))
                                             )
                                         )
                                 )

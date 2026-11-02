@@ -33,6 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -47,6 +48,7 @@ import com.tabslify.tabs.focusguard.data.CATEGORY_ENTERTAINMENT
 import com.tabslify.tabs.focusguard.data.CATEGORY_GAMING
 import com.tabslify.tabs.focusguard.data.CATEGORY_SOCIAL
 import androidx.core.net.toUri
+import com.tabslify.core.ui.Accent
 
 @Composable
 fun FocusGuardConfigScreen(vm: FocusGuardViewModel, modifier: Modifier = Modifier) {
@@ -61,9 +63,9 @@ fun FocusGuardConfigScreen(vm: FocusGuardViewModel, modifier: Modifier = Modifie
             Button(
                 onClick = { vm.saveConfig() },
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = androidx.compose.ui.graphics.Color(0xFF6B4CFC))
+                colors = ButtonDefaults.buttonColors(containerColor = Accent)
             ) {
-                Text(stringResource(R.string.focusguard_config_save), color = androidx.compose.ui.graphics.Color.White)
+                Text(stringResource(R.string.focusguard_config_save), color = Color.White)
             }
         }
 
@@ -258,7 +260,7 @@ private fun PermissionRow(granted: Boolean, hint: String, buttonText: String, on
         }
         if (!granted) {
             TextButton(onClick = onClick) {
-                Text(stringResource(R.string.erteilen), color = androidx.compose.ui.graphics.Color(0xFFB45CFC))
+                Text(stringResource(R.string.erteilen), color = Color(0xFFB45CFC))
             }
         }
     }

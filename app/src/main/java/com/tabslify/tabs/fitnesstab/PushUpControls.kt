@@ -36,7 +36,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tabslify.R
+import com.tabslify.core.ui.Accent
+import com.tabslify.core.ui.AccentSoft
+import com.tabslify.core.ui.BgDeep
+import com.tabslify.core.ui.BgSurface
+import com.tabslify.core.ui.Border
 import com.tabslify.core.ui.PloppingButton
+import com.tabslify.core.ui.TextPrimary
 
 @Composable
 fun StatusLine(vm: FitnessViewModel) {
@@ -60,12 +66,12 @@ fun StatusLine(vm: FitnessViewModel) {
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(50))
-                .background(Color(0xFF1E1A2D).copy(alpha = 0.9f))
+                .background(AccentSoft.copy(alpha = 0.9f))
                 .padding(horizontal = 18.dp, vertical = 9.dp)
         ) {
             Text(
                 text = message.orEmpty(),
-                color = Color(0xFFF7F5FB),
+                color = TextPrimary,
                 fontSize = 13.sp,
                 textAlign = TextAlign.Center
             )
@@ -100,9 +106,9 @@ fun PushUpControls(vm: FitnessViewModel) {
                     .background(
                         Brush.horizontalGradient(
                             if (vm.isRunning) {
-                                listOf(Color(0xFF3A3550), Color(0xFF2A2A35))
+                                listOf(Border, BgSurface)
                             } else {
-                                listOf(Color(0xFFFF8A4C), Color(0xFFB45CFC), Color(0xFF6B4CFC))
+                                listOf(Accent, Color(0xFFB45CFC), Accent)
                             }
                         )
                     )
@@ -146,7 +152,7 @@ private fun CircleControl(
     PloppingButton(
         onClick = onClick,
         colors = ButtonDefaults.buttonColors(
-            containerColor = if (active) Color(0xFFB45CFC).copy(alpha = 0.3f) else Color(0xFF1E1A2D)
+            containerColor = if (active) Color(0xFFB45CFC).copy(alpha = 0.3f) else AccentSoft
         ),
         shape = RoundedCornerShape(50),
         contentPadding = PaddingValues(13.dp)
@@ -154,7 +160,7 @@ private fun CircleControl(
         Icon(
             imageVector = icon,
             contentDescription = description,
-            tint = if (active) Color(0xFFB45CFC) else Color(0xFFF7F5FB),
+            tint = if (active) Color(0xFFB45CFC) else TextPrimary,
             modifier = Modifier.size(24.dp)
         )
     }
@@ -165,7 +171,7 @@ fun PushUpHintOverlay(onDismiss: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xE6060509))
+            .background(BgDeep.copy(alpha = 0.9f))
             .padding(32.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -175,7 +181,7 @@ fun PushUpHintOverlay(onDismiss: () -> Unit) {
                     .clip(RoundedCornerShape(50))
                     .background(
                         Brush.horizontalGradient(
-                            listOf(Color(0xFFFF8A4C), Color(0xFFB45CFC))
+                            listOf(Accent, Color(0xFFB45CFC))
                         )
                     )
                     .padding(horizontal = 18.dp, vertical = 6.dp)
@@ -192,7 +198,7 @@ fun PushUpHintOverlay(onDismiss: () -> Unit) {
 
             Text(
                 text = stringResource(R.string.fitness_tipp_text),
-                color = Color(0xFFF7F5FB),
+                color = TextPrimary,
                 fontSize = 16.sp,
                 lineHeight = 24.sp,
                 textAlign = TextAlign.Center
@@ -210,7 +216,7 @@ fun PushUpHintOverlay(onDismiss: () -> Unit) {
                         .clip(RoundedCornerShape(28.dp))
                         .background(
                             Brush.horizontalGradient(
-                                listOf(Color(0xFFB45CFC), Color(0xFF6B4CFC))
+                                listOf(Color(0xFFB45CFC), Accent)
                             )
                         )
                         .padding(horizontal = 34.dp, vertical = 14.dp)

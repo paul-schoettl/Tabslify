@@ -116,6 +116,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import kotlin.time.Duration.Companion.minutes
+import com.tabslify.core.ui.ErrorRed
+import com.tabslify.core.ui.SuccessGreen
 
 data class MaterialUploadState(
     val fileName: String,
@@ -583,7 +585,7 @@ fun MaterialienScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 4.dp)
                     .clip(RoundedCornerShape(10.dp))
-                    .background(Color(0xFFB71C1C).copy(alpha = 0.15f))
+                    .background(ErrorRed.copy(alpha = 0.15f))
                     .padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -591,7 +593,7 @@ fun MaterialienScreen(
                 Text("⚠️", fontSize = 14.sp)
                 Text(
                     errorMsg ?: "",
-                    color = Color(0xFFEF9A9A),
+                    color = ErrorRed.copy(alpha = 0.35f),
                     fontSize = 13.sp,
                     modifier = Modifier.weight(1f)
                 )
@@ -797,7 +799,7 @@ fun MaterialienScreen(
                         )
                         Text(
                             "✓",
-                            color = Color(0xFF66BB6A),
+                            color = SuccessGreen,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -829,8 +831,8 @@ fun MaterialienScreen(
                                     UploadStatus.ERROR -> stringResource(R.string.fehler)
                                 },
                                 color = when (item.status) {
-                                    UploadStatus.DONE -> Color(0xFF66BB6A)
-                                    UploadStatus.ERROR -> Color(0xFFEF5350)
+                                    UploadStatus.DONE -> SuccessGreen
+                                    UploadStatus.ERROR -> ErrorRed
                                     else -> TextTertiary
                                 },
                                 fontSize = 12.sp
@@ -845,7 +847,7 @@ fun MaterialienScreen(
 
                             UploadStatus.DONE -> Icon(
                                 Icons.Default.CheckCircle, null,
-                                tint = Color(0xFF66BB6A), modifier = Modifier.size(20.dp)
+                                tint = SuccessGreen, modifier = Modifier.size(20.dp)
                             )
 
                             else -> {}

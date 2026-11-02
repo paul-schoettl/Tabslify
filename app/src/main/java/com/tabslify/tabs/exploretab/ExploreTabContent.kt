@@ -63,9 +63,15 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.tasks.Tasks
 import com.tabslify.R
 import com.tabslify.core.objects.Config
+import com.tabslify.core.ui.Accent
+import com.tabslify.core.ui.AccentDim
 import com.tabslify.core.ui.AlertDialogTabslify
 import com.tabslify.core.ui.DialogTabslify
 import com.tabslify.core.ui.NeonBox
+import com.tabslify.core.ui.SuccessGreen
+import com.tabslify.core.ui.TextPrimary
+import com.tabslify.core.ui.TextSecondary
+import com.tabslify.core.ui.TextTertiary
 import kotlinx.coroutines.launch
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
@@ -214,7 +220,7 @@ fun ExploreTabContent(setGesturesEnabled: (Boolean) -> Unit) {
                 )
                 Text(
                     text = dayLabel,
-                    color = Color.White,
+                    color = TextPrimary,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center,
@@ -284,7 +290,7 @@ fun ExploreTabContent(setGesturesEnabled: (Boolean) -> Unit) {
             exportStatus?.let { status ->
                 Text(
                     text = status,
-                    color = Color(0xFF9090A0),
+                    color = TextSecondary,
                     fontSize = 11.sp,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -408,7 +414,7 @@ fun ExploreTabContent(setGesturesEnabled: (Boolean) -> Unit) {
                     Icon(
                         imageVector = Icons.Filled.BugReport,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = TextPrimary,
                         modifier = Modifier.size(28.dp)
                     )
                 },
@@ -442,19 +448,19 @@ private fun modeIcon(mode: String): String = when (mode) {
 }
 
 private fun segmentAccentColor(mode: String): Color = when (mode) {
-    "IN_VEHICLE" -> Color(0xFF00CCFF)
-    "ON_EBIKE" -> Color(0xFFB388FF)
-    "ON_BICYCLE" -> Color(0xFF00FFAA)
-    "WALKING", "ON_FOOT" -> Color(0xFFFFAB00)
-    else -> Color(0xFF9090A0)
+    "IN_VEHICLE" -> Color(0xFF5C8CFF)
+    "ON_EBIKE" -> Accent
+    "ON_BICYCLE" -> Color(0xFF4CC9FF)
+    "WALKING", "ON_FOOT" -> SuccessGreen
+    else -> TextSecondary
 }
 
 private fun colorForMode(mode: String): Int = when (mode) {
-    "IN_VEHICLE" -> android.graphics.Color.rgb(0, 204, 255)
-    "ON_EBIKE" -> android.graphics.Color.rgb(179, 136, 255)
-    "ON_BICYCLE" -> android.graphics.Color.rgb(0, 255, 170)
-    "WALKING", "ON_FOOT" -> android.graphics.Color.rgb(255, 171, 0)
-    else -> android.graphics.Color.rgb(144, 144, 160)
+    "IN_VEHICLE" -> android.graphics.Color.rgb(92, 140, 255)
+    "ON_EBIKE" -> android.graphics.Color.rgb(124, 108, 255)
+    "ON_BICYCLE" -> android.graphics.Color.rgb(76, 201, 255)
+    "WALKING", "ON_FOOT" -> android.graphics.Color.rgb(74, 222, 128)
+    else -> android.graphics.Color.rgb(166, 166, 178)
 }
 
 @Composable
@@ -479,7 +485,7 @@ private fun SegmentCard(segment: Segment, modifier: Modifier = Modifier) {
     NeonBox(
         modifier = modifier.fillMaxWidth(),
         borderWidth = 2.dp,
-        neonColors = listOf(segmentAccentColor(segment.mode), Color(0xFF00CCFF)),
+        neonColors = listOf(segmentAccentColor(segment.mode), AccentDim),
         backgroundAlpha = 0.15f,
     ) {
         Row(
@@ -493,13 +499,13 @@ private fun SegmentCard(segment: Segment, modifier: Modifier = Modifier) {
                 Text(text = modeIcon(segment.mode), fontSize = 22.sp)
                 Spacer(Modifier.width(10.dp))
                 Column {
-                    Text(text = modeLabel(segment.mode), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    Text(text = timeRangeLabel(segment.startTime, segment.endTime), color = Color(0xFF9090A0), fontSize = 11.sp)
+                    Text(text = modeLabel(segment.mode), color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text(text = timeRangeLabel(segment.startTime, segment.endTime), color = TextSecondary, fontSize = 11.sp)
                 }
             }
             Column(horizontalAlignment = Alignment.End) {
-                Text(text = "%.1f km".format(segment.distanceMeters / 1000f), color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                Text(text = formatDuration(segment.endTime - segment.startTime), color = Color(0xFF9090A0), fontSize = 11.sp)
+                Text(text = "%.1f km".format(segment.distanceMeters / 1000f), color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Text(text = formatDuration(segment.endTime - segment.startTime), color = TextSecondary, fontSize = 11.sp)
                 if (ExploreBikeClassifier.isBikeMode(segment.mode)) {
                     val hours = (segment.endTime - segment.startTime) / 3_600_000f
                     if (hours > 0f) {
@@ -520,7 +526,7 @@ private fun StayCard(stay: Stay, modifier: Modifier = Modifier) {
     NeonBox(
         modifier = modifier.fillMaxWidth(),
         borderWidth = 2.dp,
-        neonColors = if (stay.isHome) listOf(Color(0xFF00FFAA), Color(0xFF00CCFF)) else listOf(Color(0xFF9090A0), Color(0xFF606070)),
+        neonColors = if (stay.isHome) listOf(Accent, AccentDim) else listOf(TextSecondary, TextTertiary),
         backgroundAlpha = 0.12f,
     ) {
         Row(
@@ -536,14 +542,14 @@ private fun StayCard(stay: Stay, modifier: Modifier = Modifier) {
                 Column {
                     Text(
                         text = stay.placeName ?: stringResource(R.string.modus_aufenthalt),
-                        color = Color.White,
+                        color = TextPrimary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp
                     )
-                    Text(text = timeRangeLabel(stay.startTime, stay.endTime), color = Color(0xFF9090A0), fontSize = 11.sp)
+                    Text(text = timeRangeLabel(stay.startTime, stay.endTime), color = TextSecondary, fontSize = 11.sp)
                 }
             }
-            Text(text = formatDuration(stay.endTime - stay.startTime), color = Color(0xFF9090A0), fontSize = 11.sp)
+            Text(text = formatDuration(stay.endTime - stay.startTime), color = TextSecondary, fontSize = 11.sp)
         }
     }
 }
@@ -562,14 +568,14 @@ private fun NeonIconButton(
             .alpha(if (enabled) 1f else 0.3f),
         cornerRadius = RoundedCornerShape(12.dp),
         borderWidth = 2.dp,
-        neonColors = listOf(Color(0xFF00FFAA), Color(0xFF00CCFF)),
+        neonColors = listOf(Accent, AccentDim),
         backgroundAlpha = 0.22f,
         onClick = if (enabled) onClick else null
     ) {
         Icon(
             imageVector = imageVector,
             contentDescription = contentDescription,
-            tint = Color.White,
+            tint = TextPrimary,
             modifier = Modifier.size(18.dp)
         )
     }
@@ -581,7 +587,7 @@ private fun StatChip(label: String, value: String, modifier: Modifier = Modifier
         modifier = modifier.fillMaxWidth(),
         cornerRadius = RoundedCornerShape(14.dp),
         borderWidth = 2.dp,
-        neonColors = listOf(Color(0xFF00FFAA), Color(0xFF00CCFF)),
+        neonColors = listOf(Accent, AccentDim),
         backgroundAlpha = 0.22f,
     ) {
         Row(
@@ -591,7 +597,7 @@ private fun StatChip(label: String, value: String, modifier: Modifier = Modifier
         ) {
             Text(
                 text = label,
-                color = Color(0xFF9090A0),
+                color = TextSecondary,
                 fontSize = 10.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -599,7 +605,7 @@ private fun StatChip(label: String, value: String, modifier: Modifier = Modifier
             )
             Text(
                 text = value,
-                color = Color.White,
+                color = TextPrimary,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,

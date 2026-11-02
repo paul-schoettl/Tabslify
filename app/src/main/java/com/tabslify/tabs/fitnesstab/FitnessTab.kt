@@ -59,9 +59,14 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.tabslify.R
 import com.tabslify.core.objects.Config
 import com.tabslify.core.TabNavigationViewModel
+import com.tabslify.core.ui.Accent
+import com.tabslify.core.ui.AccentDim
 import com.tabslify.core.ui.AlertDialogTabslify
+import com.tabslify.core.ui.BgDeep
 import com.tabslify.core.ui.PloppingButton
+import com.tabslify.core.ui.SuccessGreen
 import com.tabslify.core.ui.TextSecondary
+import com.tabslify.core.ui.TextTertiary
 import com.tabslify.tabs.fitnesstab.ui.BikeScreen
 import com.tabslify.tabs.fitnesstab.ui.DashboardScreen
 import com.tabslify.tabs.fitnesstab.ui.ExerciseDetailScreen
@@ -213,9 +218,9 @@ fun FitnessTabContent(
                                                     .background(
                                                         Brush.horizontalGradient(
                                                             listOf(
-                                                                Color(0xFFFF8A4C),
+                                                                Accent,
                                                                 Color(0xFFB45CFC),
-                                                                Color(0xFF6B4CFC)
+                                                                Accent
                                                             )
                                                         )
                                                     )
@@ -259,20 +264,20 @@ fun FitnessTabContent(
 @Composable
 private fun BottomNav(vm: FitnessViewModel, modifier: Modifier = Modifier) {
     val items = listOf(
-        BottomNavItem(FitnessScreen.DASHBOARD, Icons.Default.Dashboard, R.string.fitness_nav_dashboard, listOf(Color(0xFF6B4CFC), Color(0xFFB45CFC))),
+        BottomNavItem(FitnessScreen.DASHBOARD, Icons.Default.Dashboard, R.string.fitness_nav_dashboard, listOf(Accent, Color(0xFFB45CFC))),
         BottomNavItem(FitnessScreen.EXERCISES,
-            Icons.AutoMirrored.Filled.ListAlt, R.string.fitness_nav_exercises, listOf(Color(0xFF4CFCC1), Color(0xFF2196F3))),
-        BottomNavItem(FitnessScreen.WORKOUT, Icons.Default.FitnessCenter, R.string.fitness_nav_workout, listOf(Color(0xFFFF8A4C), Color(0xFFFF5C9A))),
+            Icons.AutoMirrored.Filled.ListAlt, R.string.fitness_nav_exercises, listOf(SuccessGreen, Color(0xFF4CC9FF))),
+        BottomNavItem(FitnessScreen.WORKOUT, Icons.Default.FitnessCenter, R.string.fitness_nav_workout, listOf(Accent, Color(0xFFB45CFC))),
         BottomNavItem(FitnessScreen.BIKE,
-            Icons.AutoMirrored.Filled.DirectionsBike, R.string.fitness_nav_bike, listOf(Color(0xFF00FFAA), Color(0xFF00CCFF))),
-        BottomNavItem(FitnessScreen.HISTORY, Icons.Default.CalendarMonth, R.string.fitness_nav_history, listOf(Color(0xFFFFC107), Color(0xFFFF6B4C)))
+            Icons.AutoMirrored.Filled.DirectionsBike, R.string.fitness_nav_bike, listOf(SuccessGreen, Color(0xFF4CC9FF))),
+        BottomNavItem(FitnessScreen.HISTORY, Icons.Default.CalendarMonth, R.string.fitness_nav_history, listOf(AccentDim, Accent))
     )
     Row(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 14.dp, vertical = 10.dp)
             .clip(RoundedCornerShape(26.dp))
-            .background(Color(0xFF0B0A10).copy(alpha = 0.94f))
+            .background(BgDeep.copy(alpha = 0.94f))
             .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(26.dp))
             .padding(horizontal = 6.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -298,12 +303,12 @@ private fun BottomNav(vm: FitnessViewModel, modifier: Modifier = Modifier) {
                     Icon(
                         imageVector = item.icon,
                         contentDescription = null,
-                        tint = if (selected) Color.White else Color(0xFF7A7880),
+                        tint = if (selected) Color.White else TextTertiary,
                         modifier = Modifier.size(22.dp)
                     )
                     Text(
                         text = stringResource(item.labelRes),
-                        color = if (selected) Color.White else Color(0xFF7A7880),
+                        color = if (selected) Color.White else TextTertiary,
                         fontSize = 10.sp,
                         fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
                     )

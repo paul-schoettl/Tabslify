@@ -112,7 +112,19 @@ import com.google.gson.GsonBuilder
 import com.google.gson.reflect.TypeToken
 import com.tabslify.R
 import com.tabslify.core.functions.SongHashtags
+import com.tabslify.core.ui.Accent
+import com.tabslify.core.ui.AccentDim
+import com.tabslify.core.ui.AccentViolet
+import com.tabslify.core.ui.AccentVioletDim
+import com.tabslify.core.ui.BgCard
+import com.tabslify.core.ui.BgDeep
+import com.tabslify.core.ui.BgSurface
+import com.tabslify.core.ui.ErrorRed
 import com.tabslify.core.ui.NeonBox
+import com.tabslify.core.ui.SuccessGreen
+import com.tabslify.core.ui.TextPrimary
+import com.tabslify.core.ui.TextSecondary
+import com.tabslify.core.ui.TextTertiary
 import com.tabslify.privatetabslifyapp.isOnline
 import com.tabslify.quiethoursnotificationhelper.AiResponseEntry
 import com.tabslify.quiethoursnotificationhelper.aiResponseFlow
@@ -140,16 +152,6 @@ import java.util.Locale
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.milliseconds
 
-private val BgDeep = Color(0xFF121212)
-private val BgSurface = Color(0xFF1E1E1E)
-private val BgCard = Color(0xFF2A2A2A)
-private val AccentViolet = Color(0xFFFF7A1A)
-private val AccentVioletDim = Color(0xFF8A3B0A)
-private val TextPrimary = Color(0xFFFFFFFF)
-private val TextSecondary = Color(0xFFB0B0B0)
-private val TextTertiary = Color(0xFF757575)
-private val NeonGreen = Color(0xFF39FF14)
-private val NeonBlue = Color(0xFF00CFFF)
 private const val LOG_TAG = "SongHashtags"
 
 data class NowPlayingState(
@@ -1451,7 +1453,7 @@ private fun MusicTab(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(10.dp))
-                        .background(Color(0xFFB71C1C))
+                        .background(ErrorRed)
                         .clickable {
                             MediaPlayerService.deletePlaylist(context, playlist.id)
                             playlistToDelete = null
@@ -2020,7 +2022,7 @@ private fun PodcastEpisodeRow(
                     }
                 }
             }
-            if (episode.isCompleted) Text("✓", color = Color(0xFF43A047), fontSize = 14.sp)
+            if (episode.isCompleted) Text("✓", color = SuccessGreen, fontSize = 14.sp)
         }
         if (episode.savedPositionMs > 0 && episode.durationMs > 0 && !episode.isCompleted) {
             Spacer(Modifier.height(6.dp))
@@ -2233,8 +2235,8 @@ private fun SongAnalyticsContent(song: MediaPlayerService.Song) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(10.dp))
-                    .background(NeonGreen.copy(alpha = 0.07f))
-                    .border(1.dp, NeonGreen.copy(alpha = 0.3f), RoundedCornerShape(10.dp))
+                    .background(SuccessGreen.copy(alpha = 0.07f))
+                    .border(1.dp, SuccessGreen.copy(alpha = 0.3f), RoundedCornerShape(10.dp))
                     .padding(horizontal = 12.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -2242,7 +2244,7 @@ private fun SongAnalyticsContent(song: MediaPlayerService.Song) {
                 Column {
                     Text(
                         stringResource(R.string.langste_dauerschleife),
-                        color = NeonGreen.copy(alpha = 0.85f),
+                        color = SuccessGreen.copy(alpha = 0.85f),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium
                     )
@@ -2250,7 +2252,7 @@ private fun SongAnalyticsContent(song: MediaPlayerService.Song) {
                 }
                 Text(
                     formatDuration(it.listenedMs),
-                    color = NeonGreen,
+                    color = SuccessGreen,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -2315,7 +2317,7 @@ private fun PodcastAnalyticsContent(episode: PodcastEpisode) {
 
         if (episode.isCompleted) {
             Text(
-                stringResource(R.string.vollstandig_angehort), color = Color(0xFF43A047),
+                stringResource(R.string.vollstandig_angehort), color = SuccessGreen,
                 fontSize = 14.sp, fontWeight = FontWeight.Medium
             )
             Spacer(Modifier.height(8.dp))
@@ -3588,7 +3590,7 @@ object RecentlyPlayedPlaylist : PlaylistSource {
     override val descriptionRes = R.string.deine_letzten_20_songs
     override val type = PlaylistSourceType.ALGORITHMIC
     override val icon = "🕐"
-    override val accentColor = Color(0xFF7C4DFF)
+    override val accentColor = Accent
     override fun getSongs(allSongs: List<MediaPlayerService.Song>): List<MediaPlayerService.Song> {
         val lastPlayedMap = MediaAnalyticsManager.getSessions()
             .filter { it.type == "music" }
@@ -3607,7 +3609,7 @@ object NeverPlayedPlaylist : PlaylistSource {
     override val descriptionRes = R.string.songs_die_auf_ihre_chance
     override val type = PlaylistSourceType.ALGORITHMIC
     override val icon = "🌱"
-    override val accentColor = Color(0xFF00BFA5)
+    override val accentColor = Color(0xFF4CC9FF)
 
     override fun getSongs(
         allSongs: List<MediaPlayerService.Song>
@@ -3626,7 +3628,7 @@ object MostPlayedPlaylist : PlaylistSource {
     override val descriptionRes = R.string.deine_absoluten_lieblinge
     override val type = PlaylistSourceType.ALGORITHMIC
     override val icon = "🔥"
-    override val accentColor = Color(0xFFE53935)
+    override val accentColor = Color(0xFFB45CFC)
 
     override fun getSongs(
         allSongs: List<MediaPlayerService.Song>
@@ -3648,7 +3650,7 @@ object RecentlyAddedPlaylist : PlaylistSource {
     override val descriptionRes = R.string.in_den_letzten_24_stunden
     override val type = PlaylistSourceType.ALGORITHMIC
     override val icon = "✨"
-    override val accentColor = Color(0xFF00BCD4)
+    override val accentColor = Color(0xFF4CC9FF)
 
     override fun getSongs(
         allSongs: List<MediaPlayerService.Song>
@@ -3666,7 +3668,7 @@ object RecentlyAddedPlaylist : PlaylistSource {
     override val description = "Deine Songs für die späten Stunden"
     override val type = PlaylistSourceType.ALGORITHMIC
     override val icon = "🌙"
-    override val accentColor = Color(0xFF283593)
+    override val accentColor = AccentDim
 
     override fun getSongs(
         allSongs: List<MediaPlayerService.Song>,
@@ -3693,7 +3695,7 @@ object FavoritesPlaylist : PlaylistSource {
     override val descriptionRes = R.string.deine_markierten_lieblinge
     override val type = PlaylistSourceType.ALGORITHMIC
     override val icon = "⭐"
-    override val accentColor = Color(0xFFFDD835)
+    override val accentColor = AccentDim
 
     private var _appContext: Context? = null
     fun setContext(ctx: Context) {
@@ -3983,14 +3985,14 @@ fun AiResponseCard(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         borderWidth = 3.dp,
         onClick = onShowHistory,
-        neonColors = listOf(NeonGreen, NeonBlue)
+        neonColors = listOf(Accent, AccentDim)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 text = entry.text,
                 fontSize = 14.sp,
                 lineHeight = 22.sp,
-                style = TextStyle(brush = Brush.linearGradient(listOf(NeonGreen, NeonBlue)))
+                style = TextStyle(brush = Brush.linearGradient(listOf(Accent, AccentDim)))
             )
 
             Text(
@@ -4035,7 +4037,7 @@ fun AiResponseHistorySheet(
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     style = TextStyle(
-                        brush = Brush.linearGradient(listOf(NeonGreen, NeonBlue))
+                        brush = Brush.linearGradient(listOf(Accent, AccentDim))
                     ),
                     modifier = Modifier.weight(1f)
                 )
@@ -4085,7 +4087,7 @@ fun AiResponseHistorySheet(
                                     Box(
                                         modifier = Modifier
                                             .clip(RoundedCornerShape(10.dp))
-                                            .background(Color(0xFFB71C1C))
+                                            .background(ErrorRed)
                                             .clickable {
                                                 deleteAiResponse(context, entry.timestamp)
                                                 entries = loadAllAiResponses(context)
@@ -4121,8 +4123,8 @@ fun AiResponseHistorySheet(
                                 .background(
                                     Brush.linearGradient(
                                         listOf(
-                                            NeonGreen.copy(alpha = 0.05f),
-                                            NeonBlue.copy(alpha = 0.05f)
+                                            SuccessGreen.copy(alpha = 0.05f),
+                                            Accent.copy(alpha = 0.05f)
                                         )
                                     )
                                 )
@@ -4130,8 +4132,8 @@ fun AiResponseHistorySheet(
                                     width = 1.dp,
                                     brush = Brush.linearGradient(
                                         listOf(
-                                            NeonGreen.copy(alpha = 0.4f),
-                                            NeonBlue.copy(alpha = 0.4f)
+                                            SuccessGreen.copy(alpha = 0.4f),
+                                            Accent.copy(alpha = 0.4f)
                                         )
                                     ),
                                     shape = RoundedCornerShape(16.dp)
@@ -4153,7 +4155,7 @@ fun AiResponseHistorySheet(
                                     modifier = Modifier
                                         .size(28.dp)
                                         .clip(CircleShape)
-                                        .background(Color(0xFFB71C1C).copy(alpha = 0.15f))
+                                        .background(ErrorRed.copy(alpha = 0.15f))
                                         .clickable { showDeleteConfirm = true },
                                     contentAlignment = Alignment.Center
                                 ) {
@@ -4168,8 +4170,8 @@ fun AiResponseHistorySheet(
                                 style = TextStyle(
                                     brush = Brush.linearGradient(
                                         listOf(
-                                            NeonGreen.copy(alpha = 0.9f),
-                                            NeonBlue.copy(alpha = 0.9f)
+                                            SuccessGreen.copy(alpha = 0.9f),
+                                            Accent.copy(alpha = 0.9f)
                                         )
                                     )
                                 )

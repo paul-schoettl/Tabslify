@@ -51,7 +51,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.tabslify.core.objects.toast
+import com.tabslify.core.ui.AccentSoft
 import com.tabslify.core.ui.AlertDialogTabslify
+import com.tabslify.core.ui.BgDeep
+import com.tabslify.core.ui.BgSurface
+import com.tabslify.core.ui.ErrorRed
 import com.tabslify.core.ui.SharedViewModel
 import com.tabslify.widget.HandyLampClient
 import androidx.compose.runtime.derivedStateOf
@@ -593,7 +597,7 @@ private fun ChatView(
         if (sendError != null) {
             Text(
                 text = "Senden fehlgeschlagen: $sendError",
-                color = Color(0xFFFF8A80),
+                color = Color(0xFFB45CFC),
                 style = MaterialTheme.typography.labelMedium,
                 modifier = Modifier.padding(vertical = 4.dp)
             )
@@ -1138,11 +1142,11 @@ private fun TikTokBackground(content: @Composable BoxScope.() -> Unit) {
             .background(
                 Brush.verticalGradient(
                     listOf(
-                        Color(0xFF05060F),
-                        Color(0xFF0B1430),
-                        Color(0xFF16305C),
-                        Color(0xFF0B1430),
-                        Color(0xFF05060F)
+                        BgDeep,
+                        BgSurface,
+                        AccentSoft,
+                        BgSurface,
+                        BgDeep
                     )
                 )
             ),
@@ -1199,7 +1203,7 @@ private fun MessageActionSheet(
             if (error != null) {
                 Text(
                     text = error,
-                    color = Color(0xFFFF8A80),
+                    color = Color(0xFFB45CFC),
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Spacer(Modifier.height(10.dp))
@@ -1266,7 +1270,7 @@ private fun MessageActionSheet(
                 }
                 TextButton(onClick = onDismiss) { Text("Abbrechen") }
                 TextButton(onClick = onDelete) {
-                    Text("Endgültig löschen", color = Color(0xFFB71C1C))
+                    Text("Endgültig löschen", color = ErrorRed)
                 }
             }
         }

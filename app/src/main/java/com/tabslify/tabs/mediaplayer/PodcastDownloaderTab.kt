@@ -111,6 +111,8 @@ import org.json.JSONObject
 import java.io.File
 import java.time.Instant
 import kotlin.time.Duration.Companion.milliseconds
+import com.tabslify.core.ui.Accent
+import com.tabslify.core.ui.TextTertiary
 
 data class PodcastFeed(
     val title: String,
@@ -680,7 +682,7 @@ fun PodcastTab() {
                 LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     item {
                         Text(
-                            stringResource(R.string.lieblings_podcasts), fontSize = 13.sp, color = Color(0xFF7A7880),
+                            stringResource(R.string.lieblings_podcasts), fontSize = 13.sp, color = TextTertiary,
                             modifier = Modifier.padding(vertical = 4.dp)
                         )
                     }
@@ -821,8 +823,8 @@ private fun AnimatedSongProgress(progress: Int, detail: String?) {
         ),
         label = "songShift"
     )
-    val accent = Color(0xFFFF7A1A)
-    val accentLight = Color(0xFFFFC46B)
+    val accent = Accent
+    val accentLight = Accent
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             modifier = Modifier

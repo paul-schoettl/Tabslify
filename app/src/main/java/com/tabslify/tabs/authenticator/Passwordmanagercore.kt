@@ -31,6 +31,9 @@ import java.time.Instant
 import javax.crypto.Cipher
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
+import com.tabslify.core.ui.AccentDim
+import com.tabslify.core.ui.ErrorRed
+import com.tabslify.core.ui.SuccessGreen
 
 @Entity(tableName = "passwords")
 data class PasswordEntry(
@@ -243,11 +246,11 @@ enum class PasswordStrength(
     val fraction: Float,
     val color: Color
 ) {
-    WEAK(R.string.schwach, 0.20f, Color(0xFFD32F2F)),
-    FAIR(R.string.ausreichend, 0.40f, Color(0xFFE64A19)),
-    GOOD(R.string.gut, 0.60f, Color(0xFFFBC02D)),
-    STRONG(R.string.stark, 0.80f, Color(0xFF388E3C)),
-    EXCELLENT(R.string.ausgezeichnet, 1.00f, Color(0xFF1B5E20))
+    WEAK(R.string.schwach, 0.20f, ErrorRed),
+    FAIR(R.string.ausreichend, 0.40f, ErrorRed),
+    GOOD(R.string.gut, 0.60f, AccentDim),
+    STRONG(R.string.stark, 0.80f, SuccessGreen),
+    EXCELLENT(R.string.ausgezeichnet, 1.00f, SuccessGreen)
 }
 
 @Suppress("PropertyName")

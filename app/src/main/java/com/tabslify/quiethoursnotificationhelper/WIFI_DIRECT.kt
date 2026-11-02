@@ -1528,8 +1528,16 @@ fun syncTodosWithLaptop(context: Context, connected: Boolean = false) {
                 "EMPTY" -> throw IOException("Server erhielt leere Daten")
                 "TIMEOUT" -> throw IOException("Server-Timeout beim Lesen")
                 "ERROR" -> throw IOException("Server konnte Daten nicht verarbeiten")
+                "ERROR:JSON" -> throw IOException("Server konnte die To-do-Daten nicht lesen (ungültiges JSON/Encoding)")
+                "ERROR:INTERNAL" -> throw IOException("Interner Serverfehler beim To-do-Sync")
                 "UNAUTHORIZED" -> throw IOException("Server hat Sync abgelehnt (ungültiger TOTP-Code)")
-                else -> throw IOException("Unbekannte Antwort: $response")
+                else -> {
+                    if (response.startsWith("ERROR:STORAGE")) {
+                        val code = response.removePrefix("ERROR:STORAGE").trimStart(':').ifEmpty { "unbekannt" }
+                        throw IOException("Server-Speicher voll oder nicht beschreibbar ($code)")
+                    }
+                    throw IOException("Unbekannte Antwort: $response")
+                }
             }
         } catch (e: ConnectException) {
             notifyLaptopUnreachableOnce(context, e)

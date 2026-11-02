@@ -108,6 +108,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import kotlin.math.abs
 import kotlin.time.Duration.Companion.milliseconds
+import com.tabslify.core.ui.TextTertiary
 
 data class LocalFileInfo(
     val file: File,
@@ -376,7 +377,7 @@ fun OtherBucketViewer(
                         }
                     }
                     val containerColor by animateColorAsState(
-                        targetValue = if (selectedFilter == filter) Color(0xFF555555) else Color(
+                        targetValue = if (selectedFilter == filter) TextTertiary else Color(
                             0xFF333333
                         ),
                         animationSpec = tween(durationMillis = 300),

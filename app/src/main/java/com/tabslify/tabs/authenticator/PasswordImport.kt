@@ -35,7 +35,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
@@ -45,14 +44,23 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.tabslify.R
+import com.tabslify.core.ui.Accent
+import com.tabslify.core.ui.BgCard
+import com.tabslify.core.ui.BgDeep
+import com.tabslify.core.ui.TextPrimary
+import com.tabslify.core.ui.TextSecondary
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import com.tabslify.core.ui.AccentDim
+import com.tabslify.core.ui.BgSurface
+import com.tabslify.core.ui.ErrorRed
+import com.tabslify.core.ui.SuccessGreen
 
-private val S1 = Color(0xFF17171C)
-private val S3 = Color(0xFF2A2A35)
-private val AB = Color(0xFF4A90E2)
-private val TP = Color(0xFFEEEEF5)
-private val TS = Color(0xFF8A8A9F)
+private val S1 = BgDeep
+private val S3 = BgCard
+private val AB = Accent
+private val TP = TextPrimary
+private val TS = TextSecondary
 
 data class ImportResult(
     val passwords: Int,
@@ -221,17 +229,17 @@ fun ImportPasswordsDialog(
             result?.let {
                 Text(
                     stringResource(R.string.neu_importiert, it.passwords),
-                    color = Color(0xFF4CAF50),
+                    color = SuccessGreen,
                     fontSize = 14.sp
                 )
                 if (it.updated > 0) Text(
                     stringResource(R.string.aktualisiert, it.updated),
-                    color = Color(0xFFFBC02D),
+                    color = AccentDim,
                     fontSize = 14.sp
                 )
                 if (it.totp > 0) Text(
                     stringResource(R.string.s_2fa_eintrage_importiert, it.totp),
-                    color = Color(0xFF4CAF50),
+                    color = SuccessGreen,
                     fontSize = 14.sp
                 )
                 if (it.skipped > 0) Text(
@@ -330,7 +338,7 @@ fun RemovalDecisionDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFF1F1F27))
+                    .background(BgSurface)
                     .padding(16.dp)
             ) {
                 Text(entry.name, color = TP, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
@@ -346,7 +354,7 @@ fun RemovalDecisionDialog(
 
             Button(
                 onClick = { onDecision(entry, true); index++ },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE74C3C)),
+                colors = ButtonDefaults.buttonColors(containerColor = ErrorRed),
                 modifier = Modifier.fillMaxWidth()
             ) { Text(stringResource(R.string.loschen)) }
 

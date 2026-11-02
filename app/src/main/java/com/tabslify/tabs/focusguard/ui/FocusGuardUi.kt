@@ -26,6 +26,9 @@ import com.tabslify.tabs.focusguard.data.CATEGORY_SOCIAL
 import com.tabslify.tabs.focusguard.data.parseYmd
 import java.time.format.TextStyle
 import java.util.Locale
+import com.tabslify.core.ui.Accent
+import com.tabslify.core.ui.SuccessGreen
+import com.tabslify.core.ui.TextSecondary
 
 @Composable
 fun FgSectionCard(
@@ -52,11 +55,11 @@ fun FgSectionCard(
 }
 
 fun categoryColor(category: String): Color = when (category) {
-    CATEGORY_SOCIAL -> Color(0xFF4CFCC1)
-    CATEGORY_GAMING -> Color(0xFFFF8A4C)
+    CATEGORY_SOCIAL -> SuccessGreen
+    CATEGORY_GAMING -> Accent
     CATEGORY_ENTERTAINMENT -> Color(0xFFB45CFC)
-    CATEGORY_PRODUCTIVITY -> Color(0xFF6B4CFC)
-    else -> Color(0xFF9AA0A6)
+    CATEGORY_PRODUCTIVITY -> Accent
+    else -> TextSecondary
 }
 
 @Composable

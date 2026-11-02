@@ -10,11 +10,13 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.unit.dp
+import com.tabslify.core.ui.Accent
+import com.tabslify.core.ui.TextTertiary
 import kotlin.math.max
 
 val PoseAccentUp = Color(0xFFB45CFC)
-val PoseAccentDown = Color(0xFFFF8A4C)
-val PoseAccentIdle = Color(0xFF8E8AA8)
+val PoseAccentDown = Accent
+val PoseAccentIdle = TextTertiary
 
 @Composable
 fun PoseOverlay(

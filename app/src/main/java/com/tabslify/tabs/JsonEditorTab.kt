@@ -39,6 +39,11 @@ import com.tabslify.R
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import com.tabslify.core.ui.Accent
+import com.tabslify.core.ui.AccentDim
+import com.tabslify.core.ui.BgCard
+import com.tabslify.core.ui.BgSurface
+import com.tabslify.core.ui.TextSecondary
 
 @Composable
 fun JsonEditorContent(
@@ -59,7 +64,7 @@ fun JsonEditorContent(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFF2A2A2A))
+            .background(BgCard)
             .padding(16.dp)
     ) {
         Row(
@@ -112,7 +117,7 @@ fun JsonEditorContent(
                     }
                 },
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isEditing) Color(0xFF4CAF50) else Color(0xFF2196F3)
+                    containerColor = if (isEditing) Accent else Color(0xFF5C8CFF)
                 )
             ) {
                 Text(if (isEditing) stringResource(R.string.speichern_2) else stringResource(R.string.bearbeiten_2))
@@ -125,7 +130,7 @@ fun JsonEditorContent(
                         isEditing = false
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFFF5722)
+                        containerColor = AccentDim
                     )
                 ) {
                     Text(stringResource(R.string.abbrechen_2))
@@ -142,7 +147,7 @@ fun JsonEditorContent(
                     }
                 },
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF9C27B0)
+                    containerColor = Color(0xFFB45CFC)
                 )
             ) {
                 Text(stringResource(R.string.formatieren))
@@ -156,7 +161,7 @@ fun JsonEditorContent(
                 .fillMaxWidth()
                 .weight(1f),
             colors = CardDefaults.cardColors(
-                containerColor = Color(0xFF1E1E1E)
+                containerColor = BgSurface
             )
         ) {
             if (isEditing) {
@@ -170,7 +175,7 @@ fun JsonEditorContent(
                     textStyle = LocalTextStyle.current.copy(
                         fontFamily = FontFamily.Monospace,
                         fontSize = 14.sp,
-                        color = Color(0xFFE0E0E0)
+                        color = TextSecondary
                     ),
                     colors = TextFieldDefaults.colors(
                         focusedContainerColor = Color.Transparent,
@@ -183,7 +188,7 @@ fun JsonEditorContent(
             } else {
                 Text(
                     text = jsonContent,
-                    color = Color(0xFFE0E0E0),
+                    color = TextSecondary,
                     fontFamily = FontFamily.Monospace,
                     fontSize = 14.sp,
                     modifier = Modifier
@@ -198,7 +203,7 @@ fun JsonEditorContent(
 
         Text(
             text = if (isEditing) stringResource(R.string.im_bearbeitungsmodus) else stringResource(R.string.anzeigemodus),
-            color = if (isEditing) Color(0xFFFFA500) else Color.Gray,
+            color = if (isEditing) Accent else Color.Gray,
             fontSize = 12.sp,
             modifier = Modifier.align(Alignment.CenterHorizontally)
         )

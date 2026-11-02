@@ -41,8 +41,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tabslify.R
+import com.tabslify.core.ui.Accent
+import com.tabslify.core.ui.AccentDim
 import com.tabslify.core.ui.BgCard
 import com.tabslify.core.ui.NeonBox
+import com.tabslify.core.ui.SuccessGreen
 import com.tabslify.core.ui.TextPrimary
 import com.tabslify.core.ui.TextSecondary
 import com.tabslify.core.ui.TextTertiary
@@ -56,12 +59,12 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-internal val BikeAccent = Color(0xFF00FFAA)
-internal val BikeAccentSecondary = Color(0xFF00CCFF)
-internal val EbikeAccent = Color(0xFFB388FF)
-internal val EbikeAccentSecondary = Color(0xFF6B4CFC)
-internal val BikeOrange = Color(0xFFFF8A4C)
-internal val BikeYellow = Color(0xFFFFD74C)
+internal val BikeAccent = SuccessGreen
+internal val BikeAccentSecondary = Color(0xFF4CC9FF)
+internal val EbikeAccent = Accent
+internal val EbikeAccentSecondary = Accent
+internal val BikeOrange = Accent
+internal val BikeYellow = AccentDim
 
 internal fun bikeModeColors(mode: String): List<Color> =
     if (mode == ExploreBikeClassifier.MODE_EBIKE) listOf(EbikeAccent, EbikeAccentSecondary)

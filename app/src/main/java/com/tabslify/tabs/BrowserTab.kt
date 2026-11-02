@@ -38,6 +38,8 @@ import com.tabslify.R
 import com.tabslify.core.ui.loadLastUrl
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.milliseconds
+import com.tabslify.core.ui.Accent
+import com.tabslify.core.ui.BgSurface
 
 @Composable
 fun BrowserTabContent(
@@ -95,8 +97,8 @@ fun BrowserTabContent(
                 focusedTextColor = Color.White,
                 unfocusedTextColor = Color.White,
                 cursorColor = Color.White,
-                focusedContainerColor = Color(0xFF333333),
-                unfocusedContainerColor = Color(0xFF333333),
+                focusedContainerColor = BgSurface,
+                unfocusedContainerColor = BgSurface,
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent
             ),
@@ -126,7 +128,7 @@ fun BrowserTabContent(
             QuickLinkButton("YouTube", Color.Red) {
                 loadAndOpenUrl("https://www.youtube.com")
             }
-            QuickLinkButton("Gmail", Color(0xFFFFA500)) {
+            QuickLinkButton("Gmail", Accent) {
                 loadAndOpenUrl("https://www.gmail.com")
             }
         }
@@ -160,7 +162,7 @@ fun LastUrlButton(context: Context, onUrlLoad: (String) -> Unit) {
 
     Button(
         onClick = { onUrlLoad(lastUrl) },
-        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF444444))
+        colors = ButtonDefaults.buttonColors(containerColor = BgSurface)
     ) {
         Text(stringResource(R.string.letzte_url_laden), fontSize = 14.sp)
     }

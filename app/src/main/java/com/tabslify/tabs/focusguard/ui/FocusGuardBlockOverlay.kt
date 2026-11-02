@@ -27,6 +27,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tabslify.R
+import com.tabslify.core.ui.Accent
+import com.tabslify.core.ui.BgDeep
+import com.tabslify.core.ui.BgSurface
+import com.tabslify.core.ui.TextSecondary
 
 @Composable
 fun FocusGuardBlockOverlay(
@@ -48,7 +52,7 @@ fun FocusGuardBlockOverlay(
                 .fillMaxWidth()
                 .padding(horizontal = 28.dp),
             shape = RoundedCornerShape(28.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF141219))
+            colors = CardDefaults.cardColors(containerColor = BgDeep)
         ) {
             Column(
                 modifier = Modifier
@@ -69,7 +73,7 @@ fun FocusGuardBlockOverlay(
                 )
                 Text(
                     text = stringResource(R.string.focusguard_overlay_body, appName),
-                    color = Color(0xFFB9B6C2),
+                    color = TextSecondary,
                     fontSize = 17.sp,
                     textAlign = TextAlign.Center
                 )
@@ -78,7 +82,7 @@ fun FocusGuardBlockOverlay(
                         .fillMaxWidth()
                         .background(
                             Brush.horizontalGradient(
-                                listOf(Color(0xFFFF8A4C), Color(0xFFB45CFC), Color(0xFF6B4CFC))
+                                listOf(Accent, Color(0xFFB45CFC), Accent)
                             ),
                             RoundedCornerShape(16.dp)
                         )
@@ -102,7 +106,7 @@ fun FocusGuardBlockOverlay(
                 Button(
                     onClick = onContinue,
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2A2733))
+                    colors = ButtonDefaults.buttonColors(containerColor = BgSurface)
                 ) {
                     Text(
                         text = stringResource(R.string.focusguard_continue, cooldownMinutes),
@@ -117,7 +121,7 @@ fun FocusGuardBlockOverlay(
                 ) {
                     Text(
                         text = stringResource(R.string.focusguard_settings),
-                        color = Color(0xFFB9B6C2),
+                        color = TextSecondary,
                         fontSize = 14.sp
                     )
                 }

@@ -133,6 +133,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -400,6 +401,7 @@ fun LandingPageOrApp(
     val landingOffsetX = remember { Animatable(if (!hasLoadedApp) 0f else -1f) }
     val hazeState = remember { HazeState() }
     var topBarHeight by remember { mutableStateOf(0.dp) }
+    var webImmersive by remember { mutableStateOf(false) }
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
@@ -472,8 +474,7 @@ fun LandingPageOrApp(
     val sharedTitleTarget = if (sharedIsLanding || tabTitle.isEmpty()) appTitle else tabTitle
     val sharedTitle = rememberScrambledTitle(
         target = sharedTitleTarget,
-        initial = tabTitle.ifEmpty { appTitle },
-        animate = sharedIsLanding
+        initial = tabTitle.ifEmpty { appTitle }
     )
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -502,7 +503,8 @@ fun LandingPageOrApp(
                             initialMenuItem = targetMenuItem,
                             onMenuClick = { openLanding() },
                             helpVisible = isHelpOpen,
-                            onHelpVisibleChange = { isHelpOpen = it }
+                            onHelpVisibleChange = { isHelpOpen = it },
+                            onImmersiveChange = { webImmersive = it }
                         )
                     }
                 }
@@ -624,18 +626,25 @@ fun LandingPageOrApp(
             }
         }
 
-        SharedTopBar(
-            titleText = sharedTitle,
-            isLandingShown = sharedIsLanding,
-            hasLoadedApp = sharedHasLoadedApp,
-            selectedMenuItem = sharedItem,
-            hazeState = hazeState,
-            onMenuClick = { if (sharedIsLanding) closeLanding() else openLanding() },
-            onHelpClick = { isHelpOpen = true },
-            onSettingsClick = { showSettings = true },
-            onHeightChanged = { topBarHeight = it },
-            interactive = pendingOverlayItem == null
-        )
+        AnimatedVisibility(
+            visible = !webImmersive,
+            enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+            exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut()
+        ) {
+            SharedTopBar(
+                titleText = sharedTitle,
+                isLandingShown = sharedIsLanding,
+                hasLoadedApp = sharedHasLoadedApp,
+                selectedMenuItem = sharedItem,
+                hazeState = hazeState,
+                showLandingBackground = landingOffsetX.value > -0.99f,
+                onMenuClick = { if (sharedIsLanding) closeLanding() else openLanding() },
+                onHelpClick = { isHelpOpen = true },
+                onSettingsClick = { showSettings = true },
+                onHeightChanged = { topBarHeight = it },
+                interactive = pendingOverlayItem == null
+            )
+        }
 
         SettingsFrame(
             visible = showSettings,
@@ -906,16 +915,12 @@ fun SupabaseLoginScreen(onLoggedIn: () -> Unit) {
 @Composable
 private fun rememberScrambledTitle(
     target: String,
-    initial: String,
-    animate: Boolean
+    initial: String
 ): String {
     var display by remember { mutableStateOf(initial) }
 
-    LaunchedEffect(target, animate) {
-        if (!animate || display == target) {
-            display = target
-            return@LaunchedEffect
-        }
+    LaunchedEffect(target) {
+        if (display == target) return@LaunchedEffect
         val source = display
         val durationMs = 450f
         val startNanos = withFrameNanos { it }
@@ -964,6 +969,7 @@ private fun SharedTopBar(
     hasLoadedApp: Boolean,
     selectedMenuItem: MenuItem?,
     hazeState: HazeState,
+    showLandingBackground: Boolean,
     onMenuClick: () -> Unit,
     onHelpClick: () -> Unit,
     onSettingsClick: () -> Unit,
@@ -987,7 +993,7 @@ private fun SharedTopBar(
                 onHeightChanged(with(density) { it.size.height.toDp() })
             }
     ) {
-        if (isLandingShown) {
+        if (showLandingBackground) {
             Box(
                 modifier = Modifier
                     .matchParentSize()
@@ -1058,6 +1064,13 @@ private fun SharedTopBar(
                     imageVector = selectedMenuItem.iconVector,
                     contentDescription = null,
                     tint = TextPrimary,
+                    modifier = Modifier.size(20.dp)
+                )
+            } else if (isLandingShown) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_tabslify),
+                    contentDescription = null,
+                    tint = TextSecondary,
                     modifier = Modifier.size(20.dp)
                 )
             } else {

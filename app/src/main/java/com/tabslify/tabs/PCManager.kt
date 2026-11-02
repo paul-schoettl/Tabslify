@@ -61,6 +61,12 @@ import com.tabslify.quiethoursnotificationhelper.stopAllSyncServices
 import com.tabslify.quiethoursnotificationhelper.syncTodosWithLaptop
 import com.tabslify.tabs.authenticator.TotpGenerator
 import kotlinx.coroutines.delay
+import com.tabslify.core.ui.AccentDim
+import com.tabslify.core.ui.BgCard
+import com.tabslify.core.ui.BgSurface
+import com.tabslify.core.ui.Border
+import com.tabslify.core.ui.ErrorRed
+import com.tabslify.core.ui.SuccessGreen
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -187,10 +193,10 @@ fun PCManagerTab() {
     ) {
         Card(
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF28283E)),
+            colors = CardDefaults.cardColors(containerColor = BgSurface),
             modifier = Modifier
                 .fillMaxWidth()
-                .border(1.dp, Color(0xFF3F3F5F), RoundedCornerShape(16.dp))
+                .border(1.dp, Border, RoundedCornerShape(16.dp))
         ) {
             Column(
                 modifier = Modifier.padding(16.dp),
@@ -211,7 +217,7 @@ fun PCManagerTab() {
                         text = displayName,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF4CAF50)
+                        color = SuccessGreen
                     )
                     if (shownName.isNotEmpty() && shownName != currentConnectedName) {
                         Text(
@@ -232,7 +238,7 @@ fun PCManagerTab() {
                         text = stringResource(R.string.kein_pc_aktiv_verbunden),
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFFE57373)
+                        color = ErrorRed
                     )
                 }
                 
@@ -259,7 +265,7 @@ fun PCManagerTab() {
                         text = stringResource(R.string.ausstehende_anfragen, pendingList.size),
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFFFFB74D),
+                        color = AccentDim,
                         modifier = Modifier.padding(vertical = 4.dp)
                     )
                 }
@@ -267,10 +273,10 @@ fun PCManagerTab() {
                 items(pendingList) { pc ->
                     Card(
                         shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF2C251C)),
+                        colors = CardDefaults.cardColors(containerColor = BgCard),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .border(1.dp, Color(0xFFFFB74D).copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                            .border(1.dp, AccentDim.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
                     ) {
                         Column(
                             modifier = Modifier.padding(12.dp)
@@ -301,7 +307,7 @@ fun PCManagerTab() {
                                         pendingPrefs.edit { remove(pc.name) }
                                         Toast.makeText(context, pcAbgelehntMsg.format(pc.name), Toast.LENGTH_SHORT).show()
                                     },
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFCF6679)),
+                                    colors = ButtonDefaults.buttonColors(containerColor = ErrorRed),
                                     shape = RoundedCornerShape(8.dp),
                                     modifier = Modifier.padding(end = 8.dp)
                                 ) {
@@ -324,7 +330,7 @@ fun PCManagerTab() {
                                         
                                         Toast.makeText(context, erfolgreichFreigegebenMsg.format(pc.name), Toast.LENGTH_LONG).show()
                                     },
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
+                                    colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen),
                                     shape = RoundedCornerShape(8.dp)
                                 ) {
                                     Text(stringResource(R.string.erlauben), color = Color.White)
@@ -359,10 +365,10 @@ fun PCManagerTab() {
                 items(pcDetailsList) { pc ->
                     Card(
                         shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E2E)),
+                        colors = CardDefaults.cardColors(containerColor = BgCard),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .border(1.dp, Color(0xFF2C2C3E), RoundedCornerShape(12.dp))
+                            .border(1.dp, BgSurface, RoundedCornerShape(12.dp))
                     ) {
                         Column(
                             modifier = Modifier.padding(12.dp)
@@ -383,11 +389,11 @@ fun PCManagerTab() {
                                         colors = OutlinedTextFieldDefaults.colors(
                                             focusedTextColor = Color.White,
                                             unfocusedTextColor = Color.White,
-                                            focusedBorderColor = Color(0xFF81C784),
-                                            unfocusedBorderColor = Color(0xFF3F3F5F),
-                                            focusedLabelColor = Color(0xFF81C784),
+                                            focusedBorderColor = SuccessGreen,
+                                            unfocusedBorderColor = Border,
+                                            focusedLabelColor = SuccessGreen,
                                             unfocusedLabelColor = Color.Gray,
-                                            cursorColor = Color(0xFF81C784)
+                                            cursorColor = SuccessGreen
                                         ),
                                         modifier = Modifier
                                             .weight(1f)
@@ -395,12 +401,12 @@ fun PCManagerTab() {
                                     )
                                     Button(
                                         onClick = { saveName(pc.name) },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0x3381C784)),
+                                        colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen.copy(alpha = 0.2f)),
                                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                                         shape = RoundedCornerShape(6.dp),
                                         modifier = Modifier.padding(start = 8.dp)
                                     ) {
-                                        Text(stringResource(R.string.speichern), color = Color(0xFF81C784), fontSize = 11.sp)
+                                        Text(stringResource(R.string.speichern), color = SuccessGreen, fontSize = 11.sp)
                                     }
                                     Button(
                                         onClick = { editingName = null },
@@ -423,7 +429,7 @@ fun PCManagerTab() {
                                             text = pc.displayName,
                                             fontSize = 16.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF81C784)
+                                            color = SuccessGreen
                                         )
                                         if (pc.displayName != pc.name) {
                                             Text(
@@ -444,11 +450,11 @@ fun PCManagerTab() {
                                             }
                                             Toast.makeText(context, pcEntferntMsg.format(pc.name), Toast.LENGTH_SHORT).show()
                                         },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0x33CF6679)),
+                                        colors = ButtonDefaults.buttonColors(containerColor = ErrorRed.copy(alpha = 0.2f)),
                                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                                         shape = RoundedCornerShape(6.dp)
                                     ) {
-                                        Text(stringResource(R.string.entfernen), color = Color(0xFFEF5350), fontSize = 11.sp)
+                                        Text(stringResource(R.string.entfernen), color = ErrorRed, fontSize = 11.sp)
                                     }
                                 }
                             }
@@ -461,7 +467,7 @@ fun PCManagerTab() {
                             Text(
                                 text = stringResource(R.string.totp_key, pc.secret),
                                 fontSize = 12.sp,
-                                color = Color(0xFFFFB74D),
+                                color = AccentDim,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
@@ -486,11 +492,11 @@ fun PCManagerTab() {
                         stopAllSyncServices(context)
                         Toast.makeText(context, alleAltenVerbindungenGeloeschtMsg, Toast.LENGTH_SHORT).show()
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0x1ACF6679)),
+                    colors = ButtonDefaults.buttonColors(containerColor = ErrorRed.copy(alpha = 0.1f)),
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp)
                 ) {
-                    Text(stringResource(R.string.alte_verbindungen_prefs_loschen), color = Color(0xFFEF5350), fontSize = 13.sp)
+                    Text(stringResource(R.string.alte_verbindungen_prefs_loschen), color = ErrorRed, fontSize = 13.sp)
                 }
             }
         }

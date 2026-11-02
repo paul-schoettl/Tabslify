@@ -69,6 +69,7 @@ import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.tabslify.core.ui.ErrorRed
 
 enum class NotenGruppe { GROSS, KLEIN, MUENDLICH }
 
@@ -596,7 +597,7 @@ private fun NotenFachKarte(
                     text = {
                         Text(
                             stringResource(R.string.loschen),
-                            color = Color(0xFFEF5350),
+                            color = ErrorRed,
                             fontSize = 14.sp
                         )
                     },

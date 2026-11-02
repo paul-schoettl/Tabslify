@@ -39,9 +39,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tabslify.R
+import com.tabslify.core.ui.Accent
+import com.tabslify.core.ui.AccentDim
 import com.tabslify.core.ui.BgCard
+import com.tabslify.core.ui.SuccessGreen
 import com.tabslify.core.ui.TextPrimary
 import com.tabslify.core.ui.TextSecondary
+import com.tabslify.core.ui.TextTertiary
 import com.tabslify.tabs.fitnesstab.FitnessViewModel
 import com.tabslify.tabs.fitnesstab.data.Difficulty
 import com.tabslify.tabs.fitnesstab.data.Equipment
@@ -347,7 +351,7 @@ private fun ExerciseRow(exercise: Exercise, onClick: () -> Unit) {
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(50))
-                        .background(Color(0xFFFF8A4C).copy(alpha = 0.14f))
+                        .background(Accent.copy(alpha = 0.14f))
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     Row(
@@ -357,12 +361,12 @@ private fun ExerciseRow(exercise: Exercise, onClick: () -> Unit) {
                         Icon(
                             imageVector = Icons.Default.LocalFireDepartment,
                             contentDescription = null,
-                            tint = Color(0xFFFF8A4C),
+                            tint = Accent,
                             modifier = Modifier.size(10.dp)
                         )
                         Text(
                             text = "%.0f".format(exercise.caloriesPerMinute),
-                            color = Color(0xFFFF8A4C),
+                            color = Accent,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -382,9 +386,9 @@ private fun ExerciseRow(exercise: Exercise, onClick: () -> Unit) {
 @Composable
 private fun DiffBadge(difficulty: Difficulty) {
     val (textRes, color) = when (difficulty) {
-        Difficulty.BEGINNER -> R.string.fitness_ex_difficulty_beginner to Color(0xFF4CAF50)
-        Difficulty.INTERMEDIATE -> R.string.fitness_ex_difficulty_intermediate to Color(0xFFFFC107)
-        Difficulty.ADVANCED -> R.string.fitness_ex_difficulty_advanced to Color(0xFFF44336)
+        Difficulty.BEGINNER -> R.string.fitness_ex_difficulty_beginner to SuccessGreen
+        Difficulty.INTERMEDIATE -> R.string.fitness_ex_difficulty_intermediate to AccentDim
+        Difficulty.ADVANCED -> R.string.fitness_ex_difficulty_advanced to Color(0xFFB45CFC)
     }
     Box(
         modifier = Modifier
@@ -404,13 +408,13 @@ private fun DiffBadge(difficulty: Difficulty) {
 @Composable
 private fun EqBadge(equipment: Equipment) {
     val (textRes, color) = when (equipment) {
-        Equipment.NONE -> R.string.fitness_ex_gear_none to Color(0xFF4CFCC1)
+        Equipment.NONE -> R.string.fitness_ex_gear_none to SuccessGreen
         Equipment.RESISTANCE_BAND -> R.string.fitness_ex_gear_band to Color(0xFFB45CFC)
-        Equipment.DUMBBELL -> R.string.fitness_ex_gear_dumbbell to Color(0xFFFF8A4C)
-        Equipment.BARBELL -> R.string.fitness_ex_gear_barbell to Color(0xFFF44336)
-        Equipment.KETTLEBELL -> R.string.fitness_ex_gear_kettlebell to Color(0xFFFFC107)
-        Equipment.PULLUP_BAR -> R.string.fitness_ex_gear_pullupbar to Color(0xFF2196F3)
-        Equipment.BENCH -> R.string.fitness_ex_gear_bench to Color(0xFF00BCD4)
+        Equipment.DUMBBELL -> R.string.fitness_ex_gear_dumbbell to Accent
+        Equipment.BARBELL -> R.string.fitness_ex_gear_barbell to Color(0xFFB45CFC)
+        Equipment.KETTLEBELL -> R.string.fitness_ex_gear_kettlebell to AccentDim
+        Equipment.PULLUP_BAR -> R.string.fitness_ex_gear_pullupbar to Color(0xFF4CC9FF)
+        Equipment.BENCH -> R.string.fitness_ex_gear_bench to Color(0xFF4CC9FF)
     }
     Box(
         modifier = Modifier
@@ -450,31 +454,31 @@ private fun groupNameRes(g: MuscleGroup): Int = when (g) {
 }
 
 private fun groupAccent(g: MuscleGroup?): List<Color> = when (g) {
-    MuscleGroup.CHEST -> listOf(Color(0xFFFF8A4C), Color(0xFFFF5C9A))
-    MuscleGroup.BACK -> listOf(Color(0xFF4CAF50), Color(0xFF4CFCC1))
-    MuscleGroup.LEGS -> listOf(Color(0xFF6B4CFC), Color(0xFF2196F3))
-    MuscleGroup.CORE -> listOf(Color(0xFFB45CFC), Color(0xFFE040FB))
-    MuscleGroup.SHOULDERS -> listOf(Color(0xFFFFC107), Color(0xFFFF8A4C))
-    MuscleGroup.ARMS -> listOf(Color(0xFFFF5C9A), Color(0xFFF44336))
-    MuscleGroup.CARDIO -> listOf(Color(0xFFE040FB), Color(0xFFFF5C9A))
-    MuscleGroup.FULLBODY -> listOf(Color(0xFF00BCD4), Color(0xFF4CAF50))
-    null -> listOf(Color(0xFF8E8AA8), Color(0xFFB0AECB))
+    MuscleGroup.CHEST -> listOf(Accent, Color(0xFFB45CFC))
+    MuscleGroup.BACK -> listOf(SuccessGreen, Color(0xFF2ECC71))
+    MuscleGroup.LEGS -> listOf(Accent, Color(0xFF4CC9FF))
+    MuscleGroup.CORE -> listOf(Color(0xFFB45CFC), AccentDim)
+    MuscleGroup.SHOULDERS -> listOf(AccentDim, Accent)
+    MuscleGroup.ARMS -> listOf(Color(0xFFB45CFC), AccentDim)
+    MuscleGroup.CARDIO -> listOf(Color(0xFFB45CFC), Color(0xFF5C8CFF))
+    MuscleGroup.FULLBODY -> listOf(Color(0xFF4CC9FF), SuccessGreen)
+    null -> listOf(TextTertiary, TextSecondary)
 }
 
 private fun difficultyAccent(d: Difficulty?): List<Color> = when (d) {
-    Difficulty.BEGINNER -> listOf(Color(0xFF4CAF50), Color(0xFF4CFCC1))
-    Difficulty.INTERMEDIATE -> listOf(Color(0xFFFFC107), Color(0xFFFF8A4C))
-    Difficulty.ADVANCED -> listOf(Color(0xFFF44336), Color(0xFFFF5C9A))
-    null -> listOf(Color(0xFF8E8AA8), Color(0xFFB0AECB))
+    Difficulty.BEGINNER -> listOf(SuccessGreen, Color(0xFF2ECC71))
+    Difficulty.INTERMEDIATE -> listOf(AccentDim, Accent)
+    Difficulty.ADVANCED -> listOf(Color(0xFFB45CFC), Accent)
+    null -> listOf(TextTertiary, TextSecondary)
 }
 
 private fun equipmentAccent(e: Equipment?): List<Color> = when (e) {
-    Equipment.NONE -> listOf(Color(0xFF4CFCC1), Color(0xFF4CAF50))
-    Equipment.RESISTANCE_BAND -> listOf(Color(0xFFB45CFC), Color(0xFFE040FB))
-    Equipment.DUMBBELL -> listOf(Color(0xFFFF8A4C), Color(0xFFFF5C9A))
-    Equipment.BARBELL -> listOf(Color(0xFFF44336), Color(0xFFFF8A4C))
-    Equipment.KETTLEBELL -> listOf(Color(0xFFFFC107), Color(0xFFFF8A4C))
-    Equipment.PULLUP_BAR -> listOf(Color(0xFF2196F3), Color(0xFF00BCD4))
-    Equipment.BENCH -> listOf(Color(0xFF00BCD4), Color(0xFF4CFCC1))
-    null -> listOf(Color(0xFF8E8AA8), Color(0xFFB0AECB))
+    Equipment.NONE -> listOf(SuccessGreen, Color(0xFF2ECC71))
+    Equipment.RESISTANCE_BAND -> listOf(Color(0xFFB45CFC), AccentDim)
+    Equipment.DUMBBELL -> listOf(Accent, Color(0xFFB45CFC))
+    Equipment.BARBELL -> listOf(Color(0xFFB45CFC), Accent)
+    Equipment.KETTLEBELL -> listOf(AccentDim, Accent)
+    Equipment.PULLUP_BAR -> listOf(Color(0xFF4CC9FF), Color(0xFF5C8CFF))
+    Equipment.BENCH -> listOf(Color(0xFF4CC9FF), SuccessGreen)
+    null -> listOf(TextTertiary, TextSecondary)
 }

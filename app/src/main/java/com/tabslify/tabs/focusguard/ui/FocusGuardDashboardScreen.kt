@@ -40,6 +40,8 @@ import com.tabslify.tabs.focusguard.FocusGuardViewModel
 import com.tabslify.tabs.focusguard.data.FOCUSGUARD_RESTRICTED_CATEGORIES
 import com.tabslify.tabs.focusguard.data.SleepRecord
 import com.tabslify.tabs.focusguard.formatDurationMs
+import com.tabslify.core.ui.Accent
+import com.tabslify.core.ui.SuccessGreen
 
 @Composable
 fun FocusGuardDashboardScreen(vm: FocusGuardViewModel, modifier: Modifier = Modifier) {
@@ -95,9 +97,9 @@ private fun StatusBanner(vm: FocusGuardViewModel) {
         else -> stringResource(R.string.focusguard_status_inactive)
     }
     val colors = if (vm.restrictionsActive && !vm.schoolDay) {
-        listOf(Color(0xFFFF8A4C), Color(0xFFB45CFC))
+        listOf(Accent, Color(0xFFB45CFC))
     } else {
-        listOf(Color(0xFF4CFCC1), Color(0xFF6B4CFC))
+        listOf(SuccessGreen, Accent)
     }
     Row(
         modifier = Modifier
@@ -144,7 +146,7 @@ private fun StudyGoalCard(
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Button(
                 onClick = { vm.addStudyProgress(1) },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF6B4CFC))
+                colors = ButtonDefaults.buttonColors(containerColor = Accent)
             ) {
                 Text(stringResource(R.string.focusguard_config_goal_add), color = Color.White)
             }
@@ -177,7 +179,7 @@ private fun SleepCard(sleepWeek: List<SleepRecord>) {
                 values = chronological.map { it.durationMs / 3_600_000f },
                 labels = chronological.map { weekdayAbbrev(it.date) },
                 maxValue = 12f,
-                color = Color(0xFF4CFCC1)
+                color = SuccessGreen
             )
         }
     }

@@ -32,6 +32,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tabslify.R
+import com.tabslify.core.ui.AccentSoft
+import com.tabslify.core.ui.BgDeep
+import com.tabslify.core.ui.TextPrimary
 
 @Composable
 fun PushUpHud(vm: FitnessViewModel, modifier: Modifier = Modifier) {
@@ -42,7 +45,7 @@ fun PushUpHud(vm: FitnessViewModel, modifier: Modifier = Modifier) {
                 .height(260.dp)
                 .background(
                     Brush.verticalGradient(
-                        listOf(Color(0xCC060509), Color.Transparent)
+                        listOf(BgDeep.copy(alpha = 0.8f), Color.Transparent)
                     )
                 )
         )
@@ -65,7 +68,7 @@ fun PushUpHud(vm: FitnessViewModel, modifier: Modifier = Modifier) {
                 .fillMaxWidth()
                 .background(
                     Brush.verticalGradient(
-                        listOf(Color.Transparent, Color(0xE6060509))
+                        listOf(Color.Transparent, BgDeep.copy(alpha = 0.9f))
                     )
                 )
                 .padding(horizontal = 20.dp)
@@ -107,7 +110,7 @@ private fun RepHero(reps: Int, phase: PushUpPhase) {
             fontSize = 92.sp,
             lineHeight = 96.sp,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFFF7F5FB),
+            color = TextPrimary,
             modifier = Modifier.scale(pulse)
         )
         Box(
@@ -138,7 +141,7 @@ private fun StatsRow(vm: FitnessViewModel) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
-            .background(Color(0xFF1E1A2D).copy(alpha = 0.82f))
+            .background(AccentSoft.copy(alpha = 0.82f))
             .padding(vertical = 12.dp, horizontal = 8.dp),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
@@ -162,7 +165,7 @@ private fun StatCell(label: String, value: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             text = value,
-            color = Color(0xFFF7F5FB),
+            color = TextPrimary,
             fontSize = 20.sp,
             fontWeight = FontWeight.SemiBold
         )

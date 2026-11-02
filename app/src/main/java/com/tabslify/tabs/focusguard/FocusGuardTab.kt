@@ -40,6 +40,10 @@ import com.tabslify.core.objects.prvt
 import com.tabslify.tabs.focusguard.ui.FocusGuardConfigScreen
 import com.tabslify.tabs.focusguard.ui.FocusGuardDashboardScreen
 import com.tabslify.tabs.focusguard.ui.FocusGuardStatsScreen
+import com.tabslify.core.ui.Accent
+import com.tabslify.core.ui.BgDeep
+import com.tabslify.core.ui.SuccessGreen
+import com.tabslify.core.ui.TextTertiary
 
 @Composable
 fun FocusGuardTabContent(vm: FocusGuardViewModel = viewModel()) {
@@ -89,15 +93,15 @@ fun FocusGuardTabContent(vm: FocusGuardViewModel = viewModel()) {
 @Composable
 private fun FocusGuardBottomNav(vm: FocusGuardViewModel, modifier: Modifier = Modifier) {
     val items = listOf(
-        FocusGuardNavItem(FocusGuardScreen.DASHBOARD, Icons.Default.Dashboard, R.string.focusguard_nav_dashboard, listOf(Color(0xFF4CFCC1), Color(0xFF6B4CFC))),
-        FocusGuardNavItem(FocusGuardScreen.CONFIG, Icons.Default.Settings, R.string.focusguard_nav_config, listOf(Color(0xFFFF8A4C), Color(0xFFB45CFC))),
-        FocusGuardNavItem(FocusGuardScreen.STATS, Icons.Default.Insights, R.string.focusguard_nav_stats, listOf(Color(0xFF00AAFF), Color(0xFFB45CFC)))
+        FocusGuardNavItem(FocusGuardScreen.DASHBOARD, Icons.Default.Dashboard, R.string.focusguard_nav_dashboard, listOf(SuccessGreen, Accent)),
+        FocusGuardNavItem(FocusGuardScreen.CONFIG, Icons.Default.Settings, R.string.focusguard_nav_config, listOf(Accent, Color(0xFFB45CFC))),
+        FocusGuardNavItem(FocusGuardScreen.STATS, Icons.Default.Insights, R.string.focusguard_nav_stats, listOf(Color(0xFF4CC9FF), Color(0xFFB45CFC)))
     )
     Row(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(26.dp))
-            .background(Color(0xFF0B0A10).copy(alpha = 0.94f))
+            .background(BgDeep.copy(alpha = 0.94f))
             .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(26.dp))
             .padding(horizontal = 6.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -120,12 +124,12 @@ private fun FocusGuardBottomNav(vm: FocusGuardViewModel, modifier: Modifier = Mo
                 Icon(
                     imageVector = item.icon,
                     contentDescription = null,
-                    tint = if (selected) Color.White else Color(0xFF7A7880),
+                    tint = if (selected) Color.White else TextTertiary,
                     modifier = Modifier.size(22.dp)
                 )
                 Text(
                     text = stringResource(item.labelRes),
-                    color = if (selected) Color.White else Color(0xFF7A7880),
+                    color = if (selected) Color.White else TextTertiary,
                     fontSize = 10.sp,
                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
                 )

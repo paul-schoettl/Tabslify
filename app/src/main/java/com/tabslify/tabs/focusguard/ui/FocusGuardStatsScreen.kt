@@ -15,6 +15,8 @@ import com.tabslify.R
 import com.tabslify.core.ui.TextSecondary
 import com.tabslify.tabs.focusguard.FocusGuardViewModel
 import com.tabslify.tabs.focusguard.data.ymdDaysAgo
+import com.tabslify.core.ui.Accent
+import com.tabslify.core.ui.SuccessGreen
 
 @Composable
 fun FocusGuardStatsScreen(vm: FocusGuardViewModel, modifier: Modifier = Modifier) {
@@ -56,7 +58,7 @@ fun FocusGuardStatsScreen(vm: FocusGuardViewModel, modifier: Modifier = Modifier
                         values = usageValues,
                         labels = labels,
                         maxValue = usageValues.maxOrNull() ?: 1f,
-                        color = Color(0xFFFF8A4C)
+                        color = Accent
                     )
                     Text(
                         text = stringResource(R.string.focusguard_stats_minutes),
@@ -80,7 +82,7 @@ fun FocusGuardStatsScreen(vm: FocusGuardViewModel, modifier: Modifier = Modifier
                         values = sleepValues,
                         labels = labels,
                         maxValue = 12f,
-                        color = Color(0xFF4CFCC1)
+                        color = SuccessGreen
                     )
                     Text(
                         text = "h",

@@ -78,6 +78,9 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
+import com.tabslify.core.ui.Accent
+import com.tabslify.core.ui.ErrorRed
+import com.tabslify.core.ui.SuccessGreen
 
 sealed class NoteType {
     data class Text(val content: String) : NoteType()
@@ -100,12 +103,12 @@ data class Note(
 
 enum class NoteColor(val color: Color) {
     DEFAULT(APP_COLOR),
-    RED(Color(0xFFF28B82)),
-    ORANGE(Color(0xFFFBBC04)),
-    YELLOW(Color(0xFFFFF475)),
-    GREEN(Color(0xFFCCFF90)),
-    BLUE(Color(0xFF1666FF)),
-    PURPLE(Color(0xFFCBB5F5))
+    RED(ErrorRed),
+    ORANGE(Color(0xFFC9A227)),
+    YELLOW(Color(0xFFC9B458)),
+    GREEN(SuccessGreen),
+    BLUE(Accent),
+    PURPLE(Color(0xFFB45CFC))
 }
 
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")

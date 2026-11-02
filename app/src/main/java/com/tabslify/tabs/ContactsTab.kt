@@ -50,6 +50,11 @@ import com.tabslify.R
 import com.tabslify.core.functions.errorInsert
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import com.tabslify.core.ui.Accent
+import com.tabslify.core.ui.BgCard
+import com.tabslify.core.ui.ErrorRed
+import com.tabslify.core.ui.SuccessGreen
+import com.tabslify.core.ui.TextSecondary
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.Instant
@@ -112,7 +117,7 @@ fun ContactsTabContent(
         ) {
             Button(
                 onClick = { onLoadContacts() },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFA500)),
+                colors = ButtonDefaults.buttonColors(containerColor = Accent),
                 modifier = Modifier
                     .weight(1f)
                     .height(56.dp)
@@ -137,7 +142,7 @@ fun ContactsTabContent(
 
         when {
             state.loading -> {
-                CircularProgressIndicator(color = Color(0xFFFFA500))
+                CircularProgressIndicator(color = Accent)
                 Spacer(Modifier.height(8.dp))
                 Text(stringResource(R.string.lade_kontakte), color = Color.White)
             }
@@ -208,7 +213,7 @@ fun ContactCard(
             .fillMaxWidth()
             .clickable { onEdit() }
             .alpha(alpha.value),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF3A3A3A))
+        colors = CardDefaults.cardColors(containerColor = BgCard)
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -223,7 +228,7 @@ fun ContactCard(
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = "📧 ${contact.email}",
-                    color = Color(0xFFCCCCCC),
+                    color = TextSecondary,
                     fontSize = 14.sp
                 )
             }
@@ -231,7 +236,7 @@ fun ContactCard(
                 Spacer(Modifier.height(2.dp))
                 Text(
                     text = "📱 ${contact.phone}",
-                    color = Color(0xFFCCCCCC),
+                    color = TextSecondary,
                     fontSize = 14.sp
                 )
             }
@@ -241,14 +246,14 @@ fun ContactCard(
             ) {
                 Button(
                     onClick = onEdit,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3)),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF5C8CFF)),
                     modifier = Modifier.height(40.dp)
                 ) {
                     Text(stringResource(R.string.bearbeiten), fontSize = 14.sp)
                 }
                 Button(
                     onClick = onDelete,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF44336)),
+                    colors = ButtonDefaults.buttonColors(containerColor = ErrorRed),
                     modifier = Modifier.height(40.dp)
                 ) {
                     Text(stringResource(R.string.loschen), fontSize = 14.sp)
@@ -307,7 +312,7 @@ fun ContactEditDialog(
                     )
                     onSave(updatedContact)
                 },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen)
             ) {
                 Text(stringResource(R.string.speichern))
             }

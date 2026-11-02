@@ -62,6 +62,11 @@ import com.tabslify.core.ui.AlertDialogTabslify
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
+import com.tabslify.core.ui.Accent
+import com.tabslify.core.ui.BgSurface
+import com.tabslify.core.ui.ErrorRed
+import com.tabslify.core.ui.TextPrimary
+import com.tabslify.core.ui.TextTertiary
 
 @Composable
 private fun MicPermissionDialog(
@@ -226,7 +231,7 @@ private fun AudioRecorderTabContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(
-                    Color(0xFF333333),
+                    BgSurface,
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
                 )
                 .padding(4.dp),
@@ -237,7 +242,7 @@ private fun AudioRecorderTabContent(
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (!isMediaRecorderMode) APP_BLUE else Color.Transparent,
-                    contentColor = Color.White
+                    contentColor = TextPrimary
                 )
             ) {
                 Text(stringResource(R.string.mikrofon))
@@ -247,7 +252,7 @@ private fun AudioRecorderTabContent(
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = if (isMediaRecorderMode) APP_BLUE else Color.Transparent,
-                    contentColor = Color.White
+                    contentColor = TextPrimary
                 )
             ) {
                 Text(stringResource(R.string.onscreen))
@@ -272,8 +277,8 @@ private fun AudioRecorderTabContent(
                 .fillMaxWidth()
                 .height(60.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = if (vm.isRecording) Color.Red else Color(0xFF1DB954),
-                contentColor = Color.White
+                containerColor = if (vm.isRecording) ErrorRed else Accent,
+                contentColor = TextPrimary
             )
         ) {
             Text(
@@ -303,7 +308,7 @@ private fun AudioRecorderTabContent(
         Text(
             text = stringResource(R.string.aufnahmen, vm.audioFiles.size),
             fontSize = 18.sp,
-            color = Color.White,
+            color = TextPrimary,
             modifier = Modifier
                 .padding(vertical = 8.dp)
                 .align(Alignment.Start)
@@ -349,10 +354,10 @@ fun PlayerSection(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFF333333))
+            .background(BgSurface)
             .padding(16.dp)
     ) {
-        Text(stringResource(R.string.player, file.name), color = Color.White)
+        Text(stringResource(R.string.player, file.name), color = TextPrimary)
 
         Slider(
             value = currentPosition,
@@ -368,8 +373,8 @@ fun PlayerSection(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(vm.formatTime(currentPosition.toInt()), color = Color.Gray, fontSize = 12.sp)
-            Text(vm.formatTime(duration.toInt()), color = Color.Gray, fontSize = 12.sp)
+            Text(vm.formatTime(currentPosition.toInt()), color = TextTertiary, fontSize = 12.sp)
+            Text(vm.formatTime(duration.toInt()), color = TextTertiary, fontSize = 12.sp)
         }
 
         Row(
@@ -382,15 +387,15 @@ fun PlayerSection(
                 Text(if (isPlaying) "⏸️" else "▶️")
             }
             Spacer(Modifier.width(8.dp))
-            Button(onClick = onStop, colors = ButtonDefaults.buttonColors(Color.Red)) {
+            Button(onClick = onStop, colors = ButtonDefaults.buttonColors(ErrorRed)) {
                 Text("⏹️")
             }
             Spacer(Modifier.width(8.dp))
-            Button(onClick = onShare, colors = ButtonDefaults.buttonColors(Color(0xFF25D366))) {
+            Button(onClick = onShare, colors = ButtonDefaults.buttonColors(Accent)) {
                 Text("📤")
             }
             Spacer(Modifier.width(8.dp))
-            Button(onClick = onClose, colors = ButtonDefaults.buttonColors(Color.Gray)) {
+            Button(onClick = onClose, colors = ButtonDefaults.buttonColors(TextTertiary)) {
                 Text("✖️")
             }
         }
@@ -408,20 +413,20 @@ fun FileItem(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp)
-            .background(if (isSelected) Color(0xFF444444) else Color(0xFF333333))
+            .background(if (isSelected) BgSurface else BgSurface)
             .clickable { onClick() }
             .padding(12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(file.name, color = Color.White)
+            Text(file.name, color = TextPrimary)
             Text(
                 SimpleDateFormat(
                     "dd.MM.yyyy HH:mm",
                     LocalLocale.current.platformLocale
                 ).format(Date(file.lastModified())),
-                color = Color.Gray,
+                color = TextTertiary,
                 fontSize = 11.sp
             )
         }
@@ -469,7 +474,7 @@ fun ShareDialog(
                 )
                 if (isProcessing) Text(
                     stringResource(R.string.verarbeite),
-                    color = Color(0xFFFFA500),
+                    color = Accent,
                     modifier = Modifier.padding(top = 8.dp)
                 )
             }
@@ -478,14 +483,14 @@ fun ShareDialog(
             Button(
                 onClick = { onShare(currentRange) },
                 enabled = !isProcessing,
-                colors = ButtonDefaults.buttonColors(Color(0xFF25D366))
+                colors = ButtonDefaults.buttonColors(Accent)
             ) { Text("WhatsApp") }
         },
         dismissButton = {
             Button(
                 onClick = onDismiss,
                 enabled = !isProcessing,
-                colors = ButtonDefaults.buttonColors(Color.Gray)
+                colors = ButtonDefaults.buttonColors(TextTertiary)
             ) {
                 Text(stringResource(R.string.abbrechen))
             }

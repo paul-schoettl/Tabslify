@@ -24,14 +24,17 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tabslify.R
+import com.tabslify.core.ui.Accent
+import com.tabslify.core.ui.AccentDim
 import com.tabslify.core.ui.BgCard
+import com.tabslify.core.ui.ErrorRed
+import com.tabslify.core.ui.SuccessGreen
 import com.tabslify.core.ui.TextPrimary
 import com.tabslify.core.ui.TextSecondary
 
@@ -71,15 +74,15 @@ fun VirusTotalScanBar(onOpenReport: (String) -> Unit, modifier: Modifier = Modif
                         is VirusTotalState.Loading -> {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(20.dp),
-                                color = Color(0xFF6B6BFF),
+                                color = Accent,
                                 strokeWidth = 2.dp
                             )
                         }
                         is VirusTotalState.Result -> {
                             val color = when {
-                                state.stats.malicious > 0 -> Color(0xFFF44336)
-                                state.stats.suspicious > 0 -> Color(0xFFFFAB00)
-                                else -> Color(0xFF4CAF50)
+                                state.stats.malicious > 0 -> ErrorRed
+                                state.stats.suspicious > 0 -> AccentDim
+                                else -> SuccessGreen
                             }
                             Box(
                                 modifier = Modifier
@@ -91,7 +94,7 @@ fun VirusTotalScanBar(onOpenReport: (String) -> Unit, modifier: Modifier = Modif
                             Box(
                                 modifier = Modifier
                                     .size(12.dp)
-                                    .background(Color(0xFFF44336), CircleShape)
+                                    .background(ErrorRed, CircleShape)
                             )
                         }
                         else -> {

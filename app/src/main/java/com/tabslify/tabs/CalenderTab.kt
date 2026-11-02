@@ -102,21 +102,21 @@ import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
 import java.util.UUID
+import com.tabslify.core.ui.Accent
+import com.tabslify.core.ui.AccentDim
+import com.tabslify.core.ui.AccentViolet
+import com.tabslify.core.ui.AccentVioletDim
+import com.tabslify.core.ui.BgCard
+import com.tabslify.core.ui.BgDeep
+import com.tabslify.core.ui.BgSurface
+import com.tabslify.core.ui.SuccessGreen
+import com.tabslify.core.ui.TextPrimary
+import com.tabslify.core.ui.TextSecondary
+import com.tabslify.core.ui.TextTertiary
 
 // ─────────────────────────────────────────────
 // DESIGN TOKENS  (matching MediaTab palette)
 // ─────────────────────────────────────────────
-private val BgDeep = Color(0xFF121212)
-private val BgSurface = Color(0xFF1E1E1E)
-private val BgCard = Color(0xFF2A2A2A)
-private val AccentViolet = Color(0xFFFF7A1A)
-private val AccentVioletDim = Color(0xFF8A3B0A)
-private val TextPrimary = Color(0xFFFFFFFF)
-private val TextSecondary = Color(0xFFB0B0B0)
-private val TextTertiary = Color(0xFF757575)
-private val NeonGreen = Color(0xFF39FF14)
-private val NeonBlue = Color(0xFF00CFFF)
-private val NeonPink = Color(0xFFFF2D78)
 
 // ─────────────────────────────────────────────
 // DATA MODELS
@@ -360,7 +360,7 @@ private fun CalendarHeader(
         }
 
         TextButton(onClick = onToday) {
-            Text(stringResource(R.string.heute), color = NeonGreen, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            Text(stringResource(R.string.heute), color = SuccessGreen, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
         }
 
         IconButton(onClick = onNext) {
@@ -453,7 +453,7 @@ private fun DayCell(
     }
     val textColor = when {
         isSelected -> TextPrimary
-        isToday -> NeonGreen
+        isToday -> SuccessGreen
         else -> TextSecondary
     }
 
@@ -478,7 +478,7 @@ private fun DayCell(
                     modifier = Modifier
                         .size(4.dp)
                         .clip(CircleShape)
-                        .background(if (isSelected) NeonGreen else AccentViolet)
+                        .background(if (isSelected) SuccessGreen else AccentViolet)
                 )
             }
         }
@@ -649,12 +649,12 @@ private fun DayTimeline(
                         // "now" indicator
                         val nowY = nowMinute * minuteHeightDp.toPx()
                         drawLine(
-                            color = NeonGreen,
+                            color = SuccessGreen,
                             start = Offset(0f, nowY),
                             end = Offset(size.width, nowY),
                             strokeWidth = 1.5f
                         )
-                        drawCircle(NeonGreen, radius = 4f, center = Offset(0f, nowY))
+                        drawCircle(SuccessGreen, radius = 4f, center = Offset(0f, nowY))
                     }
 
                     // Render entries as overlapping blocks
@@ -729,8 +729,8 @@ private fun EntryBlock(
 // ─────────────────────────────────────────────
 
 private val entryColors = listOf(
-    AccentViolet, Color(0xFF00BCD4), NeonGreen, NeonPink,
-    Color(0xFFFDD835), Color(0xFFFF7043), NeonBlue, Color(0xFF66BB6A)
+    Accent, Color(0xFF4CC9FF), SuccessGreen, Color(0xFFB45CFC),
+    AccentDim, Color(0xFF5C8CFF), Color(0xFF2ECC71), Color(0xFF9A8CFF)
 )
 
 @Composable
@@ -872,7 +872,7 @@ private fun EntryDialog(
                         val durationMin = endMin - startMin
                         Text(
                             stringResource(R.string.dauer_h_min, durationMin / 60, durationMin % 60),
-                            color = NeonGreen,
+                            color = SuccessGreen,
                             fontSize = 12.sp
                         )
                     }
@@ -915,8 +915,8 @@ private fun EntryDialog(
                             OutlinedButton(
                                 onClick = { showDeleteConfirm = true },
                                 modifier = Modifier.weight(1f),
-                                border = BorderStroke(1.dp, NeonPink),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonPink)
+                                border = BorderStroke(1.dp, Color(0xFFB45CFC)),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFB45CFC))
                             ) { Text(stringResource(R.string.loschen)) }
                         }
                         Button(
@@ -961,7 +961,7 @@ private fun EntryDialog(
             },
             confirmButton = {
                 TextButton(onClick = { onDelete?.invoke(); showDeleteConfirm = false }) {
-                    Text(stringResource(R.string.loschen), color = NeonPink)
+                    Text(stringResource(R.string.loschen), color = Color(0xFFB45CFC))
                 }
             },
             dismissButton = {
@@ -1061,7 +1061,7 @@ private fun MinutePicker(
                         .height(28.dp)
                         .border(
                             width = 1.dp,
-                            brush = Brush.horizontalGradient(listOf(AccentViolet, NeonBlue)),
+                            brush = Brush.horizontalGradient(listOf(AccentViolet, Color(0xFF4CC9FF))),
                             shape = RoundedCornerShape(4.dp)
                         )
                 )

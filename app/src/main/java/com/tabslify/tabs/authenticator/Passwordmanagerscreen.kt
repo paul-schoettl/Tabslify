@@ -107,16 +107,25 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.tabslify.core.ui.Accent
+import com.tabslify.core.ui.BgCard
+import com.tabslify.core.ui.BgDeep
+import com.tabslify.core.ui.BgSurface
+import com.tabslify.core.ui.ErrorRed
+import com.tabslify.core.ui.TextPrimary
+import com.tabslify.core.ui.TextSecondary
+import com.tabslify.core.ui.TextTertiary
 import kotlin.time.Duration.Companion.milliseconds
+import com.tabslify.core.ui.SuccessGreen
 
-val Surface1 = Color(0xFF17171C)
-val Surface2 = Color(0xFF1F1F27)
-val Surface3 = Color(0xFF2A2A35)
-val AccentBlue = Color(0xFF4A90E2)
-private val AccentRed = Color(0xFFE74C3C)
-val TextP = Color(0xFFEEEEF5)
-val TextS = Color(0xFF8A8A9F)
-private val TextT = Color(0xFF55556A)
+val Surface1 = BgDeep
+val Surface2 = BgSurface
+val Surface3 = BgCard
+val AccentBlue = Accent
+private val AccentRed = ErrorRed
+val TextP = TextPrimary
+val TextS = TextSecondary
+private val TextT = TextTertiary
 
 @Composable
 fun PasswordManagerScreen(
@@ -1662,7 +1671,7 @@ fun SyncConflictDialog(
 @Composable
 private fun SyncDiagnosisStatusRow(label: String, value: String, ok: Boolean?) {
     val color = when (ok) {
-        true -> Color(0xFF4CAF50)
+        true -> SuccessGreen
         false -> AccentRed
         null -> TextS
     }

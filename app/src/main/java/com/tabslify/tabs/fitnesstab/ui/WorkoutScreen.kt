@@ -69,11 +69,16 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.tabslify.R
+import com.tabslify.core.ui.Accent
+import com.tabslify.core.ui.AccentDim
 import com.tabslify.core.ui.AlertDialogTabslify
 import com.tabslify.core.ui.AppBackground
 import com.tabslify.core.ui.BgCard
+import com.tabslify.core.ui.BgSurface
+import com.tabslify.core.ui.ErrorRed
 import com.tabslify.core.ui.NeonBox
 import com.tabslify.core.ui.PloppingButton
+import com.tabslify.core.ui.SuccessGreen
 import com.tabslify.core.ui.TextPrimary
 import com.tabslify.core.ui.TextSecondary
 import com.tabslify.core.ui.TextTertiary
@@ -86,13 +91,10 @@ import com.tabslify.tabs.fitnesstab.data.MuscleGroup
 import com.tabslify.tabs.fitnesstab.data.TrackingType
 import kotlin.math.roundToInt
 
-private val AccentOrange = Color(0xFFFF8A4C)
-private val AccentGreen = Color(0xFF5BE388)
-private val AccentBlue = Color(0xFF4CC9FF)
-private val AccentYellow = Color(0xFFFFD74C)
-private val AccentPink = Color(0xFFE850A5)
-
-private val BgSoft = Color(0xFF242424)
+private val AccentGreen = SuccessGreen
+private val AccentBlue = Color(0xFF5C8CFF)
+private val AccentYellow = AccentDim
+private val AccentPink = Color(0xFF9A8CFF)
 
 private fun MuscleGroup.groupEmoji() = when (this) {
     MuscleGroup.CHEST -> "💪"
@@ -106,14 +108,14 @@ private fun MuscleGroup.groupEmoji() = when (this) {
 }
 
 private fun MuscleGroup.groupColors(): List<Color> = when (this) {
-    MuscleGroup.CHEST -> listOf(AccentOrange, Color(0xFFFF4C4C))
-    MuscleGroup.BACK -> listOf(Color(0xFF2ECC71), Color(0xFF1ABC9C))
-    MuscleGroup.LEGS -> listOf(Color(0xFF8A4CFF), Color(0xFF4C4CFF))
+    MuscleGroup.CHEST -> listOf(Accent, Color(0xFFB45CFC))
+    MuscleGroup.BACK -> listOf(SuccessGreen, Color(0xFF4CC9FF))
+    MuscleGroup.LEGS -> listOf(Accent, AccentDim)
     MuscleGroup.CORE -> listOf(Color(0xFFB45CFC), AccentPink)
-    MuscleGroup.SHOULDERS -> listOf(AccentYellow, AccentOrange)
-    MuscleGroup.ARMS -> listOf(AccentPink, Color(0xFFFF4C4C))
-    MuscleGroup.CARDIO -> listOf(Color(0xFFE850A5), Color(0xFFFF4C7A))
-    MuscleGroup.FULLBODY -> listOf(AccentBlue, Color(0xFF5BE388))
+    MuscleGroup.SHOULDERS -> listOf(AccentYellow, Accent)
+    MuscleGroup.ARMS -> listOf(AccentPink, AccentDim)
+    MuscleGroup.CARDIO -> listOf(Color(0xFFB45CFC), AccentDim)
+    MuscleGroup.FULLBODY -> listOf(AccentBlue, SuccessGreen)
 }
 
 @Composable
@@ -177,7 +179,7 @@ private fun ModeSwitchOverlay(
     NeonBox(
         modifier = modifier,
         cornerRadius = RoundedCornerShape(14.dp),
-        neonColors = listOf(AccentBlue, AccentViolet)
+        neonColors = listOf(AccentBlue, AccentDim)
     ) {
         IconButton(onClick = onSwitch) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -187,8 +189,6 @@ private fun ModeSwitchOverlay(
         }
     }
 }
-
-private val AccentViolet = Color(0xFFFF5A1F)
 
 @Composable
 private fun ManualWorkoutContent(
@@ -207,7 +207,7 @@ private fun ManualWorkoutContent(
                 .fillMaxWidth()
                 .padding(start = 14.dp, end = 14.dp, top = 8.dp),
             cornerRadius = RoundedCornerShape(20.dp),
-            neonColors = listOf(AccentOrange, AccentViolet)
+            neonColors = listOf(Accent, AccentDim)
         ) {
             Column(Modifier.padding(14.dp)) {
                 Row(
@@ -231,7 +231,7 @@ private fun ManualWorkoutContent(
                     Column(horizontalAlignment = Alignment.End) {
                         Text(
                             text = "%02d:%02d".format(minutes, seconds),
-                            color = AccentOrange,
+                            color = Accent,
                             fontWeight = FontWeight.Black,
                             fontSize = 28.sp,
                             letterSpacing = 1.sp
@@ -265,13 +265,13 @@ private fun ManualWorkoutContent(
                         singleLine = true,
                         modifier = Modifier.weight(1f),
                         colors = OutlinedTextFieldDefaults.colors(
-                            unfocusedContainerColor = BgSoft,
-                            focusedContainerColor = BgSoft,
-                            focusedBorderColor = AccentViolet,
+                            unfocusedContainerColor = BgCard,
+                            focusedContainerColor = BgCard,
+                            focusedBorderColor = AccentDim,
                             unfocusedBorderColor = Color(0x40FFFFFF),
                             focusedTextColor = TextPrimary,
                             unfocusedTextColor = TextPrimary,
-                            cursorColor = AccentViolet
+                            cursorColor = AccentDim
                         ),
                         shape = RoundedCornerShape(12.dp)
                     )
@@ -299,7 +299,7 @@ private fun ManualWorkoutContent(
                         .fillMaxWidth()
                         .height(32.dp)
                         .clip(RoundedCornerShape(10.dp))
-                        .background(BgSoft)
+                        .background(BgCard)
                 ) {
                     Box(
                         Modifier
@@ -308,7 +308,7 @@ private fun ManualWorkoutContent(
                             .clickable { }
                             .background(
                                 Brush.linearGradient(
-                                    listOf(AccentViolet, AccentBlue)
+                                    listOf(AccentDim, AccentBlue)
                                 ),
                                 RoundedCornerShape(10.dp)
                             ),
@@ -380,7 +380,7 @@ private fun ManualWorkoutContent(
                     ) {
                         PloppingButton(
                             onClick = onAddExercise,
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1F2A33)),
+                            colors = ButtonDefaults.buttonColors(containerColor = BgSurface),
                             modifier = Modifier.weight(1f)
                         ) {
                             Row(
@@ -482,9 +482,9 @@ private fun RestTimerCard(vm: FitnessViewModel) {
     val total = vm.restTimerSeconds
     val running = vm.restTimerRunning
     val color = when {
-        running && rem > 0 -> if (rem < 15) Color(0xFFFF4C4C) else AccentBlue
+        running && rem > 0 -> if (rem < 15) ErrorRed else AccentBlue
         !running && rem == 0 -> AccentGreen
-        else -> AccentViolet
+        else -> AccentDim
     }
     NeonBox(
         modifier = Modifier
@@ -529,7 +529,7 @@ private fun RestTimerCard(vm: FitnessViewModel) {
                 Row(
                     Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .background(BgSoft)
+                        .background(BgCard)
                         .clickable { expandRest = true }
                         .padding(horizontal = 10.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -580,7 +580,7 @@ private fun RestTimerCard(vm: FitnessViewModel) {
                     .background(
                         Brush.linearGradient(
                             listOf(
-                                if (running) Color(0xFFFF4C4C) else AccentGreen,
+                                if (running) ErrorRed else AccentGreen,
                                 if (running) AccentPink else AccentBlue
                             )
                         )
@@ -630,7 +630,7 @@ private fun EmptyWorkoutHint(onAddExercise: () -> Unit) {
                 .fillMaxWidth()
                 .height(54.dp)
                 .background(
-                    Brush.linearGradient(listOf(AccentViolet, AccentBlue)),
+                    Brush.linearGradient(listOf(AccentDim, AccentBlue)),
                     RoundedCornerShape(16.dp)
                 )
         ) {
@@ -779,7 +779,7 @@ private fun ExerciseEntryCard(
             // ADD SET
             PloppingButton(
                 onClick = { vm.addSetToEntry(entryId) },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1A2530)),
+                colors = ButtonDefaults.buttonColors(containerColor = BgCard),
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(38.dp)
@@ -813,7 +813,7 @@ private fun SetRow(
             .fillMaxWidth()
             .height(46.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(if (set.completed) Color(0x145BE388) else BgSoft),
+            .background(if (set.completed) SuccessGreen.copy(alpha = 0.08f) else BgCard),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
@@ -939,14 +939,14 @@ private fun CompactSetField(
             fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.Center
         ),
-        cursorBrush = SolidColor(AccentViolet),
+        cursorBrush = SolidColor(AccentDim),
         modifier = Modifier
             .fillMaxSize()
             .clip(RoundedCornerShape(9.dp))
             .background(Color.Black.copy(alpha = 0.28f))
             .border(
                 1.dp,
-                if (focused) AccentViolet else Color(0x26FFFFFF),
+                if (focused) AccentDim else Color(0x26FFFFFF),
                 RoundedCornerShape(9.dp)
             )
             .onFocusChanged { focused = it.isFocused }
@@ -977,7 +977,7 @@ private fun DifficultyDotChip(level: Difficulty) {
     val c = when (level) {
         Difficulty.BEGINNER -> AccentGreen
         Difficulty.INTERMEDIATE -> AccentYellow
-        Difficulty.ADVANCED -> Color(0xFFFF4C4C)
+        Difficulty.ADVANCED -> Color(0xFFB45CFC)
     }
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         Box(Modifier.size(7.dp).clip(RoundedCornerShape(50)).background(c))
@@ -1044,7 +1044,7 @@ private fun ExercisePickerDialog(
                     NeonBox(
                         modifier = Modifier.size(42.dp),
                         cornerRadius = RoundedCornerShape(12.dp),
-                        neonColors = listOf(AccentViolet, AccentBlue),
+                        neonColors = listOf(AccentDim, AccentBlue),
                         onClick = onDismiss
                     ) {
                         Icon(Icons.Default.Close, contentDescription = null, tint = TextPrimary)
@@ -1073,11 +1073,11 @@ private fun ExercisePickerDialog(
                     colors = OutlinedTextFieldDefaults.colors(
                         unfocusedContainerColor = BgCard,
                         focusedContainerColor = BgCard,
-                        focusedBorderColor = AccentViolet,
+                        focusedBorderColor = AccentDim,
                         unfocusedBorderColor = Color(0x30FFFFFF),
                         focusedTextColor = TextPrimary,
                         unfocusedTextColor = TextPrimary,
-                        cursorColor = AccentViolet
+                        cursorColor = AccentDim
                     ),
                     shape = RoundedCornerShape(14.dp)
                 )
@@ -1163,7 +1163,7 @@ private fun <T> FilterChipRow(
     ) {
         items(options) { opt ->
             val isSelected = opt.second == selected
-            val bg = if (isSelected) Brush.linearGradient(listOf(AccentViolet, AccentBlue)) else null
+            val bg = if (isSelected) Brush.linearGradient(listOf(AccentDim, AccentBlue)) else null
             Box(
                 Modifier
                     .height(30.dp)

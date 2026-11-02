@@ -79,7 +79,12 @@ import com.tabslify.apkm.ApkmParseException
 import com.tabslify.apkm.InstallOutcome
 import com.tabslify.apkm.ParseError
 import com.tabslify.apkm.SignatureState
+import com.tabslify.core.ui.Accent
+import com.tabslify.core.ui.AccentDim
+import com.tabslify.core.ui.BgDeep
+import com.tabslify.core.ui.ErrorRed
 import com.tabslify.core.ui.NeonBox
+import com.tabslify.core.ui.SuccessGreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
@@ -91,13 +96,6 @@ import androidx.compose.foundation.Image as ImageComposable
 var pendingApkmUri: Uri? by mutableStateOf(null)
 
 private enum class ApkmPhase { LOADING, ERROR, READY, INSTALLING, SUCCESS, FAILURE }
-
-private val AccentCyan = Color(0xFF00E5FF)
-private val AccentViolet = Color(0xFF7C4DFF)
-private val AccentOrange = Color(0xFFE8622A)
-private val AccentGreen = Color(0xFF37D67A)
-private val AccentRed = Color(0xFFFF5252)
-private val AccentAmber = Color(0xFFFFB300)
 
 @Composable
 fun ApkmInstallerTabContent(uri: Uri, onDone: () -> Unit) {
@@ -226,7 +224,7 @@ fun ApkmInstallerTabContent(uri: Uri, onDone: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xF20B0B10))
+            .background(BgDeep.copy(alpha = 0.95f))
             .padding(16.dp)
     ) {
         when (phase) {
@@ -260,7 +258,7 @@ private fun LoadingContent(text: String, progress: Float?) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        CircularProgressIndicator(color = AccentCyan, modifier = Modifier.size(56.dp))
+        CircularProgressIndicator(color = Color(0xFF4CC9FF), modifier = Modifier.size(56.dp))
         Spacer(Modifier.height(24.dp))
         Text(text, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium)
         if (progress != null) {
@@ -270,7 +268,7 @@ private fun LoadingContent(text: String, progress: Float?) {
                 modifier = Modifier
                     .fillMaxWidth(0.7f)
                     .clip(RoundedCornerShape(4.dp)),
-                color = AccentCyan,
+                color = Color(0xFF4CC9FF),
                 trackColor = Color.White.copy(alpha = 0.12f)
             )
             Spacer(Modifier.height(8.dp))
@@ -294,7 +292,7 @@ private fun ErrorContent(
     Column(modifier = Modifier.fillMaxSize()) {
         NeonBox(
             modifier = Modifier.fillMaxWidth(),
-            neonColors = listOf(AccentRed, AccentOrange),
+            neonColors = listOf(ErrorRed, AccentDim),
             backgroundAlpha = 0.18f
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
@@ -304,11 +302,11 @@ private fun ErrorContent(
             }
         }
         Spacer(Modifier.height(16.dp))
-        ExpandableNeonSection(stringResource(R.string.logs), stringResource(R.string.technische_details), listOf(AccentViolet, AccentCyan)) {
+        ExpandableNeonSection(stringResource(R.string.logs), stringResource(R.string.technische_details), listOf(Accent, Color(0xFF4CC9FF))) {
             LogView(installer)
         }
         Spacer(Modifier.weight(1f))
-        GlowButton(stringResource(R.string.schliesen), listOf(AccentRed, AccentOrange), onClick = onRetry)
+        GlowButton(stringResource(R.string.schliesen), listOf(ErrorRed, AccentDim), onClick = onRetry)
     }
 }
 
@@ -351,7 +349,7 @@ private fun ReadyContent(
             ExpandableNeonSection(
                 stringResource(R.string.enthaltene_apks),
                 stringResource(R.string.dateien_ausgewahlt, pkg.apks.size, selectedApks.size),
-                listOf(AccentCyan, AccentViolet),
+                listOf(Color(0xFF4CC9FF), Accent),
                 initiallyExpanded = false
             ) {
                 ApkSelectionList(pkg, selection, onToggleApk)
@@ -362,7 +360,7 @@ private fun ReadyContent(
             ExpandableNeonSection(
                 stringResource(R.string.signatur_version),
                 signatureLabel(pkg.signatureState),
-                listOf(if (mismatch) AccentRed else AccentGreen, AccentCyan)
+                listOf(if (mismatch) ErrorRed else SuccessGreen, Color(0xFF4CC9FF))
             ) {
                 SignatureDetails(pkg)
             }
@@ -372,21 +370,21 @@ private fun ReadyContent(
             ExpandableNeonSection(
                 stringResource(R.string.gerateabgleich),
                 stringResource(R.string.abis_sprachen_auflosung),
-                listOf(AccentViolet, AccentOrange)
+                listOf(Accent, AccentDim)
             ) {
                 DeviceMatchDetails(pkg)
             }
 
             if (pkg.infoJsonRaw != null) {
                 Spacer(Modifier.height(12.dp))
-                ExpandableNeonSection("info.json", stringResource(R.string.rohe_bundle_metadaten), listOf(AccentOrange, AccentAmber)) {
+                ExpandableNeonSection("info.json", stringResource(R.string.rohe_bundle_metadaten), listOf(AccentDim, AccentDim)) {
                     MonospaceBlock(pkg.infoJsonRaw)
                 }
             }
 
             Spacer(Modifier.height(12.dp))
 
-            ExpandableNeonSection(stringResource(R.string.logs_live), pluralStringResource(R.plurals.eintrage, installer.logs.size, installer.logs.size), listOf(AccentViolet, AccentCyan)) {
+            ExpandableNeonSection(stringResource(R.string.logs_live), pluralStringResource(R.plurals.eintrage, installer.logs.size, installer.logs.size), listOf(Accent, Color(0xFF4CC9FF))) {
                 LogView(installer)
             }
 
@@ -400,8 +398,8 @@ private fun ReadyContent(
         val (btnLabel, btnColors) = when {
             needsInstallPermission -> stringResource(R.string.erst_quelle_erlauben) to listOf(Color.Gray, Color.DarkGray)
             mismatch && !signatureAcknowledged -> stringResource(R.string.signaturrisiko_bestatigen) to listOf(Color.Gray, Color.DarkGray)
-            mismatch -> stringResource(R.string.trotz_signaturkonflikt_installieren) to listOf(AccentRed, AccentOrange)
-            else -> stringResource(R.string.installieren, humanSize(selectedSize)) to listOf(AccentGreen, AccentCyan)
+            mismatch -> stringResource(R.string.trotz_signaturkonflikt_installieren) to listOf(ErrorRed, AccentDim)
+            else -> stringResource(R.string.installieren, humanSize(selectedSize)) to listOf(Accent, AccentDim)
         }
 
         GlowButton(
@@ -421,7 +419,7 @@ private fun AppHeaderCard(pkg: ApkmPackage, selectedSize: Long, selectedCount: I
 
     NeonBox(
         modifier = Modifier.fillMaxWidth(),
-        neonColors = listOf(AccentCyan, AccentViolet),
+        neonColors = listOf(Color(0xFF4CC9FF), Accent),
         backgroundAlpha = 0.16f
     ) {
         Row(
@@ -442,7 +440,7 @@ private fun AppHeaderCard(pkg: ApkmPackage, selectedSize: Long, selectedCount: I
                 )
                 Text(
                     pkg.packageName,
-                    color = AccentCyan.copy(alpha = 0.85f),
+                    color = Color(0xFF4CC9FF).copy(alpha = 0.85f),
                     fontSize = 12.sp,
                     fontFamily = FontFamily.Monospace,
                     maxLines = 1
@@ -499,7 +497,7 @@ private fun SignatureWarningCard(
 ) {
     NeonBox(
         modifier = Modifier.fillMaxWidth(),
-        neonColors = listOf(AccentRed, AccentAmber),
+        neonColors = listOf(ErrorRed, AccentDim),
         backgroundAlpha = 0.2f
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
@@ -517,7 +515,7 @@ private fun SignatureWarningCard(
                     onCheckedChange = { if (it) onAcknowledge() },
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = Color.White,
-                        checkedTrackColor = AccentRed,
+                        checkedTrackColor = ErrorRed,
                         uncheckedThumbColor = Color.Gray,
                         uncheckedTrackColor = Color.DarkGray
                     )
@@ -537,7 +535,7 @@ private fun SignatureWarningCard(
 private fun PermissionCard(onRequest: () -> Unit) {
     NeonBox(
         modifier = Modifier.fillMaxWidth(),
-        neonColors = listOf(AccentAmber, AccentOrange),
+        neonColors = listOf(AccentDim, AccentDim),
         backgroundAlpha = 0.18f
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
@@ -549,7 +547,7 @@ private fun PermissionCard(onRequest: () -> Unit) {
                 fontSize = 13.sp
             )
             Spacer(Modifier.height(14.dp))
-            GlowButton(stringResource(R.string.installationsquelle_erlauben), listOf(AccentAmber, AccentOrange), onClick = onRequest)
+            GlowButton(stringResource(R.string.installationsquelle_erlauben), listOf(AccentDim, AccentDim), onClick = onRequest)
         }
     }
 }
@@ -566,7 +564,7 @@ private fun ApkSelectionList(
             val entries = grouped[kind] ?: return@forEach
             Text(
                 kindLabel(kind),
-                color = AccentCyan.copy(alpha = 0.8f),
+                color = Color(0xFF4CC9FF).copy(alpha = 0.8f),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(top = 10.dp, bottom = 4.dp)
@@ -585,11 +583,11 @@ private fun ApkSelectionList(
                             Text(apk.fileName, color = Color.White, fontSize = 13.sp)
                             if (apk.recommended && !isBase) {
                                 Spacer(Modifier.width(6.dp))
-                                Tag(stringResource(R.string.empfohlen), AccentGreen)
+                                Tag(stringResource(R.string.empfohlen), SuccessGreen)
                             }
                             if (isBase) {
                                 Spacer(Modifier.width(6.dp))
-                                Tag(stringResource(R.string.erforderlich), AccentAmber)
+                                Tag(stringResource(R.string.erforderlich), AccentDim)
                             }
                         }
                         Text(
@@ -604,10 +602,10 @@ private fun ApkSelectionList(
                         onCheckedChange = { onToggle(apk, it) },
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Color.White,
-                            checkedTrackColor = AccentCyan,
+                            checkedTrackColor = Color(0xFF4CC9FF),
                             uncheckedThumbColor = Color.Gray,
                             uncheckedTrackColor = Color.DarkGray,
-                            disabledCheckedTrackColor = AccentCyan.copy(alpha = 0.5f),
+                            disabledCheckedTrackColor = Color(0xFF4CC9FF).copy(alpha = 0.5f),
                             disabledCheckedThumbColor = Color.White
                         )
                     )
@@ -650,13 +648,13 @@ private fun InstallingContent(status: String, installer: ApkmInstaller) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(Modifier.height(24.dp))
-        CircularProgressIndicator(color = AccentGreen, modifier = Modifier.size(56.dp))
+        CircularProgressIndicator(color = SuccessGreen, modifier = Modifier.size(56.dp))
         Spacer(Modifier.height(20.dp))
         Text(status, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium)
         Spacer(Modifier.height(24.dp))
         NeonBox(
             modifier = Modifier.fillMaxWidth(),
-            neonColors = listOf(AccentViolet, AccentCyan),
+            neonColors = listOf(Accent, Color(0xFF4CC9FF)),
             backgroundAlpha = 0.12f
         ) {
             Box(modifier = Modifier.padding(12.dp)) { LogView(installer) }
@@ -675,7 +673,7 @@ private fun ResultContent(
     Column(modifier = Modifier.fillMaxSize()) {
         NeonBox(
             modifier = Modifier.fillMaxWidth(),
-            neonColors = if (success) listOf(AccentGreen, AccentCyan) else listOf(AccentRed, AccentOrange),
+            neonColors = if (success) listOf(SuccessGreen, Color(0xFF4CC9FF)) else listOf(ErrorRed, AccentDim),
             backgroundAlpha = 0.18f
         ) {
             Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -701,7 +699,7 @@ private fun ResultContent(
                     Spacer(Modifier.height(6.dp))
                     Text(
                         stringResource(R.string.es_wurde_nichts_teilweise_installiert),
-                        color = AccentAmber,
+                        color = AccentDim,
                         fontSize = 12.sp
                     )
                 }
@@ -711,7 +709,7 @@ private fun ResultContent(
         ExpandableNeonSection(
             stringResource(R.string.logs),
             pluralStringResource(R.plurals.eintrage, installer.logs.size, installer.logs.size),
-            listOf(AccentViolet, AccentCyan),
+            listOf(Accent, Color(0xFF4CC9FF)),
             initiallyExpanded = !success
         ) {
             LogView(installer)
@@ -719,7 +717,7 @@ private fun ResultContent(
         Spacer(Modifier.weight(1f))
         GlowButton(
             if (success) stringResource(R.string.fertig_2) else stringResource(R.string.schliesen),
-            if (success) listOf(AccentGreen, AccentCyan) else listOf(AccentRed, AccentOrange),
+            if (success) listOf(SuccessGreen, Color(0xFF4CC9FF)) else listOf(ErrorRed, AccentDim),
             onClick = onDone
         )
     }
@@ -831,7 +829,7 @@ private fun LogView(installer: ApkmInstaller) {
                     installer.logs.forEach { line ->
                         Text(
                             line,
-                            color = Color(0xFF9BE7A0),
+                            color = SuccessGreen,
                             fontSize = 10.sp,
                             fontFamily = FontFamily.Monospace,
                             lineHeight = 14.sp
@@ -843,7 +841,7 @@ private fun LogView(installer: ApkmInstaller) {
         Spacer(Modifier.height(8.dp))
         Text(
             stringResource(R.string.logs_kopieren),
-            color = AccentCyan,
+            color = Color(0xFF4CC9FF),
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier

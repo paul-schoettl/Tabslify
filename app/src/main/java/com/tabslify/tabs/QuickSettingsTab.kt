@@ -70,6 +70,11 @@ import java.util.Date
 import java.util.Locale
 import kotlin.math.sqrt
 import kotlin.time.Duration.Companion.milliseconds
+import com.tabslify.core.ui.Accent
+import com.tabslify.core.ui.BgCard
+import com.tabslify.core.ui.BgSurface
+import com.tabslify.core.ui.TextPrimary
+import com.tabslify.core.ui.TextTertiary
 
 @Composable
 fun QuickSettingsTabContent() {
@@ -183,7 +188,7 @@ fun QuickSettingRow(buttons: List<Pair<String, () -> Unit>>) {
                 modifier = Modifier
                     .weight(1f)
                     .height(80.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF444444))
+                colors = ButtonDefaults.buttonColors(containerColor = BgSurface)
             ) { Text(text = label, fontSize = 12.sp, textAlign = TextAlign.Center) }
         }
     }
@@ -394,11 +399,11 @@ fun NumberInputDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF2A2A2A),
+        containerColor = BgCard,
         title = {
             Text(
                 text = stringResource(R.string.nummer_eingeben),
-                color = Color.White,
+                color = TextPrimary,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -408,7 +413,7 @@ fun NumberInputDialog(
                 if (currentNumber.isNotEmpty()) {
                     Text(
                         text = stringResource(R.string.gespeicherte_nummer, currentNumber),
-                        color = Color(0xFF4CAF50),
+                        color = Accent,
                         fontSize = 14.sp,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
@@ -417,7 +422,7 @@ fun NumberInputDialog(
                 OutlinedTextField(
                     value = numberText,
                     onValueChange = { numberText = it },
-                    label = { Text(stringResource(R.string.nummer), color = Color.Gray) },
+                    label = { Text(stringResource(R.string.nummer), color = TextTertiary) },
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Number,
                         imeAction = ImeAction.Done
@@ -426,11 +431,11 @@ fun NumberInputDialog(
                         onDone = { onSave(numberText) }
                     ),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White,
-                        focusedBorderColor = Color(0xFF4CAF50),
-                        unfocusedBorderColor = Color.Gray,
-                        cursorColor = Color(0xFF4CAF50)
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary,
+                        focusedBorderColor = Accent,
+                        unfocusedBorderColor = TextTertiary,
+                        cursorColor = Accent
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -440,12 +445,12 @@ fun NumberInputDialog(
             TextButton(
                 onClick = { onSave(numberText) }
             ) {
-                Text(stringResource(R.string.speichern), color = Color(0xFF4CAF50))
+                Text(stringResource(R.string.speichern), color = Accent)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.abbrechen), color = Color.Gray)
+                Text(stringResource(R.string.abbrechen), color = TextTertiary)
             }
         }
     )

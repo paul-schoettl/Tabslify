@@ -75,8 +75,18 @@ import com.tabslify.core.objects.cancelOrphanedEmailNotifications
 import com.tabslify.core.objects.emailNotificationId
 import com.tabslify.core.objects.prvt
 import com.tabslify.core.TabNavigationViewModel
+import com.tabslify.core.ui.Accent
+import com.tabslify.core.ui.AccentSoft
 import com.tabslify.core.ui.AlertDialogTabslify
+import com.tabslify.core.ui.BgCard
+import com.tabslify.core.ui.BgDeep
+import com.tabslify.core.ui.BgSurface
+import com.tabslify.core.ui.Border
+import com.tabslify.core.ui.ErrorRed
 import com.tabslify.core.ui.SharedViewModel
+import com.tabslify.core.ui.TextPrimary
+import com.tabslify.core.ui.TextSecondary
+import com.tabslify.core.ui.TextTertiary
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
@@ -316,7 +326,7 @@ fun GmailTabContent(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(2.dp),
-                                color = Color(0xFF4285F4),
+                                color = Accent,
                                 trackColor = Color.Transparent
                             )
                         }
@@ -382,13 +392,13 @@ private fun AccountChip(label: String, active: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(14.dp))
-            .background(if (active) Color(0xFF1E2A3A) else Color(0xFF1A1A22))
+            .background(if (active) AccentSoft else BgCard)
             .clickable { onClick() }
             .padding(horizontal = 12.dp, vertical = 6.dp)
     ) {
         Text(
             label,
-            color = if (active) Color(0xFF7EB8F7) else Color(0xFF8888AA),
+            color = if (active) Accent else TextTertiary,
             fontSize = 12.sp,
             fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal
         )
@@ -443,7 +453,7 @@ fun EmailRow(email: EmailItem, onClick: () -> Unit, onLongClick: () -> Unit) {
                     .background(avatarColor),
                 contentAlignment = Alignment.Center
             ) {
-                Text(initial, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(initial, color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
 
             Spacer(Modifier.width(12.dp))
@@ -456,7 +466,7 @@ fun EmailRow(email: EmailItem, onClick: () -> Unit, onLongClick: () -> Unit) {
                 ) {
                     Text(
                         text = extractDisplayName(email.from),
-                        color = Color.White,
+                        color = TextPrimary,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
@@ -465,14 +475,14 @@ fun EmailRow(email: EmailItem, onClick: () -> Unit, onLongClick: () -> Unit) {
                     )
                     Text(
                         text = email.date,
-                        color = Color(0xFF555568),
+                        color = TextTertiary,
                         fontSize = 11.sp,
                     )
                 }
                 Spacer(Modifier.height(2.dp))
                 Text(
                     text = email.subject,
-                    color = Color(0xFFCCCCDD),
+                    color = TextSecondary,
                     fontSize = 13.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -486,7 +496,7 @@ fun EmailRow(email: EmailItem, onClick: () -> Unit, onLongClick: () -> Unit) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFF1E2A3A))
+                    .background(AccentSoft)
                     .padding(horizontal = 10.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.Top
             ) {
@@ -494,7 +504,7 @@ fun EmailRow(email: EmailItem, onClick: () -> Unit, onLongClick: () -> Unit) {
                 Spacer(Modifier.width(6.dp))
                 Text(
                     text = email.summary,
-                    color = Color(0xFF7EB8F7),
+                    color = Accent,
                     fontSize = 12.sp,
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis,
@@ -504,7 +514,7 @@ fun EmailRow(email: EmailItem, onClick: () -> Unit, onLongClick: () -> Unit) {
 
         HorizontalDivider(
             modifier = Modifier.padding(top = 10.dp),
-            color = Color(0xFF1E1E2A)
+            color = BgCard
         )
     }
 }
@@ -515,21 +525,21 @@ fun EmailDetailView(email: EmailItem, onBack: () -> Unit, onDelete: () -> Unit) 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF111114))
+            .background(BgDeep)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0xFF1A1A22))
+                .background(BgCard)
                 .padding(horizontal = 4.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = Color.White)
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = TextPrimary)
             }
             Text(
                 text = stringResource(R.string.e_mail),
-                color = Color.White,
+                color = TextPrimary,
                 fontSize = 17.sp,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.weight(1f)
@@ -538,11 +548,11 @@ fun EmailDetailView(email: EmailItem, onBack: () -> Unit, onDelete: () -> Unit) 
                 Icon(
                     Icons.Default.Delete,
                     stringResource(R.string.loschen),
-                    tint = Color(0xFFE57373)
+                    tint = ErrorRed
                 )
             }
         }
-        HorizontalDivider(color = Color(0xFF222230))
+        HorizontalDivider(color = Border)
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -552,7 +562,7 @@ fun EmailDetailView(email: EmailItem, onBack: () -> Unit, onDelete: () -> Unit) 
             item {
                 Text(
                     text = email.subject,
-                    color = Color.White,
+                    color = TextPrimary,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     lineHeight = 27.sp
@@ -563,7 +573,7 @@ fun EmailDetailView(email: EmailItem, onBack: () -> Unit, onDelete: () -> Unit) 
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(10.dp))
-                        .background(Color(0xFF1A1A22))
+                        .background(BgCard)
                         .padding(12.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
@@ -578,7 +588,7 @@ fun EmailDetailView(email: EmailItem, onBack: () -> Unit, onDelete: () -> Unit) 
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(10.dp))
-                            .background(Color(0xFF131E2E))
+                            .background(BgSurface)
                             .padding(12.dp),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
@@ -587,14 +597,14 @@ fun EmailDetailView(email: EmailItem, onBack: () -> Unit, onDelete: () -> Unit) 
                             Spacer(Modifier.width(6.dp))
                             Text(
                                 stringResource(R.string.ki_zusammenfassung),
-                                color = Color(0xFF4285F4),
+                                color = Accent,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
                         Text(
                             text = email.summary,
-                            color = Color(0xFF9EC8F5),
+                            color = Accent,
                             fontSize = 14.sp,
                             lineHeight = 21.sp
                         )
@@ -612,22 +622,22 @@ fun EmailDetailView(email: EmailItem, onBack: () -> Unit, onDelete: () -> Unit) 
                         .ifEmpty { listOf(content.trim()) }
                 }
                 val mdColors = markdownColor(
-                    text = Color(0xFFE2E2EC),
-                    dividerColor = Color(0xFF1E1E2A)
+                    text = TextPrimary,
+                    dividerColor = BgCard
                 )
                 val mdTypography = markdownTypography(
-                    text = TextStyle(fontSize = 15.sp, lineHeight = 21.sp, color = Color(0xFFE2E2EC)),
-                    paragraph = TextStyle(fontSize = 15.sp, lineHeight = 21.sp, color = Color(0xFFE2E2EC)),
-                    list = TextStyle(fontSize = 15.sp, lineHeight = 21.sp, color = Color(0xFFE2E2EC)),
-                    ordered = TextStyle(fontSize = 15.sp, lineHeight = 21.sp, color = Color(0xFFE2E2EC)),
-                    bullet = TextStyle(fontSize = 15.sp, lineHeight = 21.sp, color = Color(0xFFE2E2EC)),
-                    h1 = TextStyle(fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold, color = Color(0xFFF2F2F7)),
-                    h2 = TextStyle(fontSize = 20.sp, lineHeight = 26.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFF0F0F5)),
-                    h3 = TextStyle(fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFECECF2)),
-                    quote = TextStyle(fontSize = 15.sp, lineHeight = 21.sp, fontStyle = FontStyle.Italic, color = Color(0xFFBBBBCC)),
+                    text = TextStyle(fontSize = 15.sp, lineHeight = 21.sp, color = TextPrimary),
+                    paragraph = TextStyle(fontSize = 15.sp, lineHeight = 21.sp, color = TextPrimary),
+                    list = TextStyle(fontSize = 15.sp, lineHeight = 21.sp, color = TextPrimary),
+                    ordered = TextStyle(fontSize = 15.sp, lineHeight = 21.sp, color = TextPrimary),
+                    bullet = TextStyle(fontSize = 15.sp, lineHeight = 21.sp, color = TextPrimary),
+                    h1 = TextStyle(fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold, color = TextPrimary),
+                    h2 = TextStyle(fontSize = 20.sp, lineHeight = 26.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary),
+                    h3 = TextStyle(fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary),
+                    quote = TextStyle(fontSize = 15.sp, lineHeight = 21.sp, fontStyle = FontStyle.Italic, color = TextSecondary),
                     textLink = TextLinkStyles(
                         style = SpanStyle(
-                            color = Color(0xFF72B7FF),
+                            color = Accent,
                             fontWeight = FontWeight.SemiBold,
                             textDecoration = TextDecoration.Underline
                         )
@@ -654,13 +664,13 @@ fun MetaRow(label: String, value: String) {
     Row {
         Text(
             text = "$label:  ",
-            color = Color(0xFF555568),
+            color = TextTertiary,
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium
         )
         Text(
             text = value,
-            color = Color(0xFF9999AA),
+            color = TextTertiary,
             fontSize = 12.sp,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
@@ -676,8 +686,8 @@ fun LoadingPlaceholder() {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            CircularProgressIndicator(color = Color(0xFF4285F4))
-            Text(stringResource(R.string.emails_werden_geladen), color = Color(0xFF555568), fontSize = 14.sp)
+            CircularProgressIndicator(color = Accent)
+            Text(stringResource(R.string.emails_werden_geladen), color = TextTertiary, fontSize = 14.sp)
         }
     }
 }
@@ -693,21 +703,21 @@ fun ErrorPlaceholder(error: String, onRetry: () -> Unit) {
             Text("⚠️", fontSize = 40.sp)
             Text(
                 stringResource(R.string.fehler_beim_laden_2),
-                color = Color.White,
+                color = TextPrimary,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )
-            Text(error, color = Color(0xFF555568), fontSize = 13.sp, textAlign = TextAlign.Center)
+            Text(error, color = TextTertiary, fontSize = 13.sp, textAlign = TextAlign.Center)
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(20.dp))
-                    .background(Color(0xFF4285F4))
+                    .background(Accent)
                     .clickable { onRetry() }
                     .padding(horizontal = 24.dp, vertical = 10.dp)
             ) {
                 Text(
                     stringResource(R.string.erneut_versuchen),
-                    color = Color.White,
+                    color = TextPrimary,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -726,20 +736,20 @@ fun EmptyPlaceholder(onRefresh: () -> Unit) {
             Text("📭", fontSize = 48.sp)
             Text(
                 stringResource(R.string.keine_emails),
-                color = Color.White,
+                color = TextPrimary,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(20.dp))
-                    .background(Color(0xFF4285F4))
+                    .background(Accent)
                     .clickable { onRefresh() }
                     .padding(horizontal = 24.dp, vertical = 10.dp)
             ) {
                 Text(
                     stringResource(R.string.laden),
-                    color = Color.White,
+                    color = TextPrimary,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold
                 )

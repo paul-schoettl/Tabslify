@@ -447,6 +447,7 @@ fun PrivateTabslifyApp(
     onMenuClick: (() -> Unit)? = null,
     helpVisible: Boolean = false,
     onHelpVisibleChange: (Boolean) -> Unit = {},
+    onImmersiveChange: (Boolean) -> Unit = {},
     viewModel: TabNavigationViewModel = viewModel(),
     svm: SharedViewModel = viewModel()
 ) {
@@ -493,6 +494,7 @@ fun PrivateTabslifyApp(
 
     val activity = context as? Activity
     LaunchedEffect(isFullScreen) {
+        onImmersiveChange(isFullScreen)
         val controller = activity?.window?.insetsController ?: return@LaunchedEffect
         if (isFullScreen) {
             controller.hide(android.view.WindowInsets.Type.systemBars())
@@ -502,6 +504,10 @@ fun PrivateTabslifyApp(
         } else {
             controller.show(android.view.WindowInsets.Type.systemBars())
         }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose { onImmersiveChange(false) }
     }
 
     LaunchedEffect(selectedMenuItem) {
@@ -792,10 +798,11 @@ fun PrivateTabslifyApp(
                                 customView = null
                                 customViewCallback?.onCustomViewHidden()
                                 customViewCallback = null
-                                isFullScreen = false
-                                activity.window.insetsController?.show(
-                                    android.view.WindowInsets.Type.systemBars()
-                                )
+                                activity.window.insetsController?.apply {
+                                    hide(android.view.WindowInsets.Type.systemBars())
+                                    systemBarsBehavior =
+                                        WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                                }
                                 activity.requestedOrientation =
                                     ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
                             }

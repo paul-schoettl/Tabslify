@@ -17,11 +17,6 @@ import androidx.compose.animation.Animatable
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -29,7 +24,6 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -38,11 +32,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -70,23 +62,21 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
-import androidx.core.content.edit
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -101,7 +91,15 @@ import com.tabslify.core.objects.Config.client
 import com.tabslify.core.objects.Config.cms
 import com.tabslify.core.objects.tNotify
 import com.tabslify.core.objects.toast
+import com.tabslify.core.ui.Accent
+import com.tabslify.core.ui.AccentSoft
 import com.tabslify.core.ui.BackHintOverlay
+import com.tabslify.core.ui.BgCard
+import com.tabslify.core.ui.BgDeep
+import com.tabslify.core.ui.BgSurface
+import com.tabslify.core.ui.Border
+import com.tabslify.core.ui.TextPrimary
+import com.tabslify.core.ui.TextSecondary
 import com.tabslify.core.ui.hasSeenBackHint
 import com.tabslify.core.ui.markBackHintSeen
 import io.github.jan.supabase.functions.functions
@@ -325,6 +323,7 @@ fun WeatherTabContent(
     val scope = rememberCoroutineScope()
     var selectionState by remember { mutableStateOf(SelectionState(hour = null, dayIndex = null)) }
     var showBackHint by remember { mutableStateOf(false) }
+    val backHintVisible = rememberUpdatedState(showBackHint)
     var weather by remember { mutableStateOf<WeatherData?>(null) }
     var isLoading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -333,7 +332,7 @@ fun WeatherTabContent(
     val lifecycleOwner = LocalLifecycleOwner.current
 
     val animIconbg = remember { Animatable(1f) }
-    val animIconbgColor = remember { Animatable(Color(0xFFFF7A1A)) }
+    val animIconbgColor = remember { Animatable(Accent) }
 
     val blink = {
         scope.launch {
@@ -353,10 +352,14 @@ fun WeatherTabContent(
         viewModel.updateBackState(
             canNavigateBack = canGoBack,
             onNavigateBack = {
-                selectionState = if (selectionState.hour != null) {
-                    selectionState.copy(hour = null)
+                if (backHintVisible.value) {
+                    showBackHint = false
                 } else {
-                    selectionState.copy(dayIndex = null)
+                    selectionState = if (selectionState.hour != null) {
+                        selectionState.copy(hour = null)
+                    } else {
+                        selectionState.copy(dayIndex = null)
+                    }
                 }
             }
         )
@@ -458,7 +461,7 @@ fun WeatherTabContent(
             } finally {
                 isLoading = false
                 animIconbgColor.animateTo(
-                    Color(0xFFFF7A1A),
+                    Accent,
                     animationSpec = tween(durationMillis = 500)
                 )
             }
@@ -553,11 +556,11 @@ fun WeatherTabContent(
                         placeholder = { Text(stringResource(R.string.ort_suchen), color = Color.Gray) },
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF6B6BFF),
-                            unfocusedBorderColor = Color(0xFF44444F),
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            cursorColor = Color(0xFF6B6BFF)
+                            focusedBorderColor = Accent,
+                            unfocusedBorderColor = Border,
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary,
+                            cursorColor = Accent
                         ),
                         shape = RoundedCornerShape(12.dp),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -568,7 +571,7 @@ fun WeatherTabContent(
                         Icon(
                             Icons.Default.Search,
                             contentDescription = stringResource(R.string.search),
-                            tint = Color.White
+                            tint = TextPrimary
                         )
                     }
                     if (ActivityCompat.checkSelfPermission(
@@ -592,7 +595,7 @@ fun WeatherTabContent(
                                 Icon(
                                     Icons.Default.LocationOff,
                                     contentDescription = null,
-                                    tint = Color.White
+                                    tint = TextPrimary
                                 )
                             }
                         }
@@ -671,7 +674,7 @@ fun MainView(data: WeatherData, onDaySelected: (Int) -> Unit) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { onDaySelected(0) },
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E28)),
+                colors = CardDefaults.cardColors(containerColor = BgCard),
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Column(
@@ -680,14 +683,14 @@ fun MainView(data: WeatherData, onDaySelected: (Int) -> Unit) {
                 ) {
                     Text(
                         stringResource(R.string.heute),
-                        color = Color(0xFF8B8B9F),
+                        color = TextSecondary,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
                         data.city,
-                        color = Color.White,
+                        color = TextPrimary,
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -699,13 +702,13 @@ fun MainView(data: WeatherData, onDaySelected: (Int) -> Unit) {
                     Spacer(Modifier.height(12.dp))
                     Text(
                         "${data.currentTemp.toInt()}°C",
-                        color = Color.White,
+                        color = TextPrimary,
                         fontSize = 48.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
                         data.currentCondition,
-                        color = Color(0xFFB8B8C7),
+                        color = TextSecondary,
                         fontSize = 16.sp
                     )
                     Spacer(Modifier.height(16.dp))
@@ -725,7 +728,7 @@ fun MainView(data: WeatherData, onDaySelected: (Int) -> Unit) {
 
         Text(
             stringResource(R.string.vorschau),
-            color = Color.White,
+            color = TextPrimary,
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 12.dp)
@@ -748,12 +751,12 @@ fun QuickInfoItem(label: String, value: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             label,
-            color = Color(0xFF8B8B9F),
+            color = TextSecondary,
             fontSize = 12.sp
         )
         Text(
             value,
-            color = Color.White,
+            color = TextPrimary,
             fontSize = 16.sp,
             fontWeight = FontWeight.SemiBold
         )
@@ -766,7 +769,7 @@ fun DayCard(day: DayData, dayIndex: Int, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E28)),
+        colors = CardDefaults.cardColors(containerColor = BgCard),
         shape = RoundedCornerShape(12.dp)
     ) {
         Row(
@@ -779,13 +782,13 @@ fun DayCard(day: DayData, dayIndex: Int, onClick: () -> Unit) {
             Column {
                 Text(
                     getDayName(dayIndex),
-                    color = Color.White,
+                    color = TextPrimary,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
                     day.date,
-                    color = Color(0xFF8B8B9F),
+                    color = TextSecondary,
                     fontSize = 12.sp
                 )
             }
@@ -800,7 +803,7 @@ fun DayCard(day: DayData, dayIndex: Int, onClick: () -> Unit) {
                 )
                 Text(
                     "${day.avgTemp.toInt()}°C",
-                    color = Color.White,
+                    color = TextPrimary,
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -842,7 +845,7 @@ fun DayHoursView(day: DayData, onHourSelected: (HourData) -> Unit) {
         item {
             Text(
                 stringResource(R.string.stunden_fur, day.date),
-                color = Color.White,
+                color = TextPrimary,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -872,13 +875,13 @@ fun HourCard(
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
             containerColor = when {
-                isNow -> Color(0xFF262640)
-                isPast -> Color(0xFF181820)
-                else -> Color(0xFF1E1E28)
+                isNow -> AccentSoft
+                isPast -> BgDeep
+                else -> BgCard
             }
         ),
         shape = RoundedCornerShape(12.dp),
-        border = if (isNow) BorderStroke(1.dp, Color(0xFF6B6BFF)) else null
+        border = if (isNow) BorderStroke(1.dp, Accent) else null
     ) {
         Row(
             modifier = Modifier
@@ -891,7 +894,7 @@ fun HourCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     hour.time,
-                    color = if (isNow) Color(0xFF8E8EFF) else Color.White,
+                    color = if (isNow) Accent else TextPrimary,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -899,7 +902,7 @@ fun HourCard(
 
             Text(
                 hour.condition,
-                color = Color(0xFF8B8B9F),
+                color = TextSecondary,
                 fontSize = 14.sp,
                 modifier = Modifier
                     .weight(1f)
@@ -916,7 +919,7 @@ fun HourCard(
                 )
                 Text(
                     "${hour.temp.toInt()}°C",
-                    color = Color.White,
+                    color = TextPrimary,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -931,7 +934,7 @@ fun SelectedHourView(hour: HourData) {
         modifier = Modifier
             .fillMaxWidth()
             .verticalScroll(rememberScrollState()),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E28)),
+        colors = CardDefaults.cardColors(containerColor = BgCard),
         shape = RoundedCornerShape(16.dp)
     ) {
         Column(
@@ -940,7 +943,7 @@ fun SelectedHourView(hour: HourData) {
         ) {
             Text(
                 hour.time,
-                color = Color(0xFF8B8B9F),
+                color = TextSecondary,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium
             )
@@ -952,13 +955,13 @@ fun SelectedHourView(hour: HourData) {
             Spacer(Modifier.height(16.dp))
             Text(
                 "${hour.temp.toInt()}°C",
-                color = Color.White,
+                color = TextPrimary,
                 fontSize = 56.sp,
                 fontWeight = FontWeight.Bold
             )
             Text(
                 hour.condition,
-                color = Color(0xFFB8B8C7),
+                color = TextSecondary,
                 fontSize = 18.sp
             )
 
@@ -993,7 +996,7 @@ fun WeatherDetailBox(label: String, value: String) {
         modifier = Modifier
             .width(160.dp)
             .height(100.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF2A2A35)),
+        colors = CardDefaults.cardColors(containerColor = BgSurface),
         shape = RoundedCornerShape(12.dp)
     ) {
         Column(
@@ -1008,13 +1011,13 @@ fun WeatherDetailBox(label: String, value: String) {
             Spacer(Modifier.height(4.dp))
             Text(
                 label,
-                color = Color(0xFF8B8B9F),
+                color = TextSecondary,
                 fontSize = 11.sp
             )
             Spacer(Modifier.height(4.dp))
             Text(
                 value,
-                color = Color.White,
+                color = TextPrimary,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )

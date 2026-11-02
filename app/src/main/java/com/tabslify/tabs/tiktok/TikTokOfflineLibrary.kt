@@ -54,6 +54,7 @@ import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.tabslify.core.ui.AlertDialogTabslify
+import com.tabslify.core.ui.BgSurface
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
@@ -404,7 +405,7 @@ private fun OfflineZeile(
 @Composable
 private fun Cover(video: OfflineVideo, modifier: Modifier) {
     if (video.coverUrl.isEmpty()) {
-        Box(modifier = modifier.background(Color(0xFF223047)))
+        Box(modifier = modifier.background(BgSurface))
         return
     }
     val context = LocalContext.current

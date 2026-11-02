@@ -126,6 +126,8 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import kotlin.time.Duration.Companion.milliseconds
+import com.tabslify.core.ui.ErrorRed
+import com.tabslify.core.ui.SuccessGreen
 
 
 data class Vokabel(val latein: String, val deutsch: String, val id: Int)
@@ -1108,13 +1110,13 @@ fun VocabTabContent(
                                         Box(
                                             modifier = Modifier
                                                 .clip(RoundedCornerShape(8.dp))
-                                                .background(Color(0xFFB71C1C).copy(alpha = 0.2f))
+                                                .background(ErrorRed.copy(alpha = 0.2f))
                                                 .clickable { onLearnWeak(set) }
                                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                                         ) {
                                             Text(
                                                 "✗ $weakCount",
-                                                color = Color(0xFFEF5350),
+                                                color = ErrorRed,
                                                 fontSize = 12.sp,
                                                 fontWeight = FontWeight.Bold
                                             )
@@ -1161,7 +1163,7 @@ fun VocabTabContent(
                                                         stringResource(
                                                             R.string.nur_schwache, weakCount
                                                         ),
-                                                        color = Color(0xFFEF5350),
+                                                        color = ErrorRed,
                                                         fontSize = 14.sp
                                                     )
                                                 },
@@ -1186,7 +1188,7 @@ fun VocabTabContent(
                                                 text = {
                                                     Text(
                                                         stringResource(R.string.loschen_3),
-                                                        color = Color(0xFFEF5350),
+                                                        color = ErrorRed,
                                                         fontSize = 14.sp
                                                     )
                                                 },
@@ -1420,13 +1422,13 @@ fun UploadScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xFFB71C1C).copy(alpha = 0.15f))
+                            .background(ErrorRed.copy(alpha = 0.15f))
                             .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text("⚠️", fontSize = 16.sp)
                         Spacer(Modifier.width(8.dp))
-                        Text(it, color = Color(0xFFEF9A9A), fontSize = 13.sp)
+                        Text(it, color = ErrorRed.copy(alpha = 0.35f), fontSize = 13.sp)
                     }
                 }
             }
@@ -1658,7 +1660,7 @@ fun ReviewScreen(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(10.dp))
-                        .background(Color(0xFFB71C1C))
+                        .background(ErrorRed)
                         .clickable { showCancelDialog = false; onCancelExtraction?.invoke() }
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) { Text(stringResource(R.string.abbrechen), color = TextPrimary, fontWeight = FontWeight.SemiBold) }
@@ -1839,11 +1841,11 @@ fun ReviewScreen(
                                     modifier = Modifier
                                         .weight(1f)
                                         .clip(RoundedCornerShape(10.dp))
-                                        .background(Color(0xFFB71C1C).copy(alpha = 0.15f))
+                                        .background(ErrorRed.copy(alpha = 0.15f))
                                         .clickable(enabled = !isExtracting) { vokabelToDelete = vokabel }
                                         .padding(vertical = 10.dp),
                                     contentAlignment = Alignment.Center
-                                ) { Text(stringResource(R.string.loschen), color = Color(0xFFEF9A9A), fontSize = 13.sp) }
+                                ) { Text(stringResource(R.string.loschen), color = ErrorRed.copy(alpha = 0.35f), fontSize = 13.sp) }
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
@@ -2372,7 +2374,7 @@ fun LearnScreen(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(16.dp))
-                                .background(Color(0xFFB71C1C).copy(alpha = 0.2f))
+                                .background(ErrorRed.copy(alpha = 0.2f))
                                 .clickable { beantworte(karte, false) }
                                 .padding(vertical = 16.dp),
                             contentAlignment = Alignment.Center
@@ -2383,13 +2385,13 @@ fun LearnScreen(
                             ) {
                                 Text(
                                     "✗",
-                                    color = Color(0xFFEF5350),
+                                    color = ErrorRed,
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
                                     stringResource(R.string.falsch),
-                                    color = Color(0xFFEF5350),
+                                    color = ErrorRed,
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )
@@ -2509,8 +2511,8 @@ fun LearnScreen(
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(14.dp))
                                 .background(
-                                    if (stand.korrekt) Color(0xFF2E7D32).copy(alpha = 0.45f)
-                                    else Color(0xFFB71C1C).copy(alpha = 0.35f)
+                                    if (stand.korrekt) SuccessGreen.copy(alpha = 0.45f)
+                                    else ErrorRed.copy(alpha = 0.35f)
                                 )
                                 .padding(14.dp)
                         ) {
@@ -2633,7 +2635,7 @@ fun LearnScreen(
                                 "$falschAnzahl",
                                 fontSize = 30.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFFEF5350)
+                                color = ErrorRed
                             )
                             Text(stringResource(R.string.falsch), color = TextTertiary, fontSize = 12.sp)
                         }
@@ -2663,7 +2665,7 @@ fun LearnScreen(
                         ) {
                             Text(
                                 stringResource(R.string.braucht_nochmal),
-                                color = Color(0xFFEF5350),
+                                color = ErrorRed,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
@@ -2707,7 +2709,7 @@ fun LearnScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(14.dp))
-                                .background(Color(0xFFB71C1C).copy(alpha = 0.25f))
+                                .background(ErrorRed.copy(alpha = 0.25f))
                                 .clickable {
                                     queue = ordneKarten(falscheKarten, shuffleOrder)
                                     index = 0
@@ -2724,7 +2726,7 @@ fun LearnScreen(
                         ) {
                             Text(
                                 stringResource(R.string.falsche_wiederholen, falscheKarten.size),
-                                color = Color(0xFFEF5350),
+                                color = ErrorRed,
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
@@ -2795,12 +2797,12 @@ private fun FehlerAbzeichen(anzahl: Int) {
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(Color(0xFFB71C1C).copy(alpha = 0.35f))
+            .background(ErrorRed.copy(alpha = 0.35f))
             .padding(horizontal = 8.dp, vertical = 3.dp)
     ) {
         Text(
             stringResource(R.string.falsch_zaehler, anzahl),
-            color = Color(0xFFEF9A9A),
+            color = ErrorRed.copy(alpha = 0.35f),
             fontSize = 11.sp,
             fontWeight = FontWeight.Medium
         )

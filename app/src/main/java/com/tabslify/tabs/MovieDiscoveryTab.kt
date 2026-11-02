@@ -52,6 +52,12 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.tabslify.R
 import com.tabslify.core.objects.Config
+import com.tabslify.core.ui.Accent
+import com.tabslify.core.ui.AccentDim
+import com.tabslify.core.ui.BgCard
+import com.tabslify.core.ui.Border
+import com.tabslify.core.ui.TextPrimary
+import com.tabslify.core.ui.TextTertiary
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -140,7 +146,7 @@ fun MovieDiscoveryTabContent(
     ) {
         Text(
             stringResource(R.string.genre_wahlen),
-            color = Color.White,
+            color = TextPrimary,
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 8.dp)
@@ -161,10 +167,10 @@ fun MovieDiscoveryTabContent(
                     },
                     label = { Text(stringResource(entry.value)) },
                     colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = Color(0xFF4CAF50),
-                        selectedLabelColor = Color.White,
-                        containerColor = Color(0xFF333333),
-                        labelColor = Color.Gray
+                        selectedContainerColor = Accent,
+                        selectedLabelColor = TextPrimary,
+                        containerColor = Border,
+                        labelColor = TextTertiary
                     )
                 )
             }
@@ -179,7 +185,7 @@ fun MovieDiscoveryTabContent(
             Button(
                 onClick = { loadMovies() },
                 modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                colors = ButtonDefaults.buttonColors(containerColor = Accent)
             ) {
                 Text(stringResource(R.string.neue_filme))
             }
@@ -188,7 +194,7 @@ fun MovieDiscoveryTabContent(
                 onClick = { showSavedOnly = !showSavedOnly },
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (showSavedOnly) Color(0xFFFF9800) else Color(0xFF2196F3)
+                    containerColor = if (showSavedOnly) Accent else Color(0xFF5C8CFF)
                 )
             ) {
                 Text(if (showSavedOnly) stringResource(R.string.alle_anzeigen) else stringResource(R.string.gemerkte, savedMovies.size))
@@ -202,7 +208,7 @@ fun MovieDiscoveryTabContent(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(color = Color(0xFF4CAF50))
+                CircularProgressIndicator(color = Accent)
             }
         } else {
             val displayMovies = if (showSavedOnly) {
@@ -218,7 +224,7 @@ fun MovieDiscoveryTabContent(
                 ) {
                     Text(
                         stringResource(R.string.keine_gemerkten_filme_vorhanden),
-                        color = Color.Gray,
+                        color = TextTertiary,
                         fontSize = 16.sp
                     )
                 }
@@ -263,7 +269,7 @@ fun MovieCard(
         modifier = Modifier
             .fillMaxWidth()
             .height(150.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF2A2A2A)),
+        colors = CardDefaults.cardColors(containerColor = BgCard),
         shape = RoundedCornerShape(12.dp),
         onClick = onClick
     ) {
@@ -293,7 +299,7 @@ fun MovieCard(
                 ) {
                     Text(
                         text = movie.title,
-                        color = Color.White,
+                        color = TextPrimary,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
@@ -319,14 +325,14 @@ fun MovieCard(
                             movie.voteAverage
                         )
                     } | ${movie.releaseDate.take(4)}",
-                    color = Color(0xFFFFD700),
+                    color = AccentDim,
                     fontSize = 12.sp,
                     modifier = Modifier.padding(vertical = 4.dp)
                 )
 
                 Text(
                     text = movie.overview.ifEmpty { stringResource(R.string.keine_beschreibung_verfugbar) },
-                    color = Color.Gray,
+                    color = TextTertiary,
                     fontSize = 13.sp,
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis
@@ -413,7 +419,7 @@ fun MovieDetailDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF2A2A2A),
+        containerColor = BgCard,
         shape = RoundedCornerShape(16.dp),
         title = {
             Row(
@@ -423,7 +429,7 @@ fun MovieDetailDialog(
             ) {
                 Text(
                     text = movie.title,
-                    color = Color.White,
+                    color = TextPrimary,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)
@@ -459,13 +465,13 @@ fun MovieDetailDialog(
                 ) {
                     Text(
                         text = "⭐ ${String.format("%.1f", movie.voteAverage)}/10",
-                        color = Color(0xFFFFD700),
+                        color = AccentDim,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
                         text = "📅 ${movie.releaseDate}",
-                        color = Color.Gray,
+                        color = TextTertiary,
                         fontSize = 16.sp
                     )
                 }
@@ -474,7 +480,7 @@ fun MovieDetailDialog(
 
                 Text(
                     text = stringResource(R.string.beschreibung),
-                    color = Color.White,
+                    color = TextPrimary,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -492,7 +498,7 @@ fun MovieDetailDialog(
         confirmButton = {
             Button(
                 onClick = onDismiss,
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
+                colors = ButtonDefaults.buttonColors(containerColor = Accent)
             ) {
                 Text(stringResource(R.string.schliesen))
             }

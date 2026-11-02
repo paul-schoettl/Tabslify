@@ -45,9 +45,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tabslify.R
+import com.tabslify.core.ui.Accent
+import com.tabslify.core.ui.AccentDim
 import com.tabslify.core.ui.AlertDialogTabslify
 import com.tabslify.core.ui.BgCard
+import com.tabslify.core.ui.BgSurface
 import com.tabslify.core.ui.NeonBox
+import com.tabslify.core.ui.SuccessGreen
 import com.tabslify.core.ui.TextPrimary
 import com.tabslify.core.ui.TextSecondary
 import com.tabslify.core.ui.TextTertiary
@@ -64,13 +68,10 @@ import java.util.Date
 import java.util.Locale
 import androidx.compose.ui.platform.LocalLocale
 
-private val AccentOrange = Color(0xFFFF8A4C)
-private val AccentGreen = Color(0xFF5BE388)
-private val AccentViolet = Color(0xFFFF5A1F)
-private val AccentBlue = Color(0xFF4CC9FF)
-private val AccentPink = Color(0xFFE850A5)
-private val AccentYellow = Color(0xFFFFD74C)
-private val BgSoft = Color(0xFF242424)
+private val AccentGreen = SuccessGreen
+private val AccentBlue = Color(0xFF5C8CFF)
+private val AccentPink = Color(0xFF9A8CFF)
+private val AccentYellow = AccentDim
 
 private fun MuscleGroup.groupEmoji(): String = when (this) {
     MuscleGroup.CHEST -> "💪"; MuscleGroup.BACK -> "🔙"
@@ -80,14 +81,14 @@ private fun MuscleGroup.groupEmoji(): String = when (this) {
 }
 
 private fun MuscleGroup.groupColors(): List<Color> = when (this) {
-    MuscleGroup.CHEST -> listOf(AccentOrange, Color(0xFFFF4C4C))
-    MuscleGroup.BACK -> listOf(Color(0xFF2ECC71), Color(0xFF1ABC9C))
-    MuscleGroup.LEGS -> listOf(Color(0xFF8A4CFF), Color(0xFF4C4CFF))
+    MuscleGroup.CHEST -> listOf(Accent, Color(0xFFB45CFC))
+    MuscleGroup.BACK -> listOf(SuccessGreen, Color(0xFF4CC9FF))
+    MuscleGroup.LEGS -> listOf(Accent, AccentDim)
     MuscleGroup.CORE -> listOf(Color(0xFFB45CFC), AccentPink)
-    MuscleGroup.SHOULDERS -> listOf(AccentYellow, AccentOrange)
-    MuscleGroup.ARMS -> listOf(AccentPink, Color(0xFFFF4C4C))
-    MuscleGroup.CARDIO -> listOf(Color(0xFFE850A5), Color(0xFFFF4C7A))
-    MuscleGroup.FULLBODY -> listOf(AccentBlue, Color(0xFF5BE388))
+    MuscleGroup.SHOULDERS -> listOf(AccentYellow, Accent)
+    MuscleGroup.ARMS -> listOf(AccentPink, AccentDim)
+    MuscleGroup.CARDIO -> listOf(Color(0xFFB45CFC), AccentDim)
+    MuscleGroup.FULLBODY -> listOf(AccentBlue, SuccessGreen)
 }
 
 @Composable
@@ -143,7 +144,7 @@ fun HistoryScreen(vm: FitnessViewModel, modifier: Modifier = Modifier) {
                             .clip(RoundedCornerShape(12.dp))
                             .background(
                                 if (selected) Brush.horizontalGradient(
-                                    listOf(Color(0xFF6B4CFC), Color(0xFFB45CFC))
+                                    listOf(Accent, Color(0xFFB45CFC))
                                 ) else Brush.horizontalGradient(
                                     listOf(Color.Transparent, Color.Transparent)
                                 )
@@ -302,8 +303,8 @@ private fun SessionCard(
         cornerRadius = RoundedCornerShape(16.dp),
         neonColors = when {
             isExplore -> listOf(AccentBlue, AccentGreen)
-            isPushup -> listOf(AccentOrange, AccentViolet)
-            else -> listOf(AccentBlue, AccentViolet)
+            isPushup -> listOf(Accent, AccentDim)
+            else -> listOf(AccentBlue, AccentDim)
         },
         backgroundAlpha = 0.12f,
         borderWidth = 2.dp
@@ -354,7 +355,7 @@ private fun SessionCard(
                 Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
                         "%.0f".format(session.totalCalories),
-                        color = AccentOrange,
+                        color = Accent,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Black
                     )
@@ -392,7 +393,7 @@ private fun SessionCard(
                     )
                     MetaChip(
                         stringResource(R.string.fitness_history_explore_source),
-                        AccentViolet
+                        AccentDim
                     )
                 } else {
                     MetaChip(
@@ -406,12 +407,12 @@ private fun SessionCard(
                     if (isPushup) {
                         MetaChip(
                             pluralStringResource(R.plurals.fitness_history_entry_sets, 1, 1, nReps),
-                            AccentViolet
+                            AccentDim
                         )
                     } else {
                         MetaChip(
                             pluralStringResource(R.plurals.fitness_history_entry_sets, nSets, nSets, nReps),
-                            AccentViolet
+                            AccentDim
                         )
                     }
                     if (!isPushup && volumeKg > 0.0) {
@@ -430,7 +431,7 @@ private fun SessionCard(
                             Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(BgSoft)
+                                .background(BgCard)
                                 .padding(10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -464,7 +465,7 @@ private fun SessionCard(
                             Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(BgSoft)
+                                .background(BgCard)
                                 .padding(10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -500,7 +501,7 @@ private fun SessionCard(
                                     Modifier
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(12.dp))
-                                        .background(BgSoft)
+                                        .background(BgCard)
                                         .padding(10.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
@@ -651,7 +652,7 @@ private fun StatsOverview(
                         modifier = Modifier
                             .weight(1f)
                             .clip(RoundedCornerShape(12.dp))
-                            .background(if (selected) Color(0xFF2A2A35) else Color.Transparent)
+                            .background(if (selected) BgSurface else Color.Transparent)
                             .clickable { onRangeChange(r) }
                             .padding(vertical = 8.dp),
                         contentAlignment = Alignment.Center
@@ -679,7 +680,7 @@ private fun StatsOverview(
                 StatRow(
                     label = stringResource(R.string.fitness_history_total_workouts),
                     value = stats.totalWorkouts.toString(),
-                    accent = Color(0xFF6B4CFC)
+                    accent = Accent
                 )
                 StatRow(
                     label = stringResource(R.string.fitness_history_total_minutes),
@@ -689,7 +690,7 @@ private fun StatsOverview(
                 StatRow(
                     label = stringResource(R.string.fitness_history_total_calories),
                     value = "%.0f".format(stats.totalCalories) + " " + stringResource(R.string.fitness_history_chart_kcal),
-                    accent = Color(0xFFFF8A4C)
+                    accent = Accent
                 )
                 if (stats.totalDistanceKm > 0f) {
                     StatRow(
@@ -761,8 +762,8 @@ private fun MiniBarChart(recentDays: Map<String, DayStats>, goalMin: Int) {
                                 .fillMaxHeight(ratio.coerceIn(0f, 1f))
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(
-                                    if (isToday) Brush.horizontalGradient(listOf(AccentOrange, Color(0xFFB45CFC)))
-                                    else Brush.horizontalGradient(listOf(Color(0xFF6B4CFC), Color(0xFFB45CFC)))
+                                    if (isToday) Brush.horizontalGradient(listOf(Accent, Color(0xFFB45CFC)))
+                                    else Brush.horizontalGradient(listOf(Accent, Color(0xFFB45CFC)))
                                 )
                         )
                     }
