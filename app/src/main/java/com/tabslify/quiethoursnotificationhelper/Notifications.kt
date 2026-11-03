@@ -24,7 +24,6 @@ import com.tabslify.services.QuietHoursNotificationService
 import com.tabslify.services.QuietHoursNotificationService.Companion.ACTION_CHANGE_END
 import com.tabslify.services.QuietHoursNotificationService.Companion.ACTION_CONTENT_INTENT
 import com.tabslify.services.QuietHoursNotificationService.Companion.ACTION_EXECUTE_COMMAND
-import com.tabslify.services.QuietHoursNotificationService.Companion.ACTION_RESTORE_NOTIFICATION
 import com.tabslify.services.QuietHoursNotificationService.Companion.ACTION_SYNC_LAPTOP
 import com.tabslify.services.QuietHoursNotificationService.Companion.AI_NOTIFY_CHANNEL_ID
 import com.tabslify.services.QuietHoursNotificationService.Companion.ALARM_REQUEST_CODE
@@ -442,10 +441,7 @@ fun createNotification(context: Context): Notification {
 }
 
 fun updateNotification(context: Context) {
-    val serviceIntent = Intent(context, QuietHoursNotificationService::class.java).apply {
-        action = ACTION_RESTORE_NOTIFICATION
-    }
-    context.startForegroundService(serviceIntent)
+    QuietHoursNotificationService.recover(context)
 }
 
 fun isQuietHoursNow(context: Context): Boolean {
