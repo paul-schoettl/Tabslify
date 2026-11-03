@@ -68,6 +68,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import androidx.core.content.edit
 import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
@@ -88,6 +89,7 @@ import com.tabslify.R
 import com.tabslify.core.activities.Tabslify.Companion.appScope
 import com.tabslify.core.functions.ExactAlarms
 import com.tabslify.core.functions.PODCAST_DOWNLOAD_PREFS
+import com.tabslify.core.functions.canNotify
 import com.tabslify.core.functions.errorInsert
 import com.tabslify.core.functions.podcastDestDir
 import com.tabslify.core.functions.runPodcastCheck
@@ -116,6 +118,7 @@ import com.tabslify.quiethoursnotificationhelper.notificationDismissReceiver
 import com.tabslify.quiethoursnotificationhelper.playLatestVoiceNote
 import com.tabslify.quiethoursnotificationhelper.playNextVoiceNote
 import com.tabslify.quiethoursnotificationhelper.playPreviousVoiceNote
+import com.tabslify.quiethoursnotificationhelper.QhnsWatchdogReceiver
 import com.tabslify.quiethoursnotificationhelper.restoreSyncIfNeeded
 import com.tabslify.quiethoursnotificationhelper.scheduleNextCheck
 import com.tabslify.quiethoursnotificationhelper.showDeleteConfirmation
@@ -427,9 +430,127 @@ class QuietHoursNotificationService : Service() {
             widgetRefreshContext = null
         }
 
+        @Volatile
+        var isRunning = false
+
+        const val WATCHDOG_REQUEST_CODE = 7301
+        const val RECOVERY_REQUEST_CODE = 7302
+        const val WATCHDOG_INTERVAL_MS = 15 * 60 * 1000L
+
+        fun isEnabled(context: Context): Boolean {
+            val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+            return prefs.getBoolean("services_master", true) &&
+                    prefs.getBoolean("service_qhns", true)
+        }
+
         fun startService(context: Context) {
-            val intent = Intent(context, QuietHoursNotificationService::class.java)
-            context.startForegroundService(intent)
+            ensureRunning(context)
+        }
+
+        fun ensureRunning(context: Context) {
+            if (!isEnabled(context)) return
+            val app = context.applicationContext
+            scheduleWatchdog(app)
+            if (!canNotify(context)) return
+            try {
+                ContextCompat.startForegroundService(
+                    app,
+                    Intent(app, QuietHoursNotificationService::class.java)
+                )
+            } catch (e: Exception) {
+                Log.e("QuietHoursService", "Foreground-Start blockiert, plane Alarm", e)
+                scheduleRecoveryAlarm(app)
+            }
+        }
+
+        fun recover(context: Context) {
+            if (!isEnabled(context) || !canNotify(context)) return
+            val app = context.applicationContext
+            if (isRunning) {
+                try {
+                    app.startService(
+                        Intent(app, QuietHoursNotificationService::class.java).apply {
+                            action = ACTION_RESTORE_NOTIFICATION
+                        }
+                    )
+                } catch (e: Exception) {
+                    Log.e("QuietHoursService", "Notification-Refresh fehlgeschlagen", e)
+                    ensureRunning(app)
+                }
+            } else {
+                ensureRunning(app)
+            }
+        }
+
+        fun scheduleWatchdog(context: Context) {
+            val app = context.applicationContext
+            val alarmManager = app.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            val pendingIntent = PendingIntent.getBroadcast(
+                app,
+                WATCHDOG_REQUEST_CODE,
+                Intent(app, QhnsWatchdogReceiver::class.java).setPackage(app.packageName),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val triggerAt = SystemClock.elapsedRealtime() + WATCHDOG_INTERVAL_MS
+            try {
+                if (alarmManager.canScheduleExactAlarms()) {
+                    alarmManager.setExactAndAllowWhileIdle(
+                        AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                        triggerAt,
+                        pendingIntent
+                    )
+                } else {
+                    alarmManager.setAndAllowWhileIdle(
+                        AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                        triggerAt,
+                        pendingIntent
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e("QuietHoursService", "Watchdog konnte nicht geplant werden", e)
+            }
+        }
+
+        fun cancelWatchdog(context: Context) {
+            val app = context.applicationContext
+            val alarmManager = app.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            val pendingIntent = PendingIntent.getBroadcast(
+                app,
+                WATCHDOG_REQUEST_CODE,
+                Intent(app, QhnsWatchdogReceiver::class.java).setPackage(app.packageName),
+                PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+            ) ?: return
+            alarmManager.cancel(pendingIntent)
+            pendingIntent.cancel()
+        }
+
+        private fun scheduleRecoveryAlarm(context: Context) {
+            val app = context.applicationContext
+            val alarmManager = app.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            val pendingIntent = PendingIntent.getForegroundService(
+                app,
+                RECOVERY_REQUEST_CODE,
+                Intent(app, QuietHoursNotificationService::class.java).setPackage(app.packageName),
+                PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val triggerAt = SystemClock.elapsedRealtime() + 1_000L
+            try {
+                if (alarmManager.canScheduleExactAlarms()) {
+                    alarmManager.setExactAndAllowWhileIdle(
+                        AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                        triggerAt,
+                        pendingIntent
+                    )
+                } else {
+                    alarmManager.setAndAllowWhileIdle(
+                        AlarmManager.ELAPSED_REALTIME_WAKEUP,
+                        triggerAt,
+                        pendingIntent
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e("QuietHoursService", "Recovery-Alarm konnte nicht gesetzt werden", e)
+            }
         }
 
         fun updateSingleSenderNotification(context: Context, sender: String) {
@@ -516,39 +637,55 @@ class QuietHoursNotificationService : Service() {
             if (key == "quiet_hours_start" || key == "quiet_hours_end") {
                 handler.removeCallbacks(checkRunnable)
 
-                try {
-                    tNotify(this, NOTIFICATION_ID, createNotification(this))
-                } catch (e: Exception) {
-                    reportServiceError("prefChangeListener:$key", e)
-                }
+                ensureMonitorNotification()
 
                 handler.post(checkRunnable)
             }
         }
 
+    private val notificationStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val notificationManager = getSystemService(NotificationManager::class.java)
+            if (notificationManager != null && notificationManager.areNotificationsEnabled()) {
+                ensureMonitorNotification()
+            }
+            scheduleWatchdog(this@QuietHoursNotificationService)
+        }
+    }
+
+    private fun ensureMonitorNotification() {
+        if (getSystemService(NotificationManager::class.java)
+                .getNotificationChannel(MONITOR_CHANNEL_ID) == null
+        ) {
+            createNotificationChannel(this)
+        }
+        try {
+            startForeground(NOTIFICATION_ID, createNotification(this))
+        } catch (e: Exception) {
+            reportServiceError("ensureMonitorNotification", e)
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         realDevice = !getDeviceName().trim().contains("sdk_gphone", ignoreCase = true)
-        val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
-        if (!prefs.getBoolean("services_master", true) || !prefs.getBoolean("service_qhns", false)) {
-            createNotificationChannel(this)
+        createNotificationChannel(this)
+        if (!isEnabled(this)) {
             startForeground(
                 NOTIFICATION_ID,
                 createNotification(this)
             )
+            stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
+            cancelWatchdog(this)
             return
         }
+        isRunning = true
         requestIgnoreBatteryOptimizations(this)
         Config.init(this)
         sharedPreferences = getSharedPreferences("quiet_hours_prefs", MODE_PRIVATE)
-        createNotificationChannel(this)
 
-        try {
-            startForeground(NOTIFICATION_ID, createNotification(this))
-        } catch (e: Exception) {
-            reportServiceError("onCreate:startForeground", e)
-        }
+        ensureMonitorNotification()
 
         try {
             sharedPreferences?.registerOnSharedPreferenceChangeListener(prefChangeListener)
@@ -564,6 +701,17 @@ class QuietHoursNotificationService : Service() {
         restoreSyncIfNeeded(this)
         startTriggerListenerIfHomeWifi(this)
         startAiResponseListener(this)
+        scheduleWatchdog(this)
+
+        val notificationStateFilter = IntentFilter().apply {
+            addAction(NotificationManager.ACTION_APP_BLOCK_STATE_CHANGED)
+            addAction(NotificationManager.ACTION_NOTIFICATION_CHANNEL_BLOCK_STATE_CHANGED)
+        }
+        try {
+            registerReceiver(notificationStateReceiver, notificationStateFilter, RECEIVER_NOT_EXPORTED)
+        } catch (e: Exception) {
+            reportServiceError("onCreate:registerReceiver notificationStateReceiver", e)
+        }
 
         val filter = IntentFilter(ACTION_MESSAGE_SENT)
         try {
@@ -639,6 +787,13 @@ class QuietHoursNotificationService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (!isEnabled(this)) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
+        if (intent?.action == null) {
+            ensureMonitorNotification()
+        }
         return try {
             when (intent?.action) {
                 ACTION_SCHEDULED_STOP -> {
@@ -647,10 +802,7 @@ class QuietHoursNotificationService : Service() {
                 }
 
                 ACTION_SCHEDULED_START -> {
-                    startForeground(
-                        NOTIFICATION_ID,
-                        createNotification(this)
-                    )
+                    ensureMonitorNotification()
                     START_STICKY
                 }
 
@@ -673,8 +825,7 @@ class QuietHoursNotificationService : Service() {
                 }
 
                 ACTION_RESTORE_NOTIFICATION -> {
-                    val notification = createNotification(this)
-                    tNotify(this, NOTIFICATION_ID, notification)
+                    ensureMonitorNotification()
                     START_STICKY
                 }
 
@@ -1131,6 +1282,7 @@ class QuietHoursNotificationService : Service() {
     override fun onDestroy() {
         super.onDestroy()
 
+        isRunning = false
         tearDownOverlay()
         podcastJob?.cancel()
         stopWidgetRefresh()
@@ -1161,6 +1313,7 @@ class QuietHoursNotificationService : Service() {
         try { unregisterReceiver(timeChangeReceiver) } catch (_: Exception) {}
         try { unregisterReceiver(commandReceiver) } catch (_: Exception) {}
         try { unregisterReceiver(markReadReceiver) } catch (_: Exception) {}
+        try { unregisterReceiver(notificationStateReceiver) } catch (_: Exception) {}
 
         try {
             sharedPreferences?.unregisterOnSharedPreferenceChangeListener(prefChangeListener)
@@ -1174,12 +1327,13 @@ class QuietHoursNotificationService : Service() {
             reportServiceError("onDestroy:shutdownAllWifiDirectServices", e)
         }
         
-        val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
-        val shouldRestart = prefs.getBoolean("services_master", true) &&
-                prefs.getBoolean("service_qhns", false)
+        val shouldRestart = isEnabled(this)
 
         if (shouldRestart) {
             scheduleRestart(1)
+            scheduleWatchdog(this)
+        } else {
+            cancelWatchdog(this)
         }
 
         errorScope.cancel()
@@ -1198,7 +1352,7 @@ class QuietHoursNotificationService : Service() {
 
         val restartBase = Intent(applicationContext, QuietHoursNotificationService::class.java)
         restartBase.setPackage(applicationContext.packageName)
-        val pendingIntent = PendingIntent.getService(
+        val pendingIntent = PendingIntent.getForegroundService(
             applicationContext, requestCode, restartBase,
             PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -1209,12 +1363,9 @@ class QuietHoursNotificationService : Service() {
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
 
-        val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
-        val shouldRestart = prefs.getBoolean("services_master", true) &&
-                prefs.getBoolean("service_qhns", false)
-
-        if (shouldRestart) {
+        if (isEnabled(this)) {
             scheduleRestart(2)
+            scheduleWatchdog(this)
         }
     }
 
