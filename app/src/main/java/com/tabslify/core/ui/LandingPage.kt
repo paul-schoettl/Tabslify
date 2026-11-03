@@ -2229,16 +2229,14 @@ fun SettingsFrame(
         serviceWh = prefs.getBoolean("service_wh", true)
         serviceCharge = prefs.getBoolean("service_charge", true)
         serviceBattery = prefs.getBoolean("service_battery", true)
+        serviceQhns = prefs.getBoolean("service_qhns", true)
+        serviceFocusguard = prefs.getBoolean("service_focusguard", true)
 
-        if (permitted) {
-            serviceQhns = intendedToEnableQhns || prefs.getBoolean("service_qhns", true)
-            serviceFocusguard = prefs.getBoolean("service_focusguard", true)
-            intendedToEnableQhns = false
-        } else {
-            serviceQhns = false
-            serviceFocusguard = false
-            intendedToEnableQhns = false
+        if (permitted && intendedToEnableQhns) {
+            serviceQhns = true
         }
+        intendedToEnableQhns = false
+
         save()
     }
 
