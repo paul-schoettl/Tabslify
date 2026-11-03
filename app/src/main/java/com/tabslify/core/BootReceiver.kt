@@ -31,16 +31,8 @@ class BootReceiver : BroadcastReceiver() {
             return
         }
 
-        if (prefs.getBoolean("service_qhns", false)) {
-            val serviceIntent = Intent(context, QuietHoursNotificationService::class.java)
-            try {
-                ContextCompat.startForegroundService(context, serviceIntent)
-            } catch (_: Exception) {
-                try {
-                    context.startService(serviceIntent)
-                } catch (_: Exception) {
-                }
-            }
+        if (QuietHoursNotificationService.isEnabled(context)) {
+            QuietHoursNotificationService.ensureRunning(context)
             try {
                 schedulePodcastCheck(context)
             } catch (_: Exception) {
@@ -79,6 +71,7 @@ class BootReceiver : BroadcastReceiver() {
     private fun rescheduleAlarms(context: Context) {
         try {
             schedulePodcastCheck(context)
+            QuietHoursNotificationService.scheduleWatchdog(context)
             BlockedNotificationReceiver.rescheduleAlarmFrom(context)
         } catch (_: Exception) {
         }
