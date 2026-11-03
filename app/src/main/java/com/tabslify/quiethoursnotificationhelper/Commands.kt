@@ -65,6 +65,7 @@ import com.tabslify.services.MediaPlayerService
 import com.tabslify.services.MusicPlayerServiceCompat
 import com.tabslify.services.OverlayLifecycleOwner
 import com.tabslify.services.PodcastPlayerServiceCompat
+import com.tabslify.services.QuietHoursNotificationService
 import com.tabslify.services.QuietHoursNotificationService.Companion.CHANNEL_ID
 import com.tabslify.services.QuietHoursNotificationService.Companion.commandHistory
 import com.tabslify.services.QuietHoursNotificationService.Companion.showtestOverlay
@@ -831,8 +832,7 @@ private fun getAvailableCommands(context: Context): List<Command> {
 }
 
 fun executeCommand(commandText: String, context: Context) {
-    val prefs = context.getSharedPreferences("app_prefs", MODE_PRIVATE)
-    if (!prefs.getBoolean("services_master", true) || !prefs.getBoolean("service_qhns", false)) {
+    if (!QuietHoursNotificationService.isEnabled(context)) {
         showSimpleNotificationExtern("Hintergrund Aktivität deaktiviert", "Du hast die Hintergrundaktivität deaktviert", context = context)
         return
     }
