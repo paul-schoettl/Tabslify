@@ -2,6 +2,7 @@ package com.tabslify.quiethoursnotificationhelper
 
 import android.app.Activity
 import android.app.DownloadManager
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -29,7 +30,6 @@ import com.tabslify.services.QuietHoursNotificationService.Companion.ACTION_EXEC
 import com.tabslify.services.QuietHoursNotificationService.Companion.ACTION_MARK_PARTS_READ
 import com.tabslify.services.QuietHoursNotificationService.Companion.ACTION_MESSAGE_SENT
 import com.tabslify.services.QuietHoursNotificationService.Companion.ACTION_NOTIFICATION_DISMISSED
-import com.tabslify.services.QuietHoursNotificationService.Companion.ACTION_RESTORE_NOTIFICATION
 import com.tabslify.services.QuietHoursNotificationService.Companion.EXTRA_MESSAGE_ID
 import com.tabslify.services.QuietHoursNotificationService.Companion.EXTRA_SENDER
 import com.tabslify.services.QuietHoursNotificationService.Companion.readMessageIds
@@ -54,8 +54,26 @@ class QuietActionReceiver : BroadcastReceiver() {
 
 class QuietHoursAlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        QuietHoursNotificationService.scheduleWatchdog(context)
+        QuietHoursNotificationService.recover(context)
         checkQuietHours(context)
         scheduleNextCheck(context)
+    }
+}
+
+class QhnsWatchdogReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        QuietHoursNotificationService.scheduleWatchdog(context)
+        QuietHoursNotificationService.recover(context)
+    }
+}
+
+class QhnsNotificationStateReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        val notificationManager = context.getSystemService(NotificationManager::class.java)
+        if (notificationManager == null || !notificationManager.areNotificationsEnabled()) return
+        QuietHoursNotificationService.scheduleWatchdog(context)
+        QuietHoursNotificationService.recover(context)
     }
 }
 
@@ -172,10 +190,7 @@ val commandReceiver = object : BroadcastReceiver() {
             val commandText = RemoteInput.getResultsFromIntent(intent)
                 ?.getCharSequence("key_command_input")?.toString()
 
-            val serviceIntent = Intent(context, QuietHoursNotificationService::class.java).apply {
-                action = ACTION_RESTORE_NOTIFICATION
-            }
-            context.startForegroundService(serviceIntent)
+            QuietHoursNotificationService.recover(context)
 
             if (commandText != null) {
                 val appContext = context.applicationContext
