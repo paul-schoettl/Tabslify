@@ -104,7 +104,7 @@ class MainActivity : FragmentActivity() {
         ) { results ->
             val notificationsGranted = results[Manifest.permission.POST_NOTIFICATIONS] == true
             if (notificationsGranted) {
-                QuietHoursNotificationService.startService(this)
+                QuietHoursNotificationService.ensureRunning(this)
             }
         }
 
@@ -118,6 +118,11 @@ class MainActivity : FragmentActivity() {
             }
         }
 
+        val appPrefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
+        if (QuietHoursNotificationService.isEnabled(this)) {
+            runCatching { QuietHoursNotificationService.ensureRunning(this) }
+        }
+
         if (prvt()) {
             val musicPrefs = getSharedPreferences("music_player_prefs", MODE_PRIVATE)
             val wasPlayingMusic = musicPrefs.getBoolean("was_playing_music", false)
@@ -127,16 +132,11 @@ class MainActivity : FragmentActivity() {
                 runCatching { com.tabslify.services.MediaPlayerService.startMusicService(this) }
             }
 
-            val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
-            val masterEnabled = prefs.getBoolean("services_master", true)
+            val masterEnabled = appPrefs.getBoolean("services_master", true)
             if (masterEnabled) {
                 runCatching { ChatService.startService(this) }
 
-                if (prefs.getBoolean("service_qhns", true)) {
-                    runCatching { QuietHoursNotificationService.startService(this) }
-                }
-
-                if (prefs.getBoolean("service_battery", true)) {
+                if (appPrefs.getBoolean("service_battery", true)) {
                     runCatching { startBatteryWorker(this) }
                 }
             }
@@ -183,6 +183,13 @@ class MainActivity : FragmentActivity() {
                     }
                 }
             }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (QuietHoursNotificationService.isEnabled(this)) {
+            runCatching { QuietHoursNotificationService.ensureRunning(this) }
         }
     }
 
