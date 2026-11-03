@@ -178,7 +178,11 @@
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="specialUse"
-            tools:ignore="ExportedService" />
+            tools:ignore="ExportedService">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="quiet_hours_monitoring" />
+        </service>
 
         <service
             android:name=".tabs.focusguard.FocusGuardService"
@@ -194,6 +198,20 @@
         <receiver
             android:name=".quiethoursnotificationhelper.QuietHoursAlarmReceiver"
             android:exported="false" />
+
+        <receiver
+            android:name=".quiethoursnotificationhelper.QhnsWatchdogReceiver"
+            android:exported="false" />
+
+        <receiver
+            android:name=".quiethoursnotificationhelper.QhnsNotificationStateReceiver"
+            android:exported="true"
+            tools:ignore="ExportedReceiver">
+            <intent-filter>
+                <action android:name="android.app.action.APP_BLOCK_STATE_CHANGED" />
+                <action android:name="android.app.action.NOTIFICATION_CHANNEL_BLOCK_STATE_CHANGED" />
+            </intent-filter>
+        </receiver>
 
         <receiver
             android:name=".core.BootReceiver"
