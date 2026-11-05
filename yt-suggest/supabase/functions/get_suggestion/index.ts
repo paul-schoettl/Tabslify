@@ -29,6 +29,7 @@ Deno.serve(async (req) => {
   const now = new Date().toISOString();
   const query = new URLSearchParams({
     select: "id,valid_from,valid_until,video_id,title,channel,thumbnail_url,duration,reason,created_at",
+    valid_from: `lte.${now}`,
     valid_until: `gt.${now}`,
     order: "valid_until.desc,valid_from.desc",
     limit: "1",

@@ -91,7 +91,7 @@ Migration: `supabase/20261105_daily_suggestion.sql`
 
 Edge Function: `supabase/functions/get_suggestion/index.ts`
 
-* Returns the newest row with `valid_until > now()` as `{"suggestion": {...}}`.
+* Returns the newest row with `valid_from <= now() < valid_until` as `{"suggestion": {...}}`.
 * Deployed with `verify_jwt: false` because the app sends the publishable key, matching the other
   read-only functions of this project.
 * Accepts `GET` and `POST` because `supabase-kt` `functions.invoke` uses POST.
