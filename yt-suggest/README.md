@@ -115,7 +115,8 @@ Edge Function: `supabase/functions/get_suggestion/index.ts`
 * View counts are approximated from German/English text (`1,2 Mio.`, `120.000`, `1.2M`) and stored
   as integers; the original text stays in `views_text`.
 * The AI default model is a cheap, fast Command Code text model. The prompt keeps only titles,
-  channels and candidate IDs, so it stays compact.
+  channels and candidate IDs, so it stays compact. Channel frequency is summarized separately:
+  one history entry counts as one point, a like as four.
 * If Command Code fails or returns an invalid ID, the fallback picks a candidate from the channel
   with the most likes. If no liked channel appears in the candidates, the first candidate wins.
 * `raw/` contains the extracted items plus the raw `ytInitialData` and DOM HTML for selector
