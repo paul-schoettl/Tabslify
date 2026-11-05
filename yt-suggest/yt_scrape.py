@@ -206,7 +206,7 @@ def find_percent(node) -> float | None:
         for key, value in node.items():
             if key in ("percentDurationWatched", "percentWatched") and value is not None:
                 try:
-                    return float(value)
+                    return float(str(value).strip().rstrip("%"))
                 except (TypeError, ValueError):
                     pass
             found = find_percent(value)

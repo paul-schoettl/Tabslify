@@ -52,6 +52,14 @@ The script opens a visible Chromium window with the `profile/` directory. Log in
 reuse the profile. For unattended runs `run.sh` sets `YT_LOGIN_TIMEOUT=0`, so an expired login is
 logged and the old suggestion stays in place.
 
+An existing Firefox login can be imported once as a shortcut:
+
+```bash
+.venv/bin/python yt_scrape.py --seed-cookies /path/to/profile/cookies.sqlite
+```
+
+Firefox stores the cookies unencrypted; the values are only copied into the local Chromium profile.
+
 ### Manual run
 
 ```bash
