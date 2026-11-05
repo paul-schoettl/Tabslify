@@ -83,13 +83,18 @@ def main() -> int:
     parser.add_argument("--state-dir", type=Path, default=DEFAULT_STATE)
     parser.add_argument("--env", type=Path, default=DEFAULT_ENV)
     parser.add_argument("--log", type=Path, default=DEFAULT_LOG)
+    parser.add_argument("--valid-from", choices=("schedule", "now"), default="schedule")
     args = parser.parse_args()
     try:
         pick = load_json(args.state_dir / "pick.json")
         env = load_env(args.env)
         now = datetime.now().astimezone()
-        valid_from = now.replace(hour=18, minute=0, second=0, microsecond=0)
-        valid_until = valid_from + timedelta(days=1)
+        if args.valid_from == "now":
+            valid_from = now.replace(second=0, microsecond=0)
+            valid_until = (now + timedelta(days=1)).replace(hour=18, minute=0, second=0, microsecond=0)
+        else:
+            valid_from = now.replace(hour=18, minute=0, second=0, microsecond=0)
+            valid_until = valid_from + timedelta(days=1)
         row = {
             "valid_from": valid_from.isoformat(timespec="seconds"),
             "valid_until": valid_until.isoformat(timespec="seconds"),

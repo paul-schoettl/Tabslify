@@ -67,6 +67,21 @@ Firefox stores the cookies unencrypted; the values are only copied into the loca
 tail -n 30 logs/run.log
 ```
 
+`run.sh` uses the scheduled window (valid from today 18:00). For an immediate manual
+suggestion outside that window:
+
+```bash
+.venv/bin/python pick.py
+.venv/bin/python push.py --valid-from now
+```
+
+The scraper can rebuild `history`/`likes`/`candidates` from the saved raw debug data without
+opening YouTube again:
+
+```bash
+.venv/bin/python yt_scrape.py --reparse raw/YYYY-MM-DD.json
+```
+
 ## systemd user timer
 
 ```bash

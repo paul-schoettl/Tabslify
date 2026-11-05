@@ -178,6 +178,8 @@ def best_thumbnail(renderer: dict) -> str:
 
     def collect(node):
         if isinstance(node, dict):
+            if node.get("url"):
+                candidates.append((node.get("width") or node.get("height") or 0, node["url"]))
             if isinstance(node.get("thumbnails"), list):
                 for thumb in node["thumbnails"]:
                     if isinstance(thumb, dict) and thumb.get("url"):
@@ -204,7 +206,7 @@ def best_thumbnail(renderer: dict) -> str:
 def find_percent(node) -> float | None:
     if isinstance(node, dict):
         for key, value in node.items():
-            if key in ("percentDurationWatched", "percentWatched") and value is not None:
+            if key in ("percentDurationWatched", "percentWatched", "startPercent") and value is not None:
                 try:
                     return float(str(value).strip().rstrip("%"))
                 except (TypeError, ValueError):
@@ -218,6 +220,22 @@ def find_percent(node) -> float | None:
             if found is not None:
                 return found
     return None
+
+
+def find_duration_text(node) -> str:
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if key == "text" and isinstance(value, str) and re.fullmatch(r"\d+(?::\d+){1,2}", value.strip()):
+                return value.strip()
+            found = find_duration_text(value)
+            if found:
+                return found
+    elif isinstance(node, list):
+        for value in node:
+            found = find_duration_text(value)
+            if found:
+                return found
+    return ""
 
 
 def has_live_marker(renderer: dict) -> bool:
@@ -303,15 +321,21 @@ def parse_lockup(lockup: dict) -> dict | None:
     meta = ((lockup.get("metadata") or {}).get("lockupMetadataViewModel") or {})
     title = text_from(meta.get("title"))
     parts = []
+    view_candidates = []
     for row in (((meta.get("metadata") or {}).get("contentMetadataViewModel") or {}).get("metadataRows") or []):
         if isinstance(row, dict):
             for part in row.get("metadataParts") or []:
                 if isinstance(part, dict):
                     value = text_from(part.get("text"))
+                    label = str(part.get("accessibilityLabel") or "").strip()
                     if value:
                         parts.append(value)
+                    if label:
+                        view_candidates.append(label)
+                    if value:
+                        view_candidates.append(value)
     channel = parts[0] if parts else ""
-    views_text = next((part for part in parts[1:] if re.search(r"Aufrufe|views|Mal", part, re.I)), "")
+    views_text = next((part for part in view_candidates[1:] if re.search(r"Aufrufe|views|Mal", part, re.I)), "")
     duration_text = ""
     for overlay in (((lockup.get("contentImage") or {}).get("thumbnailViewModel") or {}).get("overlays") or []):
         if isinstance(overlay, dict):
@@ -323,6 +347,8 @@ def parse_lockup(lockup: dict) -> dict | None:
                         break
                     if value.strip().upper() in ("LIVE", "PREMIERE"):
                         duration_text = value.strip()
+    if not duration_text:
+        duration_text = find_duration_text(lockup.get("contentImage"))
     url = ""
     renderer_context = lockup.get("rendererContext") or {}
     command = ((renderer_context.get("commandContext") or {}).get("onTap") or {}).get("innertubeCommand") or {}
@@ -570,6 +596,53 @@ def load_page(page, url: str, target: int, logfile: Path, scrolls: int, navigate
     return {"items": merged, "debug": debug}
 
 
+def assemble_payload(
+    history_items: list[dict],
+    likes_items: list[dict],
+    home_items: list[dict],
+    debug: dict,
+    scraped_at: str,
+    logged_in: bool,
+) -> dict:
+    history = [item for item in history_items if is_relevant(item)][:50]
+    for item in history:
+        percent = item.get("progress_percent")
+        if percent is None:
+            item["status"] = "fertig"
+        elif percent >= 90:
+            item["status"] = "fertig"
+        else:
+            item["status"] = "angefangen"
+    likes = [item for item in likes_items if is_relevant(item)][:30]
+    watched = {item["video_id"] for item in history}
+    candidates = [
+        item
+        for item in home_items
+        if is_relevant(item) and item["video_id"] not in watched
+    ][:40]
+    return {
+        "scraped_at": scraped_at,
+        "date": scraped_at[:10],
+        "logged_in": logged_in,
+        "history": history,
+        "likes": likes,
+        "candidates": candidates,
+        "stats": {
+            "history": len(history),
+            "likes": len(likes),
+            "candidates": len(candidates),
+            "history_watched_ids": len(watched),
+            "filtered_short_live_ad": sum(
+                1
+                for items in (history_items, likes_items, home_items)
+                for item in items
+                if not is_relevant(item)
+            ),
+        },
+        "debug": debug,
+    }
+
+
 def scrape(
     profile: Path,
     raw_dir: Path,
@@ -587,7 +660,7 @@ def scrape(
             headless=False,
             locale="de-DE",
             viewport={"width": 1440, "height": 1000},
-            args=["--disable-blink-features=AutomationControlled"],
+            args=_chromium_args(),
         )
         try:
             if seed_cookies:
@@ -613,53 +686,53 @@ def scrape(
             page.wait_for_timeout(2200)
             home_page = load_page(page, HOME_URL, 40, logfile, scrolls)
 
-            history = [item for item in history_page["items"] if is_relevant(item)][:50]
-            for item in history:
-                percent = item.get("progress_percent")
-                if percent is None:
-                    item["status"] = "fertig"
-                elif percent >= 90:
-                    item["status"] = "fertig"
-                else:
-                    item["status"] = "angefangen"
-            likes = [item for item in likes_page["items"] if is_relevant(item)][:30]
-            watched = {item["video_id"] for item in history}
-            candidates = [
-                item for item in home_page["items"] if is_relevant(item) and item["video_id"] not in watched
-            ][:40]
-
             now = datetime.now().astimezone()
-            payload = {
-                "scraped_at": now.isoformat(timespec="seconds"),
-                "date": now.strftime("%Y-%m-%d"),
-                "logged_in": logged_in,
-                "history": history,
-                "likes": likes,
-                "candidates": candidates,
-                "stats": {
-                    "history": len(history),
-                    "likes": len(likes),
-                    "candidates": len(candidates),
-                    "history_watched_ids": len(watched),
-                    "filtered_short_live_ad": sum(
-                        1
-                        for page_data in (history_page, likes_page, home_page)
-                        for item in page_data["items"]
-                        if not is_relevant(item)
-                    ),
-                },
-                "debug": {
+            payload = assemble_payload(
+                history_page["items"],
+                likes_page["items"],
+                home_page["items"],
+                {
                     "history": history_page["debug"],
                     "likes": likes_page["debug"],
                     "home": home_page["debug"],
                 },
-            }
+                now.isoformat(timespec="seconds"),
+                logged_in,
+            )
             out = raw_dir / f"{now.strftime('%Y-%m-%d')}.json"
             out.write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8")
             log(f"wrote {out} ({out.stat().st_size} bytes)", logfile)
             return out
         finally:
             context.close()
+
+
+def reparse_raw(path: Path, logfile: Path) -> Path:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    debug = data.get("debug") or {}
+    items = {
+        section: extract_initial((debug.get(section) or {}).get("initial_data"))
+        for section in ("history", "likes", "home")
+    }
+    payload = assemble_payload(
+        items["history"],
+        items["likes"],
+        items["home"],
+        debug,
+        data.get("scraped_at") or datetime.now().astimezone().isoformat(timespec="seconds"),
+        bool(data.get("logged_in")),
+    )
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=1), encoding="utf-8")
+    log(f"reparsed {path} ({path.stat().st_size} bytes) {payload['stats']}", logfile)
+    return path
+
+
+def _chromium_args() -> list[str]:
+    args = ["--disable-blink-features=AutomationControlled"]
+    ozone = os.environ.get("YT_OZONE_PLATFORM", "").strip()
+    if ozone:
+        args.append(f"--ozone-platform={ozone}")
+    return args
 
 
 def prune_raw(raw_dir: Path, keep_days: int, logfile: Path) -> None:
@@ -685,18 +758,22 @@ def main() -> int:
     parser.add_argument("--retention-days", type=int, default=30)
     parser.add_argument("--allow-logged-out", action="store_true")
     parser.add_argument("--seed-cookies", type=Path)
+    parser.add_argument("--reparse", type=Path)
     args = parser.parse_args()
     try:
-        scrape(
-            args.profile,
-            args.raw_dir,
-            args.log,
-            args.login_timeout,
-            args.scrolls,
-            args.allow_logged_out,
-            args.seed_cookies,
-        )
-        prune_raw(args.raw_dir, args.retention_days, args.log)
+        if args.reparse:
+            reparse_raw(args.reparse, args.log)
+        else:
+            scrape(
+                args.profile,
+                args.raw_dir,
+                args.log,
+                args.login_timeout,
+                args.scrolls,
+                args.allow_logged_out,
+                args.seed_cookies,
+            )
+            prune_raw(args.raw_dir, args.retention_days, args.log)
         return 0
     except Exception as error:
         log(f"ERROR {type(error).__name__}: {error}", args.log)
