@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the YouTube suggestion pipeline daily at 17:55
+
+[Timer]
+OnCalendar=*-*-* 17:55:00
+Persistent=true
+AccuracySec=1min
+Unit=yt-suggest.service
+
+[Install]
+WantedBy=timers.target

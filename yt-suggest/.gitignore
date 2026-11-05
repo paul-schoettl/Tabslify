@@ -1,0 +1,8 @@
+.venv/
+profile/
+raw/
+state/
+logs/
+.env
+__pycache__/
+*.pyc

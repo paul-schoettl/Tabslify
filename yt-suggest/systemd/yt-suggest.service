@@ -1,0 +1,12 @@
+[Unit]
+Description=Daily YouTube suggestion pipeline
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/AndroidStudioProjects/Cloud1/yt-suggest
+ExecStart=/usr/bin/env bash %h/AndroidStudioProjects/Cloud1/yt-suggest/run.sh
+Environment=YT_LOGIN_TIMEOUT=0
+Nice=10
+IOSchedulingClass=idle
