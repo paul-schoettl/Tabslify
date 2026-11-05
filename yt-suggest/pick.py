@@ -213,10 +213,30 @@ def compact_candidates(rows: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def top_channels(history: list[dict], likes: list[dict], limit: int = 12) -> str:
+    counts: Counter[str] = Counter()
+    names: dict[str, str] = {}
+    for row in history:
+        key = channel_key(row.get("channel", ""))
+        if key:
+            counts[key] += 1
+            names[key] = row.get("channel", "")
+    for row in likes:
+        key = channel_key(row.get("channel", ""))
+        if key:
+            counts[key] += 4
+            names[key] = row.get("channel", "")
+    lines = [f"- {names[key]} ({count} Punkte)" for key, count in counts.most_common(limit)]
+    return "\n".join(lines) if lines else "- (keine Daten)"
+
+
 def build_prompt(raw: dict, candidates: list[dict], excluded: list[str]) -> str:
     history = raw.get("history") or []
     likes = raw.get("likes") or []
     parts = [
+        "HAEUFIG GESEHENE/GELIKTE KANAELE (Verlauf 1 Punkt, Like 4 Punkte):",
+        top_channels(history, likes),
+        "",
         "GESCHEN (Gewicht 1, letzte ~50):",
         compact_history(history, 50),
         "",
