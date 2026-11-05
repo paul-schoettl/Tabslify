@@ -26,5 +26,7 @@ opencode.json
 .claude/
 memory_leak_audit/
 supabase/
+!yt-suggest/supabase/
+!yt-suggest/supabase/**
 TODOS.txt
 .opencode/opencode.jsonc
