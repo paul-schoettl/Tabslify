@@ -28,6 +28,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -192,6 +193,16 @@ fun SuggestionTabContent() {
                             tint = TextSecondary,
                         )
                     }
+                }
+
+                if (isLoading && suggestion != null) {
+                    Spacer(Modifier.height(10.dp))
+                    LinearProgressIndicator(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(2.dp),
+                        color = Accent,
+                    )
                 }
 
                 Spacer(Modifier.height(16.dp))
