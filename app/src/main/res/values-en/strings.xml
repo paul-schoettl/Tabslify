@@ -2437,4 +2437,15 @@
     <string name="stream_datei_gespeichert">%1$s saved to Downloads</string>
     <string name="stream_fehler">Error: %1$s</string>
     <string name="stream_daten">Data</string>
+    <string name="suggestion_tab">Suggestion</string>
+    <string name="suggestion_title">Your suggestion for today</string>
+    <string name="suggestion_subtitle">Freshly picked from your taste every day</string>
+    <string name="suggestion_reason">Why this video?</string>
+    <string name="suggestion_open_youtube">Open in YouTube</string>
+    <string name="suggestion_empty">No valid suggestion yet</string>
+    <string name="suggestion_empty_hint">Pull down to refresh.</string>
+    <string name="suggestion_error">Could not load the suggestion</string>
+    <string name="suggestion_retry">Try again</string>
+    <string name="suggestion_valid_until">Valid until %1$s</string>
+    <string name="suggestion_refresh">Refresh</string>
 </resources>

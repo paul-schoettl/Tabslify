@@ -102,6 +102,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Laptop
+import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.QuestionMark
@@ -210,6 +211,7 @@ import com.tabslify.tabs.NotizenApp
 import com.tabslify.tabs.OtherBucketViewer
 import com.tabslify.tabs.PCManagerTab
 import com.tabslify.tabs.QuickSettingsTabContent
+import com.tabslify.tabs.SuggestionTabContent
 import com.tabslify.tabs.WeatherTabContent
 import com.tabslify.tabs.tiktok.TikTokTabContent
 import com.tabslify.tabs.aitab.AITabContent
@@ -406,6 +408,11 @@ enum class MenuItem(
         "🛡️",
         { FocusGuardTabContent() }
     ),
+    SUGGESTION(
+        R.string.suggestion_tab,
+        "💡",
+        { SuggestionTabContent() }
+    ),
 }
 
 val MenuItem.iconVector: ImageVector
@@ -435,6 +442,7 @@ val MenuItem.iconVector: ImageVector
         MenuItem.VIRUSTOTAL -> Icons.Default.Security
         MenuItem.PUSHUPS -> Icons.Default.FitnessCenter
         MenuItem.FOCUSGUARD -> Icons.Default.Shield
+        MenuItem.SUGGESTION -> Icons.Default.Lightbulb
     }
 
 @SuppressLint("SetJavaScriptEnabled")

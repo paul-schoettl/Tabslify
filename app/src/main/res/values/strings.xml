@@ -2,4 +2,15 @@
     <string name="app_name" translatable="false">Tabslify</string>
     <string name="app_name_debug" translatable="false">Tabslify</string>
     <string name="wifi_direct_lan_verbindung_zum_pc">Verbindung zum PC im Heimnetz für Sync, Befehle und Benachrichtigungen</string>
+    <string name="suggestion_tab">Empfehlung</string>
+    <string name="suggestion_title">Deine Empfehlung für heute</string>
+    <string name="suggestion_subtitle">Täglich neu aus deinem Geschmack ausgewählt</string>
+    <string name="suggestion_reason">Warum dieses Video?</string>
+    <string name="suggestion_open_youtube">In YouTube öffnen</string>
+    <string name="suggestion_empty">Noch keine gültige Empfehlung</string>
+    <string name="suggestion_empty_hint">Ziehe nach unten, um zu aktualisieren.</string>
+    <string name="suggestion_error">Empfehlung konnte nicht geladen werden</string>
+    <string name="suggestion_retry">Erneut versuchen</string>
+    <string name="suggestion_valid_until">Gültig bis %1$s</string>
+    <string name="suggestion_refresh">Aktualisieren</string>
 </resources>
