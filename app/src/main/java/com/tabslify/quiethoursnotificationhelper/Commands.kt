@@ -1271,11 +1271,11 @@ fun executeCommand(commandText: String, context: Context) {
             if (argument != null) {
                 val index = argument.toIntOrNull()
                 if (index != null && index > 0) {
-                    completeTodo(index - 1, context)
+                    removeTodo(index - 1, context)
                 } else {
                     showSimpleNotificationExtern(
-                        "❌ Ungültige Nummer",
-                        "Syntax: todone [nummer]",
+                        context.getString(R.string.qh_cmd_title_invalid_number),
+                        context.getString(R.string.qh_cmd_help_todone_syntax),
                         20.seconds,
                         context,
                         silent = false

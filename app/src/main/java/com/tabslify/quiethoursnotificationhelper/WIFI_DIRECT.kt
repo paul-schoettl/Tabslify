@@ -778,7 +778,6 @@ private fun todosToJsonArray(todos: List<TodoItem>): JSONArray = JSONArray().app
         put(JSONObject().apply {
             put("id", todo.id)
             put("text", todo.text)
-            put("completed", todo.completed)
         })
     }
 }
@@ -874,8 +873,7 @@ var laptopName: String = ""
 
 data class TodoItem(
     val id: Long,
-    val text: String,
-    val completed: Boolean
+    val text: String
 )
 
 data class AiResponseEntry(
@@ -1660,50 +1658,13 @@ private fun sendSessionDataToLaptop(context: Context) {
 }
 
 fun getTodos(context: Context): List<TodoItem> {
-    val json = context.getSharedPreferences("todos_prefs", MODE_PRIVATE)
-        .getString("todos", "[]") ?: "[]"
-    return parseTodosFromJson(json)
-}
-
-fun showOpenTodos(context: Context) {
-    val todos = getTodos(context).filter { !it.completed }
-
-    if (todos.isEmpty()) {
-        showSimpleNotificationExtern(
-            "📝 To-dos",
-            "Keine To-dos vorhanden",
-            10.seconds,
-            context = context
-        )
-        return
+    val prefs = context.getSharedPreferences("todos_prefs", MODE_PRIVATE)
+    val json = prefs.getString("todos", "[]") ?: "[]"
+    val todos = parseTodosFromJson(json)
+    if (json.contains("\"completed\"")) {
+        prefs.edit { putString("todos", todosToJsonArray(todos).toString()) }
     }
-
-    val notificationManager = context.getSystemService(NotificationManager::class.java)
-
-    todos.forEachIndexed { index, todoItem ->
-        notificationManager.notify(
-            TODOS + index, NotificationCompat.Builder(context, CHANNEL_ID)
-                .setSmallIcon(android.R.drawable.ic_menu_agenda)
-                .setContentTitle(todoItem.text)
-                .setStyle(NotificationCompat.BigTextStyle().bigText(todoItem.text))
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setAutoCancel(true)
-                .setGroup("todos")
-                .build()
-        )
-    }
-
-    notificationManager.notify(
-        TODOS + 150, NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_menu_info_details)
-            .setContentTitle("Erledigte Todos")
-            .setContentText("${todos.size} Erledigte Todos")
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setGroup("todos")
-            .setGroupSummary(true)
-            .setAutoCancel(true)
-            .build()
-    )
+    return todos
 }
 
 fun saveTodos(context: Context, todos: List<TodoItem>) {
@@ -1720,8 +1681,7 @@ fun addTodo(text: String, context: Context) {
     todos.add(
         TodoItem(
             id = System.currentTimeMillis(),
-            text = text,
-            completed = false
+            text = text
         )
     )
     saveTodos(context, todos)
@@ -1731,22 +1691,6 @@ fun addTodo(text: String, context: Context) {
         10.seconds,
         context
     )
-}
-
-fun completeTodo(index: Int, context: Context) {
-    val todos = getTodos(context).toMutableList()
-    if (index in todos.indices) {
-        todos[index] = todos[index].copy(completed = true)
-        saveTodos(context, todos)
-        showSimpleNotificationExtern("✓ Erledigt", "\"${todos[index].text}\"", 10.seconds, context)
-    } else {
-        showSimpleNotificationExtern(
-            "❌ Fehler",
-            "To-do #${index + 1} existiert nicht",
-            10.seconds,
-            context
-        )
-    }
 }
 
 fun removeTodo(index: Int, context: Context) {
@@ -1778,19 +1722,9 @@ fun showAllTodos(context: Context) {
         return
     }
 
-    val activeTodos = todos.filter { !it.completed }
-    val completedTodos = todos.filter { it.completed }
-    val todoIndexMap = todos.mapIndexed { index, todo -> todo.id to (index + 1) }.toMap()
-
     val todoText = buildString {
-        if (activeTodos.isNotEmpty()) {
-            append("📌 OFFEN (${activeTodos.size}):\n")
-            activeTodos.forEach { append("${todoIndexMap[it.id]}. ${it.text}\n") }
-        }
-        if (completedTodos.isNotEmpty()) {
-            if (activeTodos.isNotEmpty()) append("\n")
-            append("✓ ERLEDIGT (${completedTodos.size}):\n")
-            completedTodos.forEach { append("${todoIndexMap[it.id]}. ${it.text}\n") }
+        todos.forEachIndexed { index, todo ->
+            append("${index + 1}. ${todo.text}\n")
         }
     }
 
@@ -1841,8 +1775,7 @@ private fun parseTodosFromJson(jsonData: String): List<TodoItem> =
             jsonArray.getJSONObject(i).run {
                 TodoItem(
                     getLong("id"),
-                    getString("text"),
-                    getBoolean("completed")
+                    getString("text")
                 )
             }
         }
