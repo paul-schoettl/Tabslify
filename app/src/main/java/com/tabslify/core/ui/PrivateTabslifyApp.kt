@@ -91,7 +91,6 @@ import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.MusicVideo
 import androidx.compose.material.icons.filled.Newspaper
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.School
@@ -201,9 +200,6 @@ import com.tabslify.remote.DevRemoteDesktopTabContent
 import com.tabslify.tabs.ApkmInstallerTabContent
 import com.tabslify.tabs.BrowserTabContent
 import com.tabslify.tabs.CalendarTabContent
-import com.tabslify.tabs.ContactsRepository
-import com.tabslify.tabs.ContactsTabContent
-import com.tabslify.tabs.ContactsViewModel
 import com.tabslify.tabs.DateCalculatorContent
 import com.tabslify.tabs.GalleryTab
 import com.tabslify.tabs.GmailTabContent
@@ -290,38 +286,6 @@ enum class MenuItem(
         R.string.wetter,
         "🌡️",
         { }
-    ),
-    CONTACTS(
-        R.string.kontakte,
-        "🧍",
-        {
-            val context = LocalContext.current
-            val repository = remember { ContactsRepository(context) }
-            val viewModel = remember { ContactsViewModel(repository) }
-            val permissionLauncher = rememberLauncherForActivityResult(
-                ActivityResultContracts.RequestMultiplePermissions()
-            ) { permissions ->
-                if (permissions.all { it.value }) {
-                    viewModel.loadContacts()
-                }
-            }
-
-            LaunchedEffect(Unit) {
-                permissionLauncher.launch(
-                    arrayOf(
-                        Manifest.permission.READ_CONTACTS,
-                        Manifest.permission.WRITE_CONTACTS
-                    )
-                )
-            }
-
-            ContactsTabContent(
-                state = viewModel.state,
-                onLoadContacts = { viewModel.loadContacts() },
-                onSaveContact = { contact -> viewModel.saveContact(contact) },
-                onDeleteContact = { id -> viewModel.deleteContact(id) }
-            )
-        }
     ),
     RECORDER(
         R.string.recorder,
@@ -426,7 +390,6 @@ val MenuItem.iconVector: ImageVector
         MenuItem.GALLERY -> Icons.Default.PhotoLibrary
         MenuItem.AUTHENTICATOR -> Icons.Default.Lock
         MenuItem.WEATHER -> Icons.Default.WbSunny
-        MenuItem.CONTACTS -> Icons.Default.Person
         MenuItem.RECORDER -> Icons.Default.Mic
         MenuItem.DATECALCULATOR -> Icons.Default.Calculate
         MenuItem.MOVIEDISCOVER -> Icons.Default.Movie

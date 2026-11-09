@@ -93,7 +93,6 @@ object Config {
         MenuItem.GALLERY to R.string.so_bedienst_du_die_galerie,
         MenuItem.AUTHENTICATOR to R.string.so_bedienst_du_den_passwort,
         MenuItem.WEATHER to R.string.so_bedienst_du_das_wetter,
-        MenuItem.CONTACTS to R.string.so_bedienst_du_die_kontakte,
         MenuItem.RECORDER to R.string.so_bedienst_du_den_rekorder,
         MenuItem.DATECALCULATOR to R.string.so_bedienst_du_den_datumsrechner,
         MenuItem.MOVIEDISCOVER to R.string.so_bedienst_du_die_film,
@@ -241,8 +240,7 @@ object Config {
             "cam" -> launcher.launch(arrayOf(Manifest.permission.CAMERA))
             "con" -> launcher.launch(
                 arrayOf(
-                    Manifest.permission.READ_CONTACTS,
-                    Manifest.permission.WRITE_CONTACTS
+                    Manifest.permission.READ_CONTACTS
                 )
             )
 
