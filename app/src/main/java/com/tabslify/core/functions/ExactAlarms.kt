@@ -77,6 +77,16 @@ object ExactAlarms {
         }
     }
 
+    fun isExemptFromBatteryOptimizations(context: Context): Boolean {
+        return try {
+            (context.getSystemService(Context.POWER_SERVICE) as PowerManager)
+                .isIgnoringBatteryOptimizations(context.packageName)
+        } catch (e: Exception) {
+            Log.e("ExactAlarms", "Akku-Ausnahme konnte nicht geprueft werden: ", e)
+            false
+        }
+    }
+
     fun requestPermission(context: Context) {
         try {
             context.startActivity(

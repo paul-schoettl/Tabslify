@@ -5,6 +5,7 @@ import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.pm.PermissionInfo
 import android.graphics.Bitmap
 import android.graphics.Paint
 import android.net.TrafficStats
@@ -152,6 +153,8 @@ import androidx.compose.ui.zIndex
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
+import androidx.health.connect.client.HealthConnectClient
+import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -1330,95 +1333,174 @@ private fun isUsageStatsGranted(context: Context): Boolean {
     return stats != null && stats.isNotEmpty()
 }
 
+private enum class PermissionAccess { RUNTIME, SPECIAL, HEALTH, AUTOMATIC, UNAVAILABLE }
+
+private const val NOTIFICATION_LISTENER_PERMISSION = "NOTIFICATION_LISTENER"
+private const val HEALTH_PERMISSION_PREFIX = "android.permission.health."
+private const val HEALTH_READ_SLEEP = "android.permission.health.READ_SLEEP"
+private const val HEALTH_READ_BACKGROUND = "android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND"
+
+private val specialAccessPermissions = setOf(
+    Manifest.permission.SYSTEM_ALERT_WINDOW,
+    Manifest.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+    Manifest.permission.MANAGE_EXTERNAL_STORAGE,
+    Manifest.permission.ACCESS_NOTIFICATION_POLICY,
+    Manifest.permission.PACKAGE_USAGE_STATS,
+    Manifest.permission.SCHEDULE_EXACT_ALARM,
+    Manifest.permission.REQUEST_INSTALL_PACKAGES
+)
+
+@Suppress("DEPRECATION")
+private fun manifestPermissions(context: Context): List<String> =
+    context.packageManager.getPackageInfo(context.packageName, PackageManager.GET_PERMISSIONS)
+        .requestedPermissions?.distinct().orEmpty()
+
+private fun hasNotificationListenerService(context: Context): Boolean =
+    context.packageManager.queryIntentServices(
+        Intent("android.service.notification.NotificationListenerService"),
+        PackageManager.GET_META_DATA
+    ).any { it.serviceInfo.packageName == context.packageName }
+
+private fun hasNotificationListenerAccess(context: Context): Boolean =
+    Settings.Secure.getString(
+        context.contentResolver,
+        "enabled_notification_listeners"
+    ).orEmpty().split(':').any { it.startsWith("${context.packageName}/") }
+
+private fun permissionDisplayName(permission: String): String =
+    permission.removePrefix("android.permission.")
+        .removePrefix("com.android.alarm.permission.")
+        .removePrefix("health.")
+
+private fun permissionAccess(context: Context, permission: String): PermissionAccess {
+    if (permission == NOTIFICATION_LISTENER_PERMISSION) return PermissionAccess.SPECIAL
+    if (permission in specialAccessPermissions) return PermissionAccess.SPECIAL
+    if (permission.startsWith(HEALTH_PERMISSION_PREFIX)) return PermissionAccess.HEALTH
+    val info = try {
+        context.packageManager.getPermissionInfo(permission, 0)
+    } catch (_: PackageManager.NameNotFoundException) {
+        return PermissionAccess.UNAVAILABLE
+    }
+    return when {
+        info.protection and PermissionInfo.PROTECTION_DANGEROUS != 0 ->
+            PermissionAccess.RUNTIME
+
+        info.protection == PermissionInfo.PROTECTION_NORMAL ->
+            PermissionAccess.AUTOMATIC
+
+        ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED ->
+            PermissionAccess.AUTOMATIC
+
+        info.protectionFlags and PermissionInfo.PROTECTION_FLAG_APPOP != 0 ->
+            PermissionAccess.SPECIAL
+
+        else -> PermissionAccess.UNAVAILABLE
+    }
+}
+
+private fun featureAllowsPermission(context: Context, permission: String): Boolean = when {
+    permission == Manifest.permission.READ_CONTACTS ->
+        isFeatureEnabled(context, FeatureToggle.CONTACTS)
+
+    permission == Manifest.permission.BLUETOOTH_CONNECT ->
+        isFeatureEnabled(context, FeatureToggle.BLUETOOTH)
+
+    permission == Manifest.permission.ACCESS_LOCAL_NETWORK ->
+        isFeatureEnabled(context, FeatureToggle.LOCAL_NETWORK)
+
+    permission == Manifest.permission.PACKAGE_USAGE_STATS ->
+        isFeatureEnabled(context, FeatureToggle.USAGE_STATS)
+
+    permission.startsWith(HEALTH_PERMISSION_PREFIX) ->
+        isFeatureEnabled(context, FeatureToggle.HEALTH)
+
+    else -> true
+}
+
 fun isPermissionGranted(context: Context, key: String): Boolean {
     fun granted(p: String) =
         ContextCompat.checkSelfPermission(context, p) == PackageManager.PERMISSION_GRANTED
     return when (key) {
-        "READ_MEDIA_AUDIO" ->
-            granted(Manifest.permission.READ_MEDIA_AUDIO)
+        NOTIFICATION_LISTENER_PERMISSION -> hasNotificationListenerAccess(context)
 
-        "POST_NOTIFICATIONS" -> canNotify(context)
+        Manifest.permission.POST_NOTIFICATIONS -> canNotify(context)
 
-        "ACCESS_COARSE_LOCATION / ACCESS_FINE_LOCATION" ->
-            granted(Manifest.permission.ACCESS_COARSE_LOCATION) ||
-                    granted(Manifest.permission.ACCESS_FINE_LOCATION)
+        Manifest.permission.SYSTEM_ALERT_WINDOW -> Settings.canDrawOverlays(context)
 
-        "ACCESS_BACKGROUND_LOCATION" -> granted(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+        Manifest.permission.PACKAGE_USAGE_STATS -> isUsageStatsGranted(context)
 
-        "ACTIVITY_RECOGNITION" -> granted(Manifest.permission.ACTIVITY_RECOGNITION)
-
-        "SYSTEM_ALERT_WINDOW" -> Settings.canDrawOverlays(context)
-
-        "PACKAGE_USAGE_STATS" -> isUsageStatsGranted(context)
-
-        "FOREGROUND_SERVICE" -> granted(Manifest.permission.FOREGROUND_SERVICE)
-
-        "READ_MEDIA_IMAGES / READ_MEDIA_VIDEO" ->
-            granted(Manifest.permission.READ_MEDIA_IMAGES) ||
-                    granted(Manifest.permission.READ_MEDIA_VIDEO) ||
-                    granted(Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED)
-
-        "READ_CONTACTS / WRITE_CONTACTS" ->
-            granted(Manifest.permission.READ_CONTACTS) &&
-                    granted(Manifest.permission.WRITE_CONTACTS)
-
-        "CAMERA" -> granted(Manifest.permission.CAMERA)
-
-        "RECEIVE_BOOT_COMPLETED" -> granted(Manifest.permission.RECEIVE_BOOT_COMPLETED)
-
-        "RECORD_AUDIO" -> granted(Manifest.permission.RECORD_AUDIO)
-
-        "REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" ->
+        Manifest.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS ->
             (context.getSystemService(Context.POWER_SERVICE) as android.os.PowerManager)
                 .isIgnoringBatteryOptimizations(context.packageName)
 
-        "BLUETOOTH_CONNECT" -> granted(Manifest.permission.BLUETOOTH_CONNECT)
+        Manifest.permission.MANAGE_EXTERNAL_STORAGE -> Environment.isExternalStorageManager()
 
-        "READ_PHONE_STATE / READ_BASIC_PHONE_STATE" ->
-            granted(Manifest.permission.READ_PHONE_STATE) ||
-                    granted(Manifest.permission.READ_BASIC_PHONE_STATE)
-
-        "READ_SMS" -> granted(Manifest.permission.READ_SMS)
-
-        "MANAGE_EXTERNAL_STORAGE" -> Environment.isExternalStorageManager()
-
-        "ACCESS_NOTIFICATION_POLICY" ->
+        Manifest.permission.ACCESS_NOTIFICATION_POLICY ->
             (context.getSystemService(Context.NOTIFICATION_SERVICE) as android.app.NotificationManager)
                 .isNotificationPolicyAccessGranted
 
-        "SCHEDULE_EXACT_ALARM" -> ExactAlarms.canScheduleExact(context)
+        Manifest.permission.SCHEDULE_EXACT_ALARM -> ExactAlarms.canScheduleExact(context)
 
-        "ACCESS_SUPERUSER" -> granted("android.permission.ACCESS_SUPERUSER")
+        Manifest.permission.REQUEST_INSTALL_PACKAGES ->
+            context.packageManager.canRequestPackageInstalls()
 
-        "SET_ALARM" -> granted("com.android.alarm.permission.SET_ALARM")
-
-        "ACCESS_WIFI_STATE" -> granted(Manifest.permission.ACCESS_WIFI_STATE)
-
-        "ACCESS_NETWORK_STATE" -> granted(Manifest.permission.ACCESS_NETWORK_STATE)
-
-        "ACCESS_LOCAL_NETWORK" -> granted(Manifest.permission.ACCESS_LOCAL_NETWORK)
-
-        else -> false
+        else -> granted(key)
     }
 }
 
 @Composable
 private fun PermissionButton(
-    txt: String,
+    permission: String,
+    title: String,
+    access: PermissionAccess,
+    accessLabel: String,
+    explanation: String,
     isSelected: Boolean,
     permRefreshKey: Int,
     usageStatsGranted: Boolean?,
+    healthGrantedPermissions: Set<String>?,
+    healthConnectAvailable: Boolean,
     buttonShape: RoundedCornerShape,
     borderBrush: Brush,
     onShowDetails: () -> Unit,
     onGrant: () -> Unit
 ) {
     val context = LocalContext.current
-    val syncGranted = remember(permRefreshKey, txt) {
-        if (txt == "PACKAGE_USAGE_STATS") null else isPermissionGranted(context, txt)
+    val syncGranted = remember(permRefreshKey, permission) {
+        if (permission == Manifest.permission.PACKAGE_USAGE_STATS) null
+        else isPermissionGranted(context, permission)
     }
-    val granted = syncGranted ?: usageStatsGranted ?: false
-    val requestable = remember(txt) { Config.isPermissionRequestable(txt) }
+    val granted = when (access) {
+        PermissionAccess.AUTOMATIC -> true
+        PermissionAccess.UNAVAILABLE -> false
+        PermissionAccess.HEALTH ->
+            healthGrantedPermissions?.contains(permission) ?: (syncGranted ?: false)
+
+        else -> syncGranted ?: usageStatsGranted ?: false
+    }
+    val canRequest = !granted && when (access) {
+        PermissionAccess.RUNTIME, PermissionAccess.SPECIAL -> true
+        PermissionAccess.HEALTH -> healthConnectAvailable
+        PermissionAccess.AUTOMATIC, PermissionAccess.UNAVAILABLE -> false
+    }
+    val exactAlarmBatteryExempt = remember(permRefreshKey, permission) {
+        permission == Manifest.permission.SCHEDULE_EXACT_ALARM &&
+            ExactAlarms.isExemptFromBatteryOptimizations(context)
+    }
+    val statusText = when {
+        access == PermissionAccess.AUTOMATIC ->
+            "● " + stringResource(R.string.permission_label_automatic)
+
+        access == PermissionAccess.UNAVAILABLE ->
+            "○ " + stringResource(R.string.permission_label_unavailable)
+
+        granted && exactAlarmBatteryExempt ->
+            "● " + stringResource(R.string.permission_label_granted_battery_exempt)
+
+        granted -> "● " + stringResource(R.string.permission_label_granted)
+        else -> "○ " + stringResource(R.string.permission_label_not_granted)
+    }
+    val statusColor = if (granted) SuccessGreen else Color.White.copy(alpha = 0.55f)
 
     Button(
         onClick = onShowDetails,
@@ -1440,7 +1522,23 @@ private fun PermissionButton(
             )
     ) {
         Column(Modifier.fillMaxWidth()) {
-            Text(txt, fontSize = 13.sp, modifier = Modifier.fillMaxWidth())
+            Text(title, fontSize = 13.sp, modifier = Modifier.fillMaxWidth())
+            Text(
+                accessLabel,
+                fontSize = 10.sp,
+                color = TextTertiary,
+                modifier = Modifier.fillMaxWidth()
+            )
+            if (explanation.isNotBlank()) {
+                Text(
+                    explanation,
+                    fontSize = 11.sp,
+                    color = Color.White.copy(alpha = 0.68f),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
             Spacer(Modifier.height(6.dp))
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -1456,15 +1554,14 @@ private fun PermissionButton(
                         .padding(horizontal = 9.dp, vertical = 3.dp)
                 ) {
                     Text(
-                        if (granted) "● Erteilt" else "○ Nicht erteilt",
+                        statusText,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (granted) SuccessGreen
-                        else Color.White.copy(alpha = 0.55f)
+                        color = statusColor
                     )
                 }
                 Spacer(Modifier.weight(1f))
-                if (!granted && requestable) {
+                if (canRequest) {
                     TextButton(
                         onClick = onGrant,
                         colors = ButtonDefaults.textButtonColors(contentColor = Color.White),
@@ -1511,6 +1608,11 @@ fun PermissionInfoScreen(onboarding: Boolean = false, onClose: (() -> Unit)? = n
             checkPermissionsForPrvt(context)
         }
     }
+    val healthPermissionLauncher = rememberLauncherForActivityResult(
+        PermissionController.createRequestPermissionResultContract()
+    ) {
+        permRefreshKey++
+    }
     var selectedPermission by remember { mutableStateOf<String?>(null) }
     var titleDialog by remember { mutableStateOf("") }
     var usagesDialog by remember { mutableStateOf<List<String>>(emptyList()) }
@@ -1528,6 +1630,7 @@ fun PermissionInfoScreen(onboarding: Boolean = false, onClose: (() -> Unit)? = n
     val location2 =
         stringResource(R.string.exploretab_explorelocationtracker_standortverfolgung_und_geofencing)
     val location3 = stringResource(R.string.shownetwerkinfo_anzeige_der_wlan_ssid)
+    val locationBackground = stringResource(R.string.permission_location_background)
     val activityRecognition1 = stringResource(R.string.exploretab_activityrecognition_erkennung_des_verkehrsmittels)
     val systemAlertWindow1 =
         stringResource(R.string.quiethoursnotificationservice_test_overlay_fur_youtube)
@@ -1537,7 +1640,20 @@ fun PermissionInfoScreen(onboarding: Boolean = false, onClose: (() -> Unit)? = n
         stringResource(R.string.quiethoursnotificationservice_dauerhafte_benachrichtigungen)
     val foregroundService3 = stringResource(R.string.chargingtrackerservice_ladeuberwachung)
     val foregroundService4 = stringResource(R.string.audioforegroundservice_audioaufnahmen)
+    val foregroundServiceLocation1 = stringResource(R.string.permission_foreground_service_location)
+    val foregroundServiceSpecialUse1 =
+        stringResource(R.string.permission_foreground_service_special_use)
+    val foregroundServiceMediaPlayback1 =
+        stringResource(R.string.permission_foreground_service_media_playback)
+    val foregroundServiceMicrophone1 =
+        stringResource(R.string.permission_foreground_service_microphone)
+    val foregroundServiceMediaProjection1 =
+        stringResource(R.string.permission_foreground_service_media_projection)
+    val foregroundServiceDataSync1 =
+        stringResource(R.string.permission_foreground_service_data_sync)
     val readMediaImagesVideo1 = stringResource(R.string.gallerytab_anzeige_von_bildern_und)
+    val readMediaVisualUserSelected1 =
+        stringResource(R.string.permission_read_media_visual_user_selected)
     val contacts1 = stringResource(R.string.contactstab_laden_speichern_und_loschen)
     val bootCompleted1 =
         stringResource(R.string.bootreceiver_starten_von_quiethoursnotificationservice_beim)
@@ -1549,7 +1665,12 @@ fun PermissionInfoScreen(onboarding: Boolean = false, onClose: (() -> Unit)? = n
         stringResource(R.string.exactalarms_planung_exakter_und_inexakter_alarme)
     val camera1 = stringResource(R.string.authenticator_scannen_von_qr_codes)
     val camera2 = stringResource(R.string.fitnesstab_zahlen_von_push_ups)
-    val keineAngabenHinterlegt = stringResource(R.string.keine_angaben_hinterlegt)
+    val rideLocation = stringResource(R.string.permission_ride_tracking_location)
+    val rideFgs = stringResource(R.string.permission_ride_tracking_fgs)
+    val rideActivity = stringResource(R.string.permission_ride_tracking_activity)
+    val internet1 = stringResource(R.string.permission_internet)
+    val requestInstallPackages1 = stringResource(R.string.permission_request_install_packages)
+    val changeWifiMulticast1 = stringResource(R.string.permission_change_wifi_multicast)
     val bluetoothConnect1 =
         stringResource(R.string.reportdeviceinformation_bluetooth_verbindungsstatus)
     val phoneState1 =
@@ -1559,8 +1680,18 @@ fun PermissionInfoScreen(onboarding: Boolean = false, onClose: (() -> Unit)? = n
     val wifiState1 = stringResource(R.string.reportdeviceinformation_wlan_status_hotspot)
     val networkState1 = stringResource(R.string.reportdeviceinformation_netzwerkstatus_konnektivitat)
     val localNetwork1 = stringResource(R.string.wifi_direct_lan_verbindung_zum_pc)
-    val wakeLock1 =
-        stringResource(R.string.remotedesktoptab_wake_lock_waehrend_einer_remote_desktop_sitzung)
+    val wakeLock1 = stringResource(R.string.permission_wake_lock)
+    val c2dmReceive1 = stringResource(R.string.permission_c2dm_receive)
+    val useBiometric1 = stringResource(R.string.permission_use_biometric)
+    val useFingerprint1 = stringResource(R.string.permission_use_fingerprint)
+    val dynamicReceiver1 = stringResource(R.string.permission_dynamic_receiver)
+    val notificationPolicy1 = stringResource(R.string.permission_access_notification_policy)
+    val manageExternalStorage1 = stringResource(R.string.permission_manage_external_storage)
+    val accessSuperuser1 = stringResource(R.string.permission_access_superuser)
+    val healthReadSleep1 = stringResource(R.string.permission_health_read_sleep)
+    val healthReadBackground1 = stringResource(R.string.permission_health_read_background)
+    val notificationListener1 =
+        stringResource(R.string.permission_notification_listener_description)
     val focusguardUsageDesc = stringResource(R.string.focusguard_perm_usage_desc)
     val focusguardOverlayDesc = stringResource(R.string.focusguard_perm_overlay_desc)
     val focusguardNotifDesc = stringResource(R.string.focusguard_perm_notifications_desc)
@@ -1577,13 +1708,21 @@ fun PermissionInfoScreen(onboarding: Boolean = false, onClose: (() -> Unit)? = n
         location1,
         location2,
         location3,
+        locationBackground,
         activityRecognition1,
         systemAlertWindow1,
         foregroundService1,
         foregroundService2,
         foregroundService3,
         foregroundService4,
+        foregroundServiceLocation1,
+        foregroundServiceSpecialUse1,
+        foregroundServiceMediaPlayback1,
+        foregroundServiceMicrophone1,
+        foregroundServiceMediaProjection1,
+        foregroundServiceDataSync1,
         readMediaImagesVideo1,
+        readMediaVisualUserSelected1,
         contacts1,
         bootCompleted1,
         recordAudio1,
@@ -1591,101 +1730,195 @@ fun PermissionInfoScreen(onboarding: Boolean = false, onClose: (() -> Unit)? = n
         exactAlarm1,
         camera1,
         camera2,
+        internet1,
+        requestInstallPackages1,
+        changeWifiMulticast1,
         bluetoothConnect1,
         phoneState1,
         readSms1,
         setAlarm1,
         wifiState1,
         networkState1,
-        wakeLock1,
         localNetwork1,
+        wakeLock1,
+        c2dmReceive1,
+        useBiometric1,
+        useFingerprint1,
+        dynamicReceiver1,
+        notificationPolicy1,
+        manageExternalStorage1,
+        accessSuperuser1,
+        healthReadSleep1,
+        healthReadBackground1,
+        notificationListener1,
         focusguardUsageDesc,
         focusguardOverlayDesc,
-        focusguardNotifDesc
+        focusguardNotifDesc,
+        rideLocation,
+        rideFgs,
+        rideActivity
     ) {
         mapOf(
-            "READ_MEDIA_AUDIO" to listOf(
+            Manifest.permission.READ_MEDIA_AUDIO to listOf(
                 readMediaAudio1,
                 readMediaAudio2
             ),
-            "POST_NOTIFICATIONS" to listOf(
+            Manifest.permission.POST_NOTIFICATIONS to listOf(
                 postNotifications1,
                 postNotifications2,
                 postNotifications3,
                 postNotifications4,
                 postNotifications5,
                 postNotifications6,
-                focusguardNotifDesc
+                focusguardNotifDesc,
+                rideFgs
             ),
-            "ACCESS_COARSE_LOCATION / ACCESS_FINE_LOCATION" to listOf(
+            Manifest.permission.ACCESS_COARSE_LOCATION to listOf(
                 location1,
                 location2,
-                location3
+                location3,
+                rideLocation
             ),
-            "ACCESS_BACKGROUND_LOCATION" to listOf(
-                location2
+            Manifest.permission.ACCESS_FINE_LOCATION to listOf(
+                location1,
+                location2,
+                location3,
+                rideLocation
             ),
-            "ACTIVITY_RECOGNITION" to listOf(
-                activityRecognition1
+            Manifest.permission.ACCESS_BACKGROUND_LOCATION to listOf(
+                location2,
+                locationBackground,
+                rideLocation
             ),
-            "SYSTEM_ALERT_WINDOW" to listOf(
+            Manifest.permission.ACTIVITY_RECOGNITION to listOf(
+                activityRecognition1,
+                rideActivity
+            ),
+            Manifest.permission.SYSTEM_ALERT_WINDOW to listOf(
                 systemAlertWindow1,
                 focusguardOverlayDesc
             ),
-            "PACKAGE_USAGE_STATS" to listOf(
+            Manifest.permission.PACKAGE_USAGE_STATS to listOf(
                 focusguardUsageDesc
             ),
-            "FOREGROUND_SERVICE" to listOf(
+            Manifest.permission.FOREGROUND_SERVICE to listOf(
                 foregroundService1,
                 foregroundService2,
                 foregroundService3,
                 foregroundService4
             ),
-            "READ_MEDIA_IMAGES / READ_MEDIA_VIDEO" to listOf(
+            Manifest.permission.FOREGROUND_SERVICE_LOCATION to listOf(
+                foregroundServiceLocation1,
+                rideFgs
+            ),
+            Manifest.permission.FOREGROUND_SERVICE_SPECIAL_USE to listOf(
+                foregroundServiceSpecialUse1
+            ),
+            Manifest.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK to listOf(
+                foregroundServiceMediaPlayback1
+            ),
+            Manifest.permission.FOREGROUND_SERVICE_MICROPHONE to listOf(
+                foregroundServiceMicrophone1
+            ),
+            Manifest.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION to listOf(
+                foregroundServiceMediaProjection1
+            ),
+            Manifest.permission.FOREGROUND_SERVICE_DATA_SYNC to listOf(
+                foregroundServiceDataSync1
+            ),
+            Manifest.permission.READ_MEDIA_IMAGES to listOf(
                 readMediaImagesVideo1
             ),
-            "READ_CONTACTS / WRITE_CONTACTS" to listOf(
+            Manifest.permission.READ_MEDIA_VIDEO to listOf(
+                readMediaImagesVideo1
+            ),
+            Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED to listOf(
+                readMediaVisualUserSelected1
+            ),
+            Manifest.permission.READ_CONTACTS to listOf(
                 contacts1
             ),
-            "RECEIVE_BOOT_COMPLETED" to listOf(
+            Manifest.permission.RECEIVE_BOOT_COMPLETED to listOf(
                 bootCompleted1
             ),
-            "RECORD_AUDIO" to listOf(
+            Manifest.permission.RECORD_AUDIO to listOf(
                 recordAudio1
             ),
-            "REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" to listOf(
+            Manifest.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS to listOf(
                 ignoreBattery1
             ),
-            "SCHEDULE_EXACT_ALARM" to listOf(
+            Manifest.permission.SCHEDULE_EXACT_ALARM to listOf(
                 exactAlarm1
             ),
-            "CAMERA" to listOf(
+            Manifest.permission.CAMERA to listOf(
                 camera1,
                 camera2
             ),
-            "BLUETOOTH_CONNECT" to listOf(
+            Manifest.permission.INTERNET to listOf(
+                internet1
+            ),
+            Manifest.permission.REQUEST_INSTALL_PACKAGES to listOf(
+                requestInstallPackages1
+            ),
+            Manifest.permission.CHANGE_WIFI_MULTICAST_STATE to listOf(
+                changeWifiMulticast1
+            ),
+            Manifest.permission.BLUETOOTH_CONNECT to listOf(
                 bluetoothConnect1
             ),
-            "READ_PHONE_STATE / READ_BASIC_PHONE_STATE" to listOf(
+            Manifest.permission.READ_PHONE_STATE to listOf(
                 phoneState1
             ),
-            "READ_SMS" to listOf(
+            Manifest.permission.READ_BASIC_PHONE_STATE to listOf(
+                phoneState1
+            ),
+            Manifest.permission.READ_SMS to listOf(
                 readSms1
             ),
-            "SET_ALARM" to listOf(
+            "com.android.alarm.permission.SET_ALARM" to listOf(
                 setAlarm1
             ),
-            "ACCESS_WIFI_STATE" to listOf(
+            Manifest.permission.ACCESS_WIFI_STATE to listOf(
                 wifiState1
             ),
-            "ACCESS_NETWORK_STATE" to listOf(
+            Manifest.permission.ACCESS_NETWORK_STATE to listOf(
                 networkState1
             ),
-            "ACCESS_LOCAL_NETWORK" to listOf(
+            Manifest.permission.ACCESS_LOCAL_NETWORK to listOf(
                 localNetwork1
             ),
-            "WAKE_LOCK" to listOf(
+            Manifest.permission.WAKE_LOCK to listOf(
                 wakeLock1
+            ),
+            "com.google.android.c2dm.permission.RECEIVE" to listOf(
+                c2dmReceive1
+            ),
+            Manifest.permission.USE_BIOMETRIC to listOf(
+                useBiometric1
+            ),
+            Manifest.permission.USE_FINGERPRINT to listOf(
+                useFingerprint1
+            ),
+            "${context.packageName}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" to listOf(
+                dynamicReceiver1
+            ),
+            Manifest.permission.ACCESS_NOTIFICATION_POLICY to listOf(
+                notificationPolicy1
+            ),
+            Manifest.permission.MANAGE_EXTERNAL_STORAGE to listOf(
+                manageExternalStorage1
+            ),
+            "android.permission.ACCESS_SUPERUSER" to listOf(
+                accessSuperuser1
+            ),
+            HEALTH_READ_SLEEP to listOf(
+                healthReadSleep1
+            ),
+            HEALTH_READ_BACKGROUND to listOf(
+                healthReadBackground1
+            ),
+            NOTIFICATION_LISTENER_PERMISSION to listOf(
+                notificationListener1
             )
         )
     }
@@ -1711,37 +1944,69 @@ fun PermissionInfoScreen(onboarding: Boolean = false, onClose: (() -> Unit)? = n
         val permissionBorderBrush = remember {
             Brush.linearGradient(colors = listOf(Accent, AccentDim))
         }
-        val allPermissionKeys = remember {
-            buildList {
-                add("READ_MEDIA_AUDIO")
-                add("POST_NOTIFICATIONS")
-                add("ACCESS_COARSE_LOCATION / ACCESS_FINE_LOCATION")
-                add("ACCESS_BACKGROUND_LOCATION")
-                add("ACTIVITY_RECOGNITION")
-                add("SYSTEM_ALERT_WINDOW")
-                add("PACKAGE_USAGE_STATS")
-                add("FOREGROUND_SERVICE")
-                add("READ_MEDIA_IMAGES / READ_MEDIA_VIDEO")
-                add("READ_CONTACTS / WRITE_CONTACTS")
-                add("CAMERA")
-                add("RECEIVE_BOOT_COMPLETED")
-                add("RECORD_AUDIO")
-                add("REQUEST_IGNORE_BATTERY_OPTIMIZATIONS")
-                add("SCHEDULE_EXACT_ALARM")
-                if (Build.VERSION.SDK_INT >= 36) add("ACCESS_LOCAL_NETWORK")
-                if (prvt()) {
-                    add("BLUETOOTH_CONNECT")
-                    add("READ_PHONE_STATE / READ_BASIC_PHONE_STATE")
-                    add("READ_SMS")
-                    add("MANAGE_EXTERNAL_STORAGE")
-                    add("ACCESS_NOTIFICATION_POLICY")
-                    add("ACCESS_SUPERUSER")
-                    add("SET_ALARM")
-                    add("ACCESS_WIFI_STATE")
-                    add("ACCESS_NETWORK_STATE")
-                    add("WAKE_LOCK")
+        val healthConnectAvailable = remember(context) {
+            runCatching {
+                HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE
+            }.getOrDefault(false)
+        }
+        val healthGrantedPermissions by produceState<Set<String>?>(
+            initialValue = null,
+            permRefreshKey,
+            healthConnectAvailable
+        ) {
+            value = if (!healthConnectAvailable) {
+                emptySet()
+            } else {
+                withContext(Dispatchers.IO) {
+                    runCatching {
+                        HealthConnectClient.getOrCreate(context)
+                            .permissionController
+                            .getGrantedPermissions()
+                    }.getOrNull()
                 }
             }
+        }
+        val permissionEntries = remember(context) {
+            val entries = manifestPermissions(context)
+                .filter { featureAllowsPermission(context, it) }
+                .map { permission -> permission to permissionAccess(context, permission) }
+                .toMutableList()
+            if (hasNotificationListenerService(context)) {
+                entries += NOTIFICATION_LISTENER_PERMISSION to PermissionAccess.SPECIAL
+            }
+            entries.sortedBy { it.second.ordinal }
+        }
+        val fallbackExplanation = stringResource(R.string.permission_explanation_fallback)
+        val exactAlarmBatteryExemptNote =
+            stringResource(R.string.permission_exact_alarm_battery_exempt)
+        val exactAlarmBatteryExempt = remember(permRefreshKey) {
+            ExactAlarms.isExemptFromBatteryOptimizations(context)
+        }
+        val notificationListenerLabel =
+            stringResource(R.string.permission_notification_listener_label)
+        val accessRuntimeLabel = stringResource(R.string.permission_access_runtime)
+        val accessSpecialLabel = stringResource(R.string.permission_access_special)
+        val accessHealthLabel = stringResource(R.string.permission_access_health)
+        val accessAutomaticLabel = stringResource(R.string.permission_access_automatic)
+        val accessUnavailableLabel = stringResource(R.string.permission_access_unavailable)
+        val sectionRuntimeLabel = stringResource(R.string.permission_section_runtime)
+        val sectionSpecialLabel = stringResource(R.string.permission_section_special)
+        val sectionHealthLabel = stringResource(R.string.permission_section_health)
+        val sectionAutomaticLabel = stringResource(R.string.permission_section_automatic)
+        val sectionUnavailableLabel = stringResource(R.string.permission_section_unavailable)
+        fun accessLabel(access: PermissionAccess): String = when (access) {
+            PermissionAccess.RUNTIME -> accessRuntimeLabel
+            PermissionAccess.SPECIAL -> accessSpecialLabel
+            PermissionAccess.HEALTH -> accessHealthLabel
+            PermissionAccess.AUTOMATIC -> accessAutomaticLabel
+            PermissionAccess.UNAVAILABLE -> accessUnavailableLabel
+        }
+        fun sectionLabel(access: PermissionAccess): String = when (access) {
+            PermissionAccess.RUNTIME -> sectionRuntimeLabel
+            PermissionAccess.SPECIAL -> sectionSpecialLabel
+            PermissionAccess.HEALTH -> sectionHealthLabel
+            PermissionAccess.AUTOMATIC -> sectionAutomaticLabel
+            PermissionAccess.UNAVAILABLE -> sectionUnavailableLabel
         }
 
         Column(
@@ -1757,10 +2022,18 @@ fun PermissionInfoScreen(onboarding: Boolean = false, onClose: (() -> Unit)? = n
         ) {
             Spacer(Modifier.height(headerHeightDp))
 
+            val runtimePermissions = permissionEntries
+                .filter { it.second == PermissionAccess.RUNTIME }
+                .map { it.first }
             Button(
                 onClick = {
-                    pendingPrvtPermissions = true
-                    Config.requestAllRuntimePermissions(allPermissionKeys, permissionLauncher)
+                    if (runtimePermissions.isNotEmpty()) {
+                        pendingPrvtPermissions = true
+                        Config.requestAllRuntimePermissions(runtimePermissions, permissionLauncher)
+                    } else {
+                        pendingPrvtPermissions = false
+                        checkPermissionsForPrvt(context)
+                    }
                 },
                 shape = RoundedCornerShape(22.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = APP_COLOR),
@@ -1771,22 +2044,59 @@ fun PermissionInfoScreen(onboarding: Boolean = false, onClose: (() -> Unit)? = n
                 Text(stringResource(R.string.alle_berechtigungen_anfragen), fontWeight = FontWeight.Bold)
             }
 
-            allPermissionKeys.forEach { permissionKey ->
-                key(permissionKey) {
-                    PermissionButton(
-                        txt = permissionKey,
-                        isSelected = selectedPermission == permissionKey,
-                        permRefreshKey = permRefreshKey,
-                        usageStatsGranted = usageStatsGranted,
-                        buttonShape = permissionButtonShape,
-                        borderBrush = permissionBorderBrush,
-                        onShowDetails = {
-                            selectedPermission = permissionKey
-                            titleDialog = permissionKey
-                            usagesDialog = permissionUsages[permissionKey] ?: listOf(keineAngabenHinterlegt)
-                        },
-                        onGrant = { Config.requestPermissionForKey(context, permissionKey, permissionLauncher) }
-                    )
+            PermissionAccess.entries.forEach { access ->
+                val entriesForAccess = permissionEntries.filter { it.second == access }
+                if (entriesForAccess.isNotEmpty()) {
+                    LandingSectionLabel(sectionLabel(access))
+                    entriesForAccess.forEach { (permission, _) ->
+                        key(permission) {
+                            val title = if (permission == NOTIFICATION_LISTENER_PERMISSION) {
+                                notificationListenerLabel
+                            } else {
+                                permissionDisplayName(permission)
+                            }
+                            val baseExplanations = permissionUsages[permission]
+                                ?: listOf(fallbackExplanation.format(title))
+                            val explanations =
+                                if (permission == Manifest.permission.SCHEDULE_EXACT_ALARM &&
+                                    exactAlarmBatteryExempt
+                                ) {
+                                    listOf(exactAlarmBatteryExemptNote) + baseExplanations
+                                } else {
+                                    baseExplanations
+                                }
+                            PermissionButton(
+                                permission = permission,
+                                title = title,
+                                access = access,
+                                accessLabel = accessLabel(access),
+                                explanation = explanations.firstOrNull().orEmpty(),
+                                isSelected = selectedPermission == permission,
+                                permRefreshKey = permRefreshKey,
+                                usageStatsGranted = usageStatsGranted,
+                                healthGrantedPermissions = healthGrantedPermissions,
+                                healthConnectAvailable = healthConnectAvailable,
+                                buttonShape = permissionButtonShape,
+                                borderBrush = permissionBorderBrush,
+                                onShowDetails = {
+                                    selectedPermission = permission
+                                    titleDialog = title
+                                    usagesDialog = explanations
+                                },
+                                onGrant = {
+                                    if (access == PermissionAccess.HEALTH) {
+                                        healthPermissionLauncher.launch(setOf(permission))
+                                    } else {
+                                        Config.requestPermissionForKey(
+                                            context,
+                                            permission,
+                                            permissionLauncher
+                                        )
+                                    }
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }

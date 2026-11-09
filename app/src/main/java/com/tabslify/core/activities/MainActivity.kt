@@ -32,7 +32,6 @@ import androidx.core.view.WindowCompat
 import androidx.fragment.app.FragmentActivity
 import com.tabslify.R
 import com.tabslify.core.objects.Config
-import com.tabslify.core.objects.Config.requestPermission
 import com.tabslify.core.objects.prvt
 import com.tabslify.core.functions.EXTRA_VOICE_START
 import com.tabslify.core.functions.startVoiceRecordingNow
@@ -113,11 +112,7 @@ class MainActivity : FragmentActivity() {
         val onboardingFinished = getSharedPreferences("app_prefs", MODE_PRIVATE)
             .getBoolean("has_seen_permission_info", false)
         if (onboardingFinished) {
-            if (prvt() && Config.realDevice) {
-                requestPermission("all", launcher)
-            } else {
-                requestPermission("not", launcher)
-            }
+            Config.requestAllDeclaredRuntimePermissions(this, launcher)
         }
 
         val appPrefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
