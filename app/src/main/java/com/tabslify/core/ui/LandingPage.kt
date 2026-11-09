@@ -163,28 +163,20 @@ import com.tabslify.BuildConfig
 import com.tabslify.R
 import com.tabslify.core.functions.ExactAlarms
 import com.tabslify.core.functions.canNotify
+import com.tabslify.core.logging.AppLog
 import com.tabslify.core.objects.BackupEntry
 import com.tabslify.core.objects.BackupOutcome
 import com.tabslify.core.objects.Config
 import com.tabslify.core.objects.Config.client
 import com.tabslify.core.objects.Config.realDevice
-import com.tabslify.quiethoursnotificationhelper.DailyDigestScheduler
 import com.tabslify.quiethoursnotificationhelper.checkPermissionsForPrvt
 import com.tabslify.core.objects.PasswordStorage
 import com.tabslify.core.objects.PrefsBackup
 import com.tabslify.core.objects.prvt
 import com.tabslify.core.objects.toast
 import com.tabslify.privatetabslifyapp.isOnline
-import com.tabslify.quicksettingsfunctions.ChargingTrackerService
-import com.tabslify.quicksettingsfunctions.startBatteryWorker
-import com.tabslify.quicksettingsfunctions.stopBatteryWorker
-import com.tabslify.services.QuietHoursNotificationService
-import com.tabslify.services.WhatsAppNotificationListener
 import com.tabslify.tabs.ainotify.AiNotifyHost
 import com.tabslify.tabs.aitab.AITabViewModel
-import com.tabslify.tabs.focusguard.FocusGuardService
-import com.tabslify.tabs.focusguard.monitoring.cancelFocusGuardWorkers
-import com.tabslify.tabs.focusguard.monitoring.scheduleFocusGuardWorkers
 import com.tabslify.tabs.mediaplayer.MediaAnalyticsManager
 import com.tabslify.tabs.virustotal.VirusTotalScanBar
 import com.tabslify.tabs.virustotal.pendingVirusTotalReport
@@ -269,6 +261,10 @@ fun LandingPageOrApp(
     var landingReloadTrigger by remember { mutableIntStateOf(0) }
 
     val appPrefs = remember { context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE) }
+    LaunchedEffect(Unit) {
+        ensureServiceToggleDefaults(context)
+        ensureFeatureToggleDefaults(context)
+    }
     var showFirstStartPermissionInfo by remember {
         mutableStateOf(!appPrefs.getBoolean("has_seen_permission_info", false))
     }
@@ -2398,14 +2394,10 @@ fun SettingsFrame(
         }
     }
 
-    var masterEnabled by remember { mutableStateOf(prefs.getBoolean("services_master", true)) }
     var servicesExpanded by remember { mutableStateOf(false) }
-
-    var serviceQhns by remember { mutableStateOf(prefs.getBoolean("service_qhns", true)) }
-    var serviceWh by remember { mutableStateOf(prefs.getBoolean("service_wh", true)) }
-    var serviceCharge by remember { mutableStateOf(prefs.getBoolean("service_charge", true)) }
-    var serviceBattery by remember { mutableStateOf(prefs.getBoolean("service_battery", true)) }
-    var serviceFocusguard by remember { mutableStateOf(prefs.getBoolean("service_focusguard", true)) }
+    var serviceStates by remember { mutableStateOf(readServiceToggleStates(context)) }
+    var featureStates by remember { mutableStateOf(readFeatureToggleStates(context)) }
+    val masterEnabled = serviceStates[ServiceToggle.MASTER] == true
 
     var aiPrefGlobal by remember {
         mutableStateOf(
@@ -2474,80 +2466,43 @@ fun SettingsFrame(
         mediaAnalyticsEnabled = MediaAnalyticsManager.isAnalyticsEnabled()
     }
 
-    fun applyService(cls: Class<*>, enabled: Boolean) {
-        if (cls == WhatsAppNotificationListener::class.java) return
+    fun persistServices(notificationAllowed: Boolean) {
+        writeServiceToggleStates(context, serviceStates)
+        applyServiceToggleStates(context, serviceStates, notificationAllowed)
+    }
 
-        val intent = Intent(context, cls)
-        val permissionOk =
-            !(cls == QuietHoursNotificationService::class.java ||
-                    cls == FocusGuardService::class.java) || hasNotificationPermission
-
-        if (enabled && masterEnabled && permissionOk) {
-            when (cls) {
-                QuietHoursNotificationService::class.java,
-                ChargingTrackerService::class.java,
-                FocusGuardService::class.java -> ContextCompat.startForegroundService(
-                    context,
-                    intent
-                )
-
-                else -> context.startService(intent)
-            }
-        } else {
-            context.stopService(intent)
-        }
+    fun persistFeatures() {
+        writeFeatureToggleStates(context, featureStates)
+        applyFeatureToggleStates(context, featureStates)
     }
 
     fun save() {
         prefs.edit {
-            putBoolean("services_master", masterEnabled)
-                .putBoolean("service_qhns", serviceQhns)
-                .putBoolean("service_wh", serviceWh)
-                .putBoolean("service_charge", serviceCharge)
-                .putBoolean("service_battery", serviceBattery)
-                .putBoolean("service_focusguard", serviceFocusguard)
-                .putString("ai_pref_global", aiPrefGlobal)
+            putString("ai_pref_global", aiPrefGlobal)
                 .putString("ai_pref_service_chat", aiPrefChat)
                 .putString("ai_pref_service_music_summary", aiPrefMusicSummary)
                 .putString("ai_pref_service_vision", aiPrefVision)
                 .putString("ai_pref_service_replies", aiPrefReplies)
         }
 
-        applyService(QuietHoursNotificationService::class.java, serviceQhns)
-        applyService(ChargingTrackerService::class.java, serviceCharge)
-        applyService(FocusGuardService::class.java, serviceFocusguard)
-
-        if (masterEnabled && serviceBattery) {
-            startBatteryWorker(context)
-        } else {
-            stopBatteryWorker(context)
-        }
-
-        if (masterEnabled && serviceFocusguard) {
-            scheduleFocusGuardWorkers(context)
-            DailyDigestScheduler.schedule(context)
-        } else {
-            cancelFocusGuardWorkers(context)
-        }
+        persistServices(hasNotificationPermission)
     }
 
     fun checkPermissionsAndSyncServices() {
         val permitted = canNotify(context)
         hasNotificationPermission = permitted
 
-        masterEnabled = prefs.getBoolean("services_master", true)
-        serviceWh = prefs.getBoolean("service_wh", true)
-        serviceCharge = prefs.getBoolean("service_charge", true)
-        serviceBattery = prefs.getBoolean("service_battery", true)
-        serviceQhns = prefs.getBoolean("service_qhns", true)
-        serviceFocusguard = prefs.getBoolean("service_focusguard", true)
-
+        var states = readServiceToggleStates(context)
         if (permitted && intendedToEnableQhns) {
-            serviceQhns = true
+            states = states + (ServiceToggle.QHNS to true)
         }
         intendedToEnableQhns = false
+        serviceStates = states
+        featureStates = readFeatureToggleStates(context)
+        mediaAnalyticsEnabled = states[ServiceToggle.MEDIA_ANALYTICS] == true
 
-        save()
+        persistServices(permitted)
+        persistFeatures()
     }
 
     val manualPerm = {
@@ -2571,9 +2526,9 @@ fun SettingsFrame(
         var isFirstResume = true
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                println("YEP22")
+                AppLog.d("LandingPage", "Lifecycle resume")
                 if (isFirstResume) {
-                    println("YEP")
+                    AppLog.d("LandingPage", "First resume")
                     isFirstResume = false
                     return@LifecycleEventObserver
                 }
@@ -2853,7 +2808,11 @@ fun SettingsFrame(
                             }
                             Switch(
                                 checked = masterEnabled,
-                                onCheckedChange = { masterEnabled = it; save() },
+                                onCheckedChange = { v ->
+                                    serviceStates =
+                                        serviceStates + (ServiceToggle.MASTER to v)
+                                    save()
+                                },
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = Color.White,
                                     checkedTrackColor = MaterialTheme.colorScheme.primary,
@@ -2892,35 +2851,14 @@ fun SettingsFrame(
                                     .background(Color.White.copy(alpha = 0.05f))
                                     .padding(horizontal = 20.dp, vertical = 8.dp)
                             ) {
-                                val services = listOfNotNull(
-                                    Triple(
-                                        "QuietHoursNotificationService",
-                                        stringResource(R.string.alles_rund_um_commands),
-                                        serviceQhns
-                                    ),
-                                    if (prvt()) Triple(
-                                        "WhatsAppNotificationListener",
-                                        stringResource(R.string.verarbeitet_eingehende_whatsapps),
-                                        serviceWh
-                                    ) else null,
-                                    Triple(
-                                        "ChargingTracker",
-                                        stringResource(R.string.verfolgt_ladevorgange_fur_ladedauer_schatzungen),
-                                        serviceCharge
-                                    ),
-                                    Triple(
-                                        "BatterySamplingWorker",
-                                        stringResource(R.string.hintergrund_aufzeichnung_der_batteriedaten),
-                                        serviceBattery
-                                    ),
-                                    Triple(
-                                        "FocusGuardService",
-                                        stringResource(R.string.focusguard_service_subtitle),
-                                        serviceFocusguard
-                                    )
-                                )
+                                val services = ServiceToggle.entries.filter {
+                                    it != ServiceToggle.MASTER &&
+                                        it != ServiceToggle.MEDIA_ANALYTICS &&
+                                        it.isAvailable()
+                                }
 
-                                services.forEachIndexed { index, (title, subtitle, checked) ->
+                                services.forEachIndexed { index, toggle ->
+                                    val checked = serviceStates[toggle] == true
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -2929,13 +2867,19 @@ fun SettingsFrame(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Column(modifier = Modifier.weight(1f)) {
-                                            Text(title, color = Color.White, fontSize = 14.sp)
                                             Text(
-                                                subtitle,
+                                                stringResource(toggle.titleRes),
+                                                color = Color.White,
+                                                fontSize = 14.sp
+                                            )
+                                            Text(
+                                                stringResource(toggle.descriptionRes),
                                                 color = Color.White.copy(alpha = 0.5f),
                                                 fontSize = 11.sp
                                             )
-                                            if (index == 0 && !hasNotificationPermission) {
+                                            if (toggle == ServiceToggle.QHNS &&
+                                                !hasNotificationPermission
+                                            ) {
                                                 Spacer(modifier = Modifier.height(4.dp))
                                                 Text(
                                                     text = stringResource(R.string.keine_benachrichtigungsberechtigung),
@@ -2946,36 +2890,21 @@ fun SettingsFrame(
                                             }
                                         }
                                         Switch(
-                                            checked = checked && masterEnabled,
+                                            checked = if (toggle.gatedByMaster)
+                                                checked && masterEnabled else checked,
                                             onCheckedChange = { v ->
-                                                when (title) {
-                                                    "QuietHoursNotificationService" -> {
-                                                        if (hasNotificationPermission) {
-                                                            serviceQhns = v
-                                                        } else {
-                                                            manualPerm()
-                                                        }
-                                                    }
-
-                                                    "WhatsAppNotificationListener" -> {
-                                                        serviceWh = v
-                                                    }
-
-                                                    "ChargingTracker" -> {
-                                                        serviceCharge = v
-                                                    }
-
-                                                    "BatterySamplingWorker" -> {
-                                                        serviceBattery = v
-                                                    }
-
-                                                    "FocusGuardService" -> {
-                                                        serviceFocusguard = v
-                                                    }
+                                                if (toggle == ServiceToggle.QHNS &&
+                                                    !hasNotificationPermission
+                                                ) {
+                                                    manualPerm()
+                                                } else {
+                                                    serviceStates =
+                                                        serviceStates + (toggle to v)
+                                                    save()
                                                 }
-                                                save()
                                             },
-                                            enabled = masterEnabled,
+                                            enabled = if (toggle.gatedByMaster)
+                                                masterEnabled else true,
                                             colors = SwitchDefaults.colors(
                                                 checkedThumbColor = Color.White,
                                                 checkedTrackColor = MaterialTheme.colorScheme.primary,
@@ -3030,6 +2959,8 @@ fun SettingsFrame(
                                         // Just enable it immediately
                                         mediaAnalyticsEnabled = true
                                         MediaAnalyticsManager.setAnalyticsEnabled(true)
+                                        serviceStates = serviceStates +
+                                                (ServiceToggle.MEDIA_ANALYTICS to true)
                                     } else {
                                         // Show confirmation dialog
                                         showMediaAnalyticsDialog = true
@@ -3616,6 +3547,8 @@ fun SettingsFrame(
                                 mediaAnalyticsEnabled = false
                                 MediaAnalyticsManager.setAnalyticsEnabled(false)
                                 MediaAnalyticsManager.clearAllSessions()
+                                serviceStates = serviceStates +
+                                        (ServiceToggle.MEDIA_ANALYTICS to false)
                                 showMediaAnalyticsDialog = false
                             }
                         ) {
@@ -3626,6 +3559,8 @@ fun SettingsFrame(
                                 // Option 2: Just disable, keep data
                                 mediaAnalyticsEnabled = false
                                 MediaAnalyticsManager.setAnalyticsEnabled(false)
+                                serviceStates = serviceStates +
+                                        (ServiceToggle.MEDIA_ANALYTICS to false)
                                 showMediaAnalyticsDialog = false
                             }
                         ) {
