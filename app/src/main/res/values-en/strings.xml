@@ -2895,4 +2895,44 @@
     <string name="qh_notif_connect_action">Connect</string>
     <string name="ride_tracking_error_feature_off">Ride tracking is disabled in settings.</string>
     <string name="ride_tracking_error_no_permission">Location permission is missing.</string>
+    <string name="mix_widget_label">Tabslify Mix</string>
+    <string name="mix_widget_description">Random mix of music, AI summary and YouTube recommendation</string>
+    <string name="mix_widget_greeting_default">Hello</string>
+    <string name="mix_widget_subtitle_default">Your mix for right now</string>
+    <string name="mix_widget_loading">Fetching a new mix …</string>
+    <string name="mix_widget_refresh">New mix</string>
+    <string name="mix_widget_music_label">MUSIC</string>
+    <string name="mix_widget_ai_label">AI SUMMARY</string>
+    <string name="mix_widget_yt_label">YOUTUBE</string>
+    <string name="mix_widget_music_fallback">Open music</string>
+    <string name="mix_widget_music_hint">Tap for the player</string>
+    <string name="mix_widget_music_playing">Playing now</string>
+    <string name="mix_widget_music_last">Recently played</string>
+    <string name="mix_widget_music_podcast">Podcast</string>
+    <string name="mix_widget_music_favorite">From your favorites</string>
+    <string name="mix_widget_ai_empty">No AI summary yet</string>
+    <string name="mix_widget_ai_hint">Tap for the AI tab</string>
+    <string name="mix_widget_yt_empty">Loading today\'s recommendation</string>
+    <string name="mix_widget_yt_hint">Tap for recommendations</string>
+    <string name="mix_widget_today">Today</string>
+    <string-array name="mix_widget_greetings_morning">
+        <item>Good morning</item>
+        <item>Morning, great start</item>
+        <item>Fresh into the day</item>
+    </string-array>
+    <string-array name="mix_widget_greetings_day">
+        <item>Good day</item>
+        <item>Hello at noon</item>
+        <item>In the flow</item>
+    </string-array>
+    <string-array name="mix_widget_greetings_evening">
+        <item>Good evening</item>
+        <item>Time to unwind</item>
+        <item>Time to breathe</item>
+    </string-array>
+    <string-array name="mix_widget_greetings_night">
+        <item>Good night</item>
+        <item>Late hour</item>
+        <item>Night mode active</item>
+    </string-array>
 </resources>

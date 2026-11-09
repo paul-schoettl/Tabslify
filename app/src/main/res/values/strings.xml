@@ -13,4 +13,44 @@
     <string name="suggestion_retry">Erneut versuchen</string>
     <string name="suggestion_valid_until">Gültig bis %1$s</string>
     <string name="suggestion_refresh">Aktualisieren</string>
+    <string name="mix_widget_label">Tabslify Mix</string>
+    <string name="mix_widget_description">Zufälliger Mix aus Musik, KI-Zusammenfassung und YouTube-Empfehlung</string>
+    <string name="mix_widget_greeting_default">Hallo</string>
+    <string name="mix_widget_subtitle_default">Dein Mix für jetzt</string>
+    <string name="mix_widget_loading">Neuer Mix wird gezogen …</string>
+    <string name="mix_widget_refresh">Neuer Mix</string>
+    <string name="mix_widget_music_label">MUSIK</string>
+    <string name="mix_widget_ai_label">KI-ZUSAMMENFASSUNG</string>
+    <string name="mix_widget_yt_label">YOUTUBE</string>
+    <string name="mix_widget_music_fallback">Musik öffnen</string>
+    <string name="mix_widget_music_hint">Tippe für den Player</string>
+    <string name="mix_widget_music_playing">Läuft gerade</string>
+    <string name="mix_widget_music_last">Zuletzt gehört</string>
+    <string name="mix_widget_music_podcast">Podcast</string>
+    <string name="mix_widget_music_favorite">Aus deinen Favoriten</string>
+    <string name="mix_widget_ai_empty">Noch keine KI-Zusammenfassung</string>
+    <string name="mix_widget_ai_hint">Tippe für den KI-Tab</string>
+    <string name="mix_widget_yt_empty">Tages-Empfehlung wird geladen</string>
+    <string name="mix_widget_yt_hint">Tippe für Empfehlungen</string>
+    <string name="mix_widget_today">Heute</string>
+    <string-array name="mix_widget_greetings_morning">
+        <item>Guten Morgen</item>
+        <item>Morgen, guter Start</item>
+        <item>Frisch in den Tag</item>
+    </string-array>
+    <string-array name="mix_widget_greetings_day">
+        <item>Schönen Tag</item>
+        <item>Hallo am Mittag</item>
+        <item>Mitten im Flow</item>
+    </string-array>
+    <string-array name="mix_widget_greetings_evening">
+        <item>Guten Abend</item>
+        <item>Feierabend-Modus</item>
+        <item>Zeit zum Durchatmen</item>
+    </string-array>
+    <string-array name="mix_widget_greetings_night">
+        <item>Gute Nacht</item>
+        <item>Späte Stunde</item>
+        <item>Nachtmodus aktiv</item>
+    </string-array>
 </resources>
