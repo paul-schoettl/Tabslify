@@ -24,15 +24,14 @@ android {
         applicationId = "com.paluss1122.tabslify"
         minSdk = 35
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0.0-beta01"
+        versionCode = 2
+        versionName = "1.0.0-beta02"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "SUPABASE_URL", prop("SUPABASE_URL"))
         buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", prop("SUPABASE_PUBLISHABLE_KEY"))
         buildConfigField("String", "LOCAL_DEVICE_NAME", prop("LOCAL_DEVICE_NAME"))
         buildConfigField("String", "DEBUG_SHA256", prop("DEBUG_SHA256"))
         buildConfigField("String", "RELEASE_SHA256", prop("RELEASE_SHA256"))
-        buildConfigField("String", "VIRUSTOTAL_API_KEY", "\"${localProps.getProperty("VIRUSTOTAL_API_KEY", "")}\"")
     }
 
     signingConfigs {
@@ -143,6 +142,7 @@ dependencies {
     implementation(libs.androidx.camera.lifecycle)
     implementation(libs.androidx.camera.view)
     implementation(libs.mediapipe.tasks.vision)
+    implementation(libs.mediapipe.tasks.text)
     implementation(libs.core)
     implementation(libs.zxing.android.embedded)
     debugImplementation(libs.androidx.compose.ui.tooling)
@@ -167,6 +167,7 @@ dependencies {
     implementation(libs.firebase.messaging)
     implementation(libs.haze)
     implementation(libs.haze.blur)
+    implementation(libs.androidx.health.connect.client)
     testImplementation(libs.junit)
 }
 
