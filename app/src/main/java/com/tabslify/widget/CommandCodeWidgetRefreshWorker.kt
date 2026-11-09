@@ -2,7 +2,7 @@ package com.tabslify.widget
 
 import android.content.Context
 import android.os.SystemClock
-import android.util.Log
+import com.tabslify.core.logging.Log
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
@@ -75,7 +75,7 @@ class CommandCodeWidgetRefreshWorker(
             )
             val cached = WidgetSnapshotStore.read(app) != null
             CommandCodeWidgetRenderer.logRender(state, cached)
-            Log.i(TAG, "Refresh-Worker fertig in ${SystemClock.elapsedRealtime() - started} ms")
+            Log.d(TAG, "Refresh-Worker fertig in ${SystemClock.elapsedRealtime() - started} ms")
             return Result.success()
         } catch (e: CancellationException) {
             throw e

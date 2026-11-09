@@ -4,7 +4,8 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
 import android.content.Intent
-import android.util.Log
+import com.tabslify.core.logging.Log
+import com.tabslify.core.objects.prvt
 
 private const val TAG = "CommandCodeWidget"
 

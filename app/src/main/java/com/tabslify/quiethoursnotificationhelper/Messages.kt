@@ -10,11 +10,12 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.ImageDecoder
 import android.os.Bundle
-import android.util.Log
+import com.tabslify.core.logging.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.Person
 import androidx.core.app.RemoteInput
 import androidx.core.content.ContextCompat
+import com.tabslify.R
 import com.tabslify.core.activities.Tabslify.Companion.appScope
 import com.tabslify.core.functions.errorInsert
 import com.tabslify.core.functions.showSimpleNotificationExtern

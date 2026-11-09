@@ -1,5 +1,7 @@
 package com.tabslify.core.activities
 
+import com.tabslify.core.logging.Log
+
 import android.Manifest
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
@@ -327,7 +329,7 @@ class MainActivity : FragmentActivity() {
                 getString(R.string.fehler_beim_laden_der_json, e.message),
                 Toast.LENGTH_LONG
             ).show()
-            e.printStackTrace()
+            Log.e("MainActivity", "Fehler", e)
         }
     }
 

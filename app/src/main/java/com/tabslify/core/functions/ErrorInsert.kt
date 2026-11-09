@@ -1,6 +1,8 @@
 package com.tabslify.core.functions
 
 import com.tabslify.core.activities.Tabslify.Companion.serviceScope
+import com.tabslify.core.logging.AppLog
+import com.tabslify.core.logging.LogLevel
 import com.tabslify.core.objects.Config
 import io.github.jan.supabase.exceptions.HttpRequestException as SupabaseHttpRequestException
 import io.github.jan.supabase.functions.functions
@@ -10,15 +12,20 @@ import java.io.IOException
 import java.net.UnknownHostException
 
 fun errorInsert(serviceName: String, errorMessage: String, createdAt: String, severity: String) {
-    if (!Config.realDevice) {
-        println(mapOf(
-            "serviceName" to serviceName,
-            "errorMessage" to errorMessage,
-            "createdAt" to createdAt,
-            "severity" to severity
-        ))
-        return
-    }
+    AppLog.write(
+        level = when (severity.uppercase()) {
+            "ERROR" -> LogLevel.ERROR
+            "WARN", "WARNING" -> LogLevel.WARN
+            "DEBUG" -> LogLevel.DEBUG
+            else -> LogLevel.INFO
+        },
+        tag = serviceName,
+        message = errorMessage,
+        throwable = null
+    )
+
+    if (!Config.realDevice) return
+
     serviceScope.launch {
         try {
             Config.client.functions.invoke(
@@ -30,8 +37,7 @@ fun errorInsert(serviceName: String, errorMessage: String, createdAt: String, se
                     "severity" to severity
                 )
             )
-        } catch (e: Exception) {
-            println("Error invoking Edge Function: ${e.message}")
+        } catch (_: Exception) {
         }
     }
 }

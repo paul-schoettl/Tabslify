@@ -1,5 +1,7 @@
 package com.tabslify.tabs
 
+import com.tabslify.core.logging.Log
+
 import android.annotation.SuppressLint
 import android.content.Context
 import androidx.compose.foundation.background

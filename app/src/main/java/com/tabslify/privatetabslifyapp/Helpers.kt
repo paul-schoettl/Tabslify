@@ -1,5 +1,8 @@
 package com.tabslify.privatetabslifyapp
 
+import com.tabslify.R
+import com.tabslify.core.logging.Log
+
 import android.Manifest
 import android.content.Context
 import android.graphics.Bitmap
@@ -100,7 +103,7 @@ fun FileIcon(
                 }
                 publicUrl = signedUrl
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("Helpers", "Fehler", e)
                 publicUrl = null
             } finally {
                 isLoading = false

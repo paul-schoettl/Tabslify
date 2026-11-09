@@ -17,10 +17,13 @@ import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderF
 import com.google.firebase.messaging.FirebaseMessaging
 import com.tabslify.core.functions.BluetoothAppWatcher
 import com.tabslify.core.functions.errorInsert
+import com.tabslify.core.logging.AppLog
+import com.tabslify.core.logging.LogLevel
 import com.tabslify.core.objects.Config
 import com.tabslify.core.objects.Config.client
 import com.tabslify.core.objects.PrefsBackup
 import com.tabslify.core.objects.prvt
+import com.tabslify.core.ui.getDeviceName
 import com.tabslify.quicksettingsfunctions.BatteryDataRepository
 import com.tabslify.tabs.ainotify.AI_NOTIFY_TOPIC
 import com.tabslify.tabs.tiktok.TIKTOK_PUSH_TOPIC
@@ -61,6 +64,12 @@ class Tabslify : Application() {
         }
 
         super.onCreate()
+
+        Config.init(this)
+        Config.realDevice = !getDeviceName().trim().contains("sdk_gphone", ignoreCase = true)
+        AppLog.init(this)
+        if (Config.realDevice) AppLog.setMinLevel(LogLevel.INFO)
+        AppLog.success("Tabslify", "App gestartet")
 
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
@@ -129,7 +138,6 @@ class Tabslify : Application() {
             .build()
         Coil.setImageLoader(imageLoader)
 
-        Config.init(this)
         BatteryDataRepository.init(this)
         com.tabslify.tabs.focusguard.data.FocusGuardRepository.init(this)
         if (prvt()) {
@@ -150,7 +158,7 @@ suspend fun fetchAndRun(scriptName: String, context: Context) {
     }
 
     val result = executeJs(script.code, context)
-    println("Ergebnis: $result")
+    AppLog.d("JS", "Ergebnis: $result")
 }
 @Suppress("unused")
 class AppBridge(private val androidContext: Context) {
@@ -165,7 +173,7 @@ class AppBridge(private val androidContext: Context) {
     }
 
     fun logEvent(event: String) {
-        println("JS Event geloggt: $event")
+        AppLog.i("JS", "Event geloggt: $event")
     }
 }
 

@@ -2,7 +2,7 @@ package com.tabslify.tabs.tiktok
 
 import android.content.Context
 import android.provider.Settings
-import android.util.Log
+import com.tabslify.core.logging.Log
 import androidx.core.content.edit
 import io.github.jan.supabase.functions.functions
 import io.github.jan.supabase.postgrest.from

@@ -11,7 +11,8 @@ import android.content.Context.ALARM_SERVICE
 import android.content.Context.MODE_PRIVATE
 import android.content.Intent
 import android.provider.Settings
-import android.util.Log
+import com.tabslify.R
+import com.tabslify.core.logging.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.RemoteInput
 import com.tabslify.core.activities.MainActivity

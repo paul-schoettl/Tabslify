@@ -1,5 +1,7 @@
 package com.tabslify.core.ui
 
+import com.tabslify.core.logging.Log
+
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
@@ -1176,7 +1178,7 @@ fun MainTabslifyScreen(storage: Storage) {
             // damit "favorites" nicht unbegrenzt mit toten Verweisen wächst.
             favoriteFiles = FavoriteManager.pruneMissing(context, groupedFiles.map { it.name })
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("PrivateTabslifyApp", "Fehler", e)
             withContext(Dispatchers.Main) {
                 Toast.makeText(context, fehlerBeimLadenMsg.format(e.message), Toast.LENGTH_SHORT)
                     .show()
@@ -1204,7 +1206,7 @@ fun MainTabslifyScreen(storage: Storage) {
                 Toast.makeText(context, fehlerBeimLoeschenMsg.format(e.message), Toast.LENGTH_LONG)
                     .show()
             }
-            e.printStackTrace()
+            Log.e("PrivateTabslifyApp", "Fehler", e)
         }
     }
 
@@ -1266,7 +1268,7 @@ fun MainTabslifyScreen(storage: Storage) {
                     Toast.makeText(context, hochgeladenMsg, Toast.LENGTH_SHORT).show()
                     loadFiles()
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    Log.e("PrivateTabslifyApp", "Fehler", e)
                     withContext(Dispatchers.Main) {
                         Toast.makeText(
                             context,
@@ -1557,7 +1559,7 @@ fun MainTabslifyScreen(storage: Storage) {
                                                         }
                                                         publicUrl = signed
                                                     } catch (e: Exception) {
-                                                        e.printStackTrace()
+                                                        Log.e("PrivateTabslifyApp", "Fehler", e)
                                                     }
                                                 }
 
@@ -2042,7 +2044,7 @@ fun MainTabslifyScreen(storage: Storage) {
                                                                     HapticFeedbackType.LongPress
                                                                 )
                                                             } catch (e: Exception) {
-                                                                e.printStackTrace()
+                                                                Log.e("PrivateTabslifyApp", "Fehler", e)
                                                                 Toast.makeText(
                                                                     context,
                                                                     String.format(fehlerMsgTemplate, e.message),

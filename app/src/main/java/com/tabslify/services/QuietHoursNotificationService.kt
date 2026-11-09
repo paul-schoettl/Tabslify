@@ -29,7 +29,7 @@ import android.os.Looper
 import android.os.PowerManager
 import android.os.SystemClock
 import android.provider.Settings
-import android.util.Log
+import com.tabslify.core.logging.Log
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
@@ -339,7 +339,7 @@ class QuietHoursNotificationService : Service() {
                     )
                 }
                 val delayMs = widgetRefreshDelayMs()
-                Log.i(
+                Log.d(
                     "QuietHoursService",
                     "Widget-Refresh geplant in ${delayMs / 1000}s (Bildschirm ${if (screenOffSince == null) "an" else "aus"})"
                 )

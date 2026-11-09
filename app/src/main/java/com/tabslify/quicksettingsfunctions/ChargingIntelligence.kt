@@ -14,7 +14,7 @@ import android.content.pm.PackageManager
 import android.os.BatteryManager
 import android.os.PowerManager
 import android.provider.Settings
-import android.util.Log
+import com.tabslify.core.logging.Log
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.content.edit

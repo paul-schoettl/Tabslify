@@ -21,7 +21,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.PersistableBundle
 import android.provider.Settings
-import android.util.Log
+import com.tabslify.core.logging.Log
 import android.view.Gravity
 import android.view.WindowManager
 import android.widget.Toast

@@ -4,8 +4,9 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.os.PowerManager
 import android.provider.Settings
-import android.util.Log
+import com.tabslify.core.logging.Log
 import androidx.core.net.toUri
 
 object ExactAlarms {
