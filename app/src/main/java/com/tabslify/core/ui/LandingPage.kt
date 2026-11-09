@@ -201,10 +201,31 @@ import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
 import androidx.compose.ui.platform.LocalLocale
 
+private val prvtOnlyMenuItems = setOf(
+    MenuItem.GMAIL,
+    MenuItem.PRIVATE_CLOUD,
+    MenuItem.REMOTEDESKTOP,
+    MenuItem.PC_MANAGER,
+    MenuItem.FOCUSGUARD,
+    MenuItem.HEISE_NEWS,
+    MenuItem.DATECALCULATOR,
+    MenuItem.TIKTOK,
+    MenuItem.CALENDAR,
+    MenuItem.PUSHUPS,
+    MenuItem.SUGGESTION,
+)
+
+fun menuItemVisible(item: MenuItem, context: Context): Boolean =
+    item != MenuItem.APKM_INSTALLER &&
+            (item != MenuItem.EXPLORE || isFeatureEnabled(context, FeatureToggle.EXPLORE)) &&
+            (prvt() || item !in prvtOnlyMenuItems)
+
 fun saveRecentTab(context: Context, menuItem: MenuItem) {
     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     val recentTabsString = prefs.getString(KEY_RECENT_TABS, "") ?: ""
-    val recentTabs = recentTabsString.split(",").filter { it.isNotEmpty() }.toMutableList()
+    val recentTabs = recentTabsString.split(",")
+        .filter { name -> name.isNotEmpty() && MenuItem.entries.any { it.name == name } }
+        .toMutableList()
 
     recentTabs.remove(menuItem.name)
     recentTabs.add(0, menuItem.name)
@@ -1129,15 +1150,15 @@ fun LandingPage(
     LaunchedEffect(reloadTrigger) {
         recentTabs = loadRecentTabs(context)
     }
-    val visibleRecentTabs = remember(recentTabs) { recentTabs.take(2) }
+    val visibleRecentTabs = remember(recentTabs, reloadTrigger) {
+        recentTabs.filter { menuItemVisible(it, context) }.take(2)
+    }
 
     val titleMap = MenuItem.entries.associateWith { stringResource(it.titleRes) }
 
-    val allTabsSorted = remember(titleMap) {
-        MenuItem.entries.filter {
-            it != MenuItem.APKM_INSTALLER &&
-                    (prvt() || (it != MenuItem.GMAIL && it != MenuItem.PRIVATE_CLOUD && it != MenuItem.REMOTEDESKTOP && it != MenuItem.PC_MANAGER && it != MenuItem.FOCUSGUARD && it != MenuItem.HEISE_NEWS))
-        }.sortedBy { titleMap[it] }
+    val allTabsSorted = remember(titleMap, reloadTrigger) {
+        MenuItem.entries.filter { menuItemVisible(it, context) }
+            .sortedBy { titleMap[it] }
     }
     val txtcolors = TextPrimary
 
