@@ -23,11 +23,16 @@ val AccentDim = Color(0xFF4A3FA0)
 val AccentSoft = Color(0xFF221F3A)
 val AccentViolet = Accent
 val AccentVioletDim = AccentDim
+val AccentFill = Color(0xFF5A4AD8)
+val OnAccentFill = Color(0xFFFFFFFF)
+val OnAccentFillMuted = Color(0xFFE6E4FB)
 val TextPrimary = Color(0xFFF4F4F7)
 val TextSecondary = Color(0xFFA6A6B2)
-val TextTertiary = Color(0xFF6E6E7C)
+val TextTertiary = Color(0xFF8C8C9C)
 val SuccessGreen = Color(0xFF4ADE80)
 val ErrorRed = Color(0xFFF87171)
+val ErrorSoft = Color(0xFFFFB4AB)
+val ErrorSurface = Color(0xFF3A1012)
 
 val AppColorScheme = darkColorScheme(
     primary = Accent,
