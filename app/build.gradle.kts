@@ -24,8 +24,8 @@ android {
         applicationId = "com.paluss1122.tabslify"
         minSdk = 35
         targetSdk = 37
-        versionCode = 2
-        versionName = "1.0.0-beta02"
+        versionCode = 3
+        versionName = "1.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "SUPABASE_URL", prop("SUPABASE_URL"))
         buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", prop("SUPABASE_PUBLISHABLE_KEY"))
