@@ -874,6 +874,7 @@
     <string name="audio_aufnahme">Audio recording</string>
     <string name="explore_tracking_lauft">🗺️ Tabslify is tracking your day</string>
     <string name="explore_tracking_kanal">Location tracking</string>
+    <string name="explore_tracking_ausblenden">Hide permanently…</string>
     <string name="explore_watchdog_still">Location tracking has stalled</string>
     <string name="explore_watchdog_still_text">No new location for %1$s minutes. Check the location permission and Wi-Fi.</string>
     <string name="mikrofonzugriff_benotigt">Microphone access required</string>
@@ -2491,6 +2492,19 @@
     <string name="permission_ride_tracking_location">Ride tracking records your GPS track during the ride.</string>
     <string name="permission_ride_tracking_fgs">Ride tracking keeps running as a location service in the background.</string>
     <string name="permission_ride_tracking_activity">Ride tracking detects pauses through activity recognition.</string>
+    <string name="tracker_status_stopped_home">Stopped (home)</string>
+    <string name="tracker_status_outside">Outside</string>
+    <string name="tracker_status_paused_night">Paused (night)</string>
+    <string name="tracker_status_waiting_geofence">Waiting for geofence</string>
+    <string name="tracker_status_background_location_missing">Inactive (background location missing)</string>
+    <string name="tracker_status_active_background">Running (background)</string>
+    <string name="tracker_status_update_error">Inactive (update error)</string>
+    <string name="tracker_status_disabled">Disabled</string>
+    <string name="tracker_status_starting">Starting...</string>
+    <string name="tracker_status_error">Error: %1$s</string>
+    <string name="tracker_status_active">Running</string>
+    <string name="tracker_status_fgs_not_started">Inactive (FGS not started)</string>
+    <string name="tracker_status_inactive">Inactive</string>
     <string name="qh_cmd_desc_flo">Set up MEDIA folders</string>
     <string name="qh_cmd_desc_whatsapp">Shows unread messages</string>
     <string name="qh_cmd_desc_ai">Creates a new AI chat (ai [name optional])</string>
