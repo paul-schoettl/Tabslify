@@ -2651,7 +2651,10 @@ fun SettingsFrame(
                     }
                 }
 
-                if (Config.masterPassword.isBlank()) {
+                if (prvt() &&
+                    isFeatureEnabled(context, FeatureToggle.CLOUD_BACKUP) &&
+                    Config.masterPassword.isBlank()
+                ) {
                     Spacer(modifier = Modifier.height(20.dp))
 
                     NeonBox(
@@ -2725,7 +2728,9 @@ fun SettingsFrame(
                     }
                 }
 
-                if (showRestoreList) {
+                if (prvt() && showRestoreList &&
+                    isFeatureEnabled(context, FeatureToggle.CLOUD_BACKUP)
+                ) {
                     AlertDialog(
                         onDismissRequest = { showRestoreList = false },
                         title = { Text(stringResource(R.string.cloud_backup_restore)) },
@@ -2763,7 +2768,7 @@ fun SettingsFrame(
                     )
                 }
 
-                restoreTarget?.let { entry ->
+                if (prvt() && isFeatureEnabled(context, FeatureToggle.CLOUD_BACKUP)) restoreTarget?.let { entry ->
                     AlertDialog(
                         onDismissRequest = { restoreTarget = null },
                         title = { Text(stringResource(R.string.cloud_backup_restore)) },
@@ -2947,6 +2952,94 @@ fun SettingsFrame(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                if (!prvt()) NeonBox(
+                    modifier = Modifier.fillMaxWidth(),
+                    neonColors = listOf(Accent, AccentDim),
+                    backgroundAlpha = 0.15f
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(20.dp)) {
+                            Text(
+                                text = stringResource(R.string.settings_features_title),
+                                color = Color.White,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = stringResource(R.string.settings_features_subtitle),
+                                color = Color.White.copy(alpha = 0.6f),
+                                fontSize = 12.sp
+                            )
+                        }
+                        FeatureGroup.entries.forEach { group ->
+                            val items = FeatureToggle.entries.filter {
+                                it.group == group && it.isAvailable()
+                            }
+                            if (items.isNotEmpty()) {
+                                Text(
+                                    text = stringResource(
+                                        if (group == FeatureGroup.TRACKING)
+                                            R.string.features_group_tracking
+                                        else R.string.features_group_connection
+                                    ),
+                                    color = Color.White.copy(alpha = 0.5f),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.padding(
+                                        start = 20.dp,
+                                        end = 20.dp,
+                                        top = 8.dp,
+                                        bottom = 4.dp
+                                    )
+                                )
+                                items.forEachIndexed { index, feature ->
+                                    val checked = featureStates[feature] == true
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 20.dp, vertical = 8.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                stringResource(feature.titleRes),
+                                                color = Color.White,
+                                                fontSize = 14.sp
+                                            )
+                                            Text(
+                                                stringResource(feature.descriptionRes),
+                                                color = Color.White.copy(alpha = 0.5f),
+                                                fontSize = 11.sp
+                                            )
+                                        }
+                                        Switch(
+                                            checked = checked,
+                                            onCheckedChange = { v ->
+                                                featureStates =
+                                                    featureStates + (feature to v)
+                                                persistFeatures()
+                                            },
+                                            colors = SwitchDefaults.colors(
+                                                checkedThumbColor = Color.White,
+                                                checkedTrackColor = MaterialTheme.colorScheme.primary,
+                                                uncheckedThumbColor = Color.Gray,
+                                                uncheckedTrackColor = Color.DarkGray,
+                                                disabledUncheckedTrackColor = Color.DarkGray.copy(alpha = 0.4f)
+                                            )
+                                        )
+                                    }
+                                    if (index < items.lastIndex) {
+                                        HorizontalDivider(color = Color.White.copy(alpha = 0.08f))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 NeonBox(
                     modifier = Modifier.fillMaxWidth(),
                     neonColors = listOf(Color(0xFF00FF00), Color(0xFF00CC00)),
@@ -2999,9 +3092,11 @@ fun SettingsFrame(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                if (prvt() && featureStates[FeatureToggle.LIVE_TRAFFIC] == true) {
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                LiveTrafficPanel()
+                    LiveTrafficPanel()
+                }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
