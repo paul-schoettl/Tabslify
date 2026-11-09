@@ -656,7 +656,7 @@ fun VocabTab(paddingValues: PaddingValues) {
                                     bmp.compress(Bitmap.CompressFormat.JPEG, 90, it)
                                 }.toByteArray()
                                 val sent =
-                                    Config.realDevice && trySendImageToLaptop(bytes)
+                                    prvt() && trySendImageToLaptop(bytes)
                                 if (sent) {
                                     usedEngine = ExtractionEngine.LAPTOP
                                     val result = withTimeoutOrNull(
@@ -681,7 +681,7 @@ fun VocabTab(paddingValues: PaddingValues) {
                         }
                     }
                 },
-                plannedEngine = if (Config.realDevice) ExtractionEngine.LAPTOP else cloudEngine,
+                plannedEngine = if (prvt()) ExtractionEngine.LAPTOP else cloudEngine,
                 fallbackEngine = cloudEngine,
                 usedEngine = usedEngine,
                 paddingValues = paddingValues
