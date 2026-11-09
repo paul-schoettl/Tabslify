@@ -75,7 +75,7 @@ import androidx.compose.ui.zIndex
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import android.util.Log
+import com.tabslify.core.logging.Log
 import androidx.compose.runtime.mutableLongStateOf
 import coil.compose.AsyncImage
 import coil.request.ErrorResult

@@ -1,6 +1,6 @@
 package com.tabslify.core.functions
 
-import android.util.Log
+import com.tabslify.core.logging.Log
 import com.tabslify.core.activities.Tabslify.Companion.serviceScope
 import com.tabslify.core.objects.Config
 import io.github.jan.supabase.postgrest.from

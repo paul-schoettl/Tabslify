@@ -5,7 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
-import android.util.Log
+import com.tabslify.core.logging.Log
 import androidx.core.content.edit
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.toColorInt
@@ -139,7 +139,7 @@ object CommandCodeUsageRepository {
             0
         }
 
-        Log.i(TAG, "Direkt von CommandCode: ${String.format("%.2f", pct)}% / Pace ${String.format("%.2f", pacePct)}%")
+        Log.d(TAG, "Direkt von CommandCode: ${String.format("%.2f", pct)}% / Pace ${String.format("%.2f", pacePct)}%")
         CommandCodeUsage(planId, used, cap, pct, pacePct, offlineDays)
     }
 

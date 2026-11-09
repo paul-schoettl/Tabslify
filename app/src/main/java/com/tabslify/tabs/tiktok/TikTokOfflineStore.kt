@@ -2,7 +2,7 @@ package com.tabslify.tabs.tiktok
 
 import android.content.Context
 import android.os.StatFs
-import android.util.Log
+import com.tabslify.core.logging.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

@@ -8,7 +8,7 @@ import android.media.AudioManager
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
-import android.util.Log
+import com.tabslify.core.logging.Log
 import androidx.core.app.NotificationCompat
 import com.tabslify.R
 import com.tabslify.core.activities.Tabslify.Companion.serviceScope

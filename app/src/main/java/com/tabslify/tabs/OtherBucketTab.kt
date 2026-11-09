@@ -1,5 +1,7 @@
 package com.tabslify.tabs
 
+import com.tabslify.core.logging.Log
+
 import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
@@ -232,7 +234,7 @@ fun OtherBucketViewer(
                 }.sortedByDescending { it.lastModified }
 
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("OtherBucket", "Fehler", e)
                 withContext(Dispatchers.Main) {
                     Toast.makeText(context, fehlerBeimLadenMsg.format(e.message), Toast.LENGTH_SHORT)
                         .show()
@@ -249,7 +251,7 @@ fun OtherBucketViewer(
                     favorites = favFile.readLines().toSet()
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("OtherBucket", "Fehler", e)
             }
         }
     }
@@ -260,7 +262,7 @@ fun OtherBucketViewer(
                 val favFile = File(context.filesDir, "video_favorites.txt")
                 favFile.writeText(favorites.joinToString("\n"))
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("OtherBucket", "Fehler", e)
             }
         }
     }
@@ -298,7 +300,7 @@ fun OtherBucketViewer(
                             delay(100.milliseconds)
                         } catch (e: Exception) {
                             failCount++
-                            e.printStackTrace()
+                            Log.e("OtherBucket", "Fehler", e)
                         }
                     }
 
@@ -334,7 +336,7 @@ fun OtherBucketViewer(
                 Toast.makeText(context, fehlerBeimLoeschenMsg.format(e.message), Toast.LENGTH_LONG)
                     .show()
             }
-            e.printStackTrace()
+            Log.e("OtherBucket", "Fehler", e)
             loadFilesFromPrivateStorage()
         }
     }
@@ -836,7 +838,7 @@ suspend fun saveFileToPrivateStorage(context: Context, uri: Uri) {
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("OtherBucket", "Fehler", e)
             throw e
         }
     }
@@ -879,7 +881,7 @@ suspend fun exportAllFiles(context: Context, fileList: List<LocalFileInfo>): Pai
 
                 success++
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("OtherBucket", "Fehler", e)
                 fail++
             }
         }
@@ -1187,7 +1189,7 @@ suspend fun saveThumbnailToCache(context: Context, videoPath: String, bitmap: Bi
                 bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out)
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("OtherBucket", "Fehler", e)
         }
     }
 }
@@ -1205,7 +1207,7 @@ suspend fun loadThumbnailFromCache(context: Context, videoPath: String): Bitmap?
                 null
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("OtherBucket", "Fehler", e)
             null
         }
     }

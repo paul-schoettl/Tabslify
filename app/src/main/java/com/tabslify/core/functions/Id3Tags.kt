@@ -3,7 +3,7 @@ package com.tabslify.core.functions
 import android.content.Context
 import android.net.Uri
 import android.os.Environment
-import android.util.Log
+import com.tabslify.core.logging.Log
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileInputStream

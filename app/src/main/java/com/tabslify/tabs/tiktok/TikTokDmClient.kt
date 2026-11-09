@@ -1,7 +1,7 @@
 package com.tabslify.tabs.tiktok
 
 import android.content.Context
-import android.util.Log
+import com.tabslify.core.logging.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -144,7 +144,7 @@ object TikTokDmClient {
             )
             val messages = byId.values.sortedBy { it.timestamp }.let { list ->
                 if (list.size > FEED_MESSAGE_LIMIT) {
-                    android.util.Log.i("TikTokTab", "Feed auf $FEED_MESSAGE_LIMIT Nachrichten begrenzt (war ${list.size})")
+                    Log.i("TikTokTab", "Feed auf $FEED_MESSAGE_LIMIT Nachrichten begrenzt (war ${list.size})")
                     list.takeLast(FEED_MESSAGE_LIMIT)
                 } else list
             }

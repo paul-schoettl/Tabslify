@@ -6,7 +6,7 @@ import android.net.Uri
 import android.os.DeadObjectException
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
-import android.util.Log
+import com.tabslify.core.logging.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.RemoteInput
 import com.tabslify.R

@@ -5,7 +5,7 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.os.SystemClock
-import android.util.Log
+import com.tabslify.core.logging.Log
 import com.tabslify.core.functions.PcCommands
 import com.tabslify.core.objects.Config
 import com.tabslify.quiethoursnotificationhelper.laptopIp

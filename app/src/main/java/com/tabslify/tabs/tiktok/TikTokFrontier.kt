@@ -1,7 +1,7 @@
 package com.tabslify.tabs.tiktok
 
 import android.content.Context
-import android.util.Log
+import com.tabslify.core.logging.Log
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.websocket.WebSockets

@@ -10,6 +10,7 @@ import com.google.firebase.messaging.RemoteMessage
 import com.tabslify.core.activities.MainActivity
 import com.tabslify.core.activities.Tabslify
 import com.tabslify.core.activities.fetchAndRun
+import com.tabslify.core.logging.Log
 import com.tabslify.core.objects.Config
 import com.tabslify.core.objects.emailNotificationId
 import com.tabslify.core.objects.prvt
@@ -37,6 +38,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
     override fun onNewToken(token: String) {
         super.onNewToken(token)
+        Log.i("FCM", "Token erneuert")
         FirebaseMessaging.getInstance()
             .subscribeToTopic("all_users")
         if (prvt()) {
@@ -51,7 +53,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
-        println("Message received: $remoteMessage")
+        Log.d("FCM", "Message received: $remoteMessage")
         if (remoteMessage.data["channel"] == TIKTOK_PUSH_CHANNEL && prvt()) {
             handleTikTokPush(remoteMessage.data)
             return
@@ -73,10 +75,10 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             return
         }
         if (remoteMessage.from?.endsWith("emails") == true && prvt()) {
-            println("Email notification received")
+            Log.d("FCM", "Email notification received")
             val title = remoteMessage.notification?.title ?: remoteMessage.data["title"] ?: return
             val body = remoteMessage.notification?.body ?: remoteMessage.data["body"] ?: ""
-            println("Title: $title, Body: $body")
+            Log.d("FCM", "Title: $title, Body: $body")
             val account = remoteMessage.data["account"]
             val uid = remoteMessage.data["uid"]
             val notifId = if (account != null && uid != null) {

@@ -8,7 +8,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.MediaPlayer
 import android.os.Environment
-import android.util.Log
+import com.tabslify.core.logging.Log
 import androidx.core.app.NotificationCompat
 import com.tabslify.R
 import com.tabslify.core.functions.showSimpleNotificationExtern

@@ -3,7 +3,7 @@ package com.tabslify.quiethoursnotificationhelper
 import android.content.Context
 import android.graphics.BitmapFactory
 import android.util.Base64
-import android.util.Log
+import com.tabslify.core.logging.Log
 import com.google.firebase.Firebase
 import com.google.firebase.ai.ai
 import com.google.firebase.ai.type.GenerativeBackend
@@ -358,10 +358,10 @@ private suspend fun sendChatCompletionsMessage(
                 response
             }
         } catch (e: SocketTimeoutException) {
-            Log.e(logTag, "$logTag Zeitueberschreitung beim Warten auf die Antwort: ${e.message}")
+            Log.w(logTag, "$logTag Zeitueberschreitung beim Warten auf die Antwort: ${e.message}")
             null
         } catch (e: SocketException) {
-            Log.e(logTag, "$logTag Verbindung unterbrochen: ${e.message}")
+            Log.w(logTag, "$logTag Verbindung unterbrochen: ${e.message}")
             null
         } finally {
             connection.disconnect()

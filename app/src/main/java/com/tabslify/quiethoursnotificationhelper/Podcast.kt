@@ -8,7 +8,7 @@ import android.content.pm.PackageManager
 import android.os.Environment
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
+import com.tabslify.core.logging.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.edit
 import com.tabslify.R

@@ -5,7 +5,7 @@ import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.util.Log
+import com.tabslify.core.logging.Log
 import android.view.View
 import android.widget.RemoteViews
 import com.tabslify.R
@@ -150,7 +150,7 @@ object CommandCodeWidgetRenderer {
         )
 
     fun logRender(state: PaceState, cached: Boolean) {
-        Log.i(TAG, "Render: Zustand=$state cache=$cached")
+        Log.d(TAG, "Render: Zustand=$state cache=$cached")
     }
 }
 

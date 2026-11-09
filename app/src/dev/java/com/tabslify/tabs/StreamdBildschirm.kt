@@ -11,7 +11,7 @@ import android.media.MediaFormat
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
-import android.util.Log
+import com.tabslify.core.logging.Log
 import android.view.KeyEvent
 import android.view.Surface
 import android.view.SurfaceHolder

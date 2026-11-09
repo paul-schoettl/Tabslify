@@ -1,6 +1,6 @@
 package com.tabslify.tabs.tiktok
 
-import android.util.Log
+import com.tabslify.core.logging.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable

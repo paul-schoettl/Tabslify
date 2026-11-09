@@ -2,7 +2,7 @@ package com.tabslify.widget
 
 import android.content.Context
 import android.os.SystemClock
-import android.util.Log
+import com.tabslify.core.logging.Log
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder

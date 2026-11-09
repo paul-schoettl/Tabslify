@@ -7,6 +7,7 @@ import android.os.Environment
 import android.provider.MediaStore
 import android.widget.Toast
 import androidx.compose.animation.core.LinearEasing
+import com.tabslify.core.logging.Log
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -367,7 +368,7 @@ fun PodcastTab() {
                 val errorText = withContext(Dispatchers.IO) {
                     conn.errorStream?.bufferedReader()?.readText() ?: "No error body"
                 }
-                android.util.Log.e(
+                Log.e(
                     "PodcastDownloaderTab",
                     "Podcast Index proxy failed: Code $responseCode, Body: $errorText"
                 )

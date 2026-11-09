@@ -1,7 +1,7 @@
 package com.tabslify.tabs.tiktok
 
 import android.content.Context
-import android.util.Log
+import com.tabslify.core.logging.Log
 import com.tabslify.quiethoursnotificationhelper.laptopIp
 import com.tabslify.quiethoursnotificationhelper.laptopName
 import com.tabslify.quiethoursnotificationhelper.resolveSyncSecret

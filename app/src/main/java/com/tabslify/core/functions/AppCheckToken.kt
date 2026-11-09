@@ -1,6 +1,6 @@
 package com.tabslify.core.functions
 
-import android.util.Log
+import com.tabslify.core.logging.Log
 import com.google.firebase.Firebase
 import com.google.firebase.appcheck.appCheck
 import kotlinx.coroutines.suspendCancellableCoroutine

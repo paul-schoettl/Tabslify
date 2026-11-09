@@ -3,7 +3,7 @@ package com.tabslify.tabs.tiktok
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
-import android.util.Log
+import com.tabslify.core.logging.Log
 import androidx.core.app.NotificationCompat
 import com.tabslify.core.objects.tNotify
 import com.tabslify.widget.HandyLampClient

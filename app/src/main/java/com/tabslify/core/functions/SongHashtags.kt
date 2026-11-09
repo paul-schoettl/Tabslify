@@ -2,7 +2,7 @@ package com.tabslify.core.functions
 
 import android.content.Context
 import android.net.Uri
-import android.util.Log
+import com.tabslify.core.logging.Log
 import com.tabslify.core.objects.Config
 import com.tabslify.privatetabslifyapp.isOnline
 import kotlinx.coroutines.CancellationException

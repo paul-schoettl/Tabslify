@@ -1,5 +1,7 @@
 package com.tabslify.tabs
 
+import com.tabslify.core.logging.Log
+
 import android.content.Context
 import android.content.Intent
 import android.graphics.Paint
@@ -439,7 +441,7 @@ private fun loadChatFromPrefs(context: Context, articleLink: String): List<Heise
         }
         list
     } catch (e: Exception) {
-        e.printStackTrace()
+        Log.e("HeiseNews", "Fehler", e)
         emptyList()
     }
 }
@@ -493,7 +495,7 @@ private fun loadArticlesFromPrefs(context: Context): Pair<List<HeiseNewsItem>, L
         }
         list to timestamp
     } catch (e: Exception) {
-        e.printStackTrace()
+        Log.e("HeiseNews", "Fehler", e)
         emptyList<HeiseNewsItem>() to 0L
     }
 }
@@ -1425,7 +1427,7 @@ private suspend fun fetchHeiseNews(packageName: String): List<HeiseNewsItem> =
                     }
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("HeiseNews", "Fehler", e)
             } finally {
                 connection.disconnect()
             }
@@ -1481,7 +1483,7 @@ private suspend fun fetchNewsletterEmailItems(packageName: String): List<HeiseNe
                 )
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("HeiseNews", "Fehler", e)
         }
         items
     }

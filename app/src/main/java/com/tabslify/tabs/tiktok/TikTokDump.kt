@@ -1,7 +1,7 @@
 package com.tabslify.tabs.tiktok
 
 import android.content.Context
-import android.util.Log
+import com.tabslify.core.logging.Log
 import java.io.File
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
@@ -55,7 +55,7 @@ object TikTokDump {
                 File(ziel, name.removeSuffix(ENDUNG) + ".txt")
                     .writeText(TikTokProto.beschreibeFrame(bytes))
                 csv(app, nummer, quelle, rolle, bytes.size, status)
-                Log.i(TAG, "$quelle/$rolle ${bytes.size}B status=$status")
+                Log.d(TAG, "$quelle/$rolle ${bytes.size}B status=$status")
                 kuerzen(app)
             }.onFailure {
                 Log.w(TAG, "Rohdaten nicht speicherbar: ${it.message}")

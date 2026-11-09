@@ -1,5 +1,7 @@
 package com.tabslify.inactive
 
+import com.tabslify.core.logging.Log
+
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -87,7 +89,7 @@ class ImageProviderActivity : ComponentActivity() {
         }
         FileProvider.getUriForFile(this, "${packageName}.provider", file)
     } catch (e: Exception) {
-        e.printStackTrace()
+        Log.e("ImageProviderActivity", "Fehler", e)
         null
     }
 }

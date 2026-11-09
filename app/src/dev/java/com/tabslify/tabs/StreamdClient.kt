@@ -3,7 +3,7 @@ package com.tabslify.tabs
 import android.media.MediaCodec
 import android.media.MediaFormat
 import android.os.SystemClock
-import android.util.Log
+import com.tabslify.core.logging.Log
 import android.view.Surface
 import java.io.Closeable
 import java.io.DataInputStream
