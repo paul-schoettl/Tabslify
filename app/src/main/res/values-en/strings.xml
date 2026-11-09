@@ -2410,6 +2410,12 @@
     <string name="focusguard_permission_usage_hint">Needed to record app usage</string>
     <string name="focusguard_permission_overlay">Overlay permission</string>
     <string name="focusguard_permission_overlay_hint">Needed to show the block over other apps</string>
+    <string name="focusguard_permission_health">Health Connect (sleep)</string>
+    <string name="focusguard_permission_health_hint">Reads bedtime and wake times from Samsung Health</string>
+    <string name="focusguard_permission_health_unavailable">Health Connect is not available on this device</string>
+    <string name="health_connect_rationale_title">Health Connect – Sleep data</string>
+    <string name="health_connect_rationale_body">Tabslify reads your sleep sessions (bedtime and wake time) from Health Connect. Samsung Health writes the nights you enter manually there. The data stays on the device and is only used for the FocusGuard sleep analysis.</string>
+    <string name="health_connect_rationale_close">Close</string>
     <string name="focusguard_config_save">Save</string>
     <string name="focusguard_stats_usage_week">Weekly usage</string>
     <string name="focusguard_stats_sleep_week">Weekly sleep</string>
