@@ -2143,6 +2143,19 @@
     <string name="fitness_tipp_titel">TIPP</string> <!-- app/src/main/java/com/tabslify/tabs/fitnesstab/PushUpControls.kt -->
     <string name="fitness_tipp_text">Am genauesten wird es, wenn das Handy seitlich etwa zwei Meter entfernt steht. Frontal geht auch – wichtig ist nur, dass Schultern, Hüfte und Hände im Bild bleiben.</string> <!-- app/src/main/java/com/tabslify/tabs/fitnesstab/PushUpControls.kt -->
     <string name="fitness_verstanden">Verstanden</string> <!-- app/src/main/java/com/tabslify/tabs/fitnesstab/PushUpControls.kt -->
+    <string name="fitness_rep_minus">Wiederholung abziehen</string>
+    <string name="fitness_kalibrierung">Stützposition halten – Kalibrierung in %1$d s</string>
+    <string name="fitness_result_title">Push-ups korrigieren</string>
+    <string name="fitness_result_detected">%1$d erkannt · %2$s</string>
+    <string name="fitness_result_hint">Lösche falsch erkannte Wiederholungen oder setze den Wert manuell.</string>
+    <string name="fitness_result_manual">Wert manuell setzen</string>
+    <string name="fitness_result_rep_list">Erkannte Wiederholungen</string>
+    <string name="fitness_result_rep_number">Wiederholung %1$d</string>
+    <string name="fitness_result_delete_rep">Wiederholung löschen</string>
+    <string name="fitness_result_decrease">Weniger Wiederholungen</string>
+    <string name="fitness_result_increase">Mehr Wiederholungen</string>
+    <string name="fitness_result_apply">Übernehmen</string>
+    <string name="fitness_result_cancel">Abbrechen</string>
     <string name="so_bedienst_du_den_pushup">So bedienst du den Push-up-Zähler:\n\n1. Stell das Handy seitlich auf, sodass dein Oberkörper komplett im Bild ist.\n2. Tippe auf „Start“ und beginne mit den Push-ups.\n3. Der Zähler erkennt jede Wiederholung am Ellbogenwinkel – unten unter 98°, oben über 152°.\n4. Über die Kamera-Taste wechselst du zwischen Front- und Rückkamera, über das Figuren-Symbol blendest du das Skelett aus.\n5. „Stopp“ beendet den Satz und speichert deine Bestleistung.</string> <!-- app/src/main/java/com/tabslify/core/objects/Config.kt -->
 
     <string name="fitness_nav_dashboard">Heute</string>
@@ -2956,6 +2969,7 @@
         <item quantity="other">%1$d Übungen</item>
     </plurals>
     <string name="fitness_history_session_expand">Zum Aufklappen tippen</string>
+    <string name="fitness_history_session_edit">Korrigieren</string>
     <string name="fitness_history_session_delete">Session löschen</string>
     <string name="fitness_history_session_delete_confirm">Dieses Workout löschen?</string>
     <string name="fitness_history_session_delete_yes">Löschen</string>

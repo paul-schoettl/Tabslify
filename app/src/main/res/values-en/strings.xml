@@ -1430,6 +1430,19 @@
     <string name="fitness_tipp_titel">TIP</string>
     <string name="fitness_tipp_text">It works most accurately with the phone placed sideways about two metres away. Head-on works too – just keep your shoulders, hips and hands in frame.</string>
     <string name="fitness_verstanden">Got it</string>
+    <string name="fitness_rep_minus">Remove one rep</string>
+    <string name="fitness_kalibrierung">Hold the plank position – calibrating in %1$d s</string>
+    <string name="fitness_result_title">Correct push-ups</string>
+    <string name="fitness_result_detected">%1$d detected · %2$s</string>
+    <string name="fitness_result_hint">Delete wrongly detected reps or set the value manually.</string>
+    <string name="fitness_result_manual">Set value manually</string>
+    <string name="fitness_result_rep_list">Detected reps</string>
+    <string name="fitness_result_rep_number">Rep %1$d</string>
+    <string name="fitness_result_delete_rep">Delete rep</string>
+    <string name="fitness_result_decrease">Fewer reps</string>
+    <string name="fitness_result_increase">More reps</string>
+    <string name="fitness_result_apply">Apply</string>
+    <string name="fitness_result_cancel">Cancel</string>
     <string name="so_bedienst_du_den_pushup">How to use the push-up counter:\n\n1. Place the phone sideways so your upper body is fully in frame.\n2. Tap “Start” and begin your push-ups.\n3. Each rep is detected from your elbow angle – below 98° at the bottom, above 152° at the top.\n4. The camera button switches between the front and rear camera, the figure icon hides the skeleton.\n5. “Stop” ends the set and saves your personal best.</string>
     <string name="fitness_nav_dashboard">Today</string>
     <string name="fitness_nav_exercises">Exercises</string>
@@ -2242,6 +2255,7 @@
         <item quantity="other">%1$d exercises</item>
     </plurals>
     <string name="fitness_history_session_expand">Tap to expand</string>
+    <string name="fitness_history_session_edit">Correct</string>
     <string name="fitness_history_session_delete">Delete session</string>
     <string name="fitness_history_session_delete_confirm">Delete this workout?</string>
     <string name="fitness_history_session_delete_yes">Delete</string>
