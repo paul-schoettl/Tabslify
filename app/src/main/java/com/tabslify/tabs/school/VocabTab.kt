@@ -3080,8 +3080,7 @@ private fun ordneKarten(source: List<LernKarte>, shuffle: Boolean): List<LernKar
 fun saveVokabelSet(prefs: SharedPreferences, set: VokabelSet): List<VokabelSet> {
     val existing = loadVokabelSets(prefs).toMutableList()
     val nachId = existing.indexOfFirst { it.createdAt == set.createdAt }
-    val idx = if (nachId >= 0) nachId else existing.indexOfFirst { it.name == set.name }
-    if (idx >= 0) existing[idx] = set else existing.add(0, set)
+    if (nachId >= 0) existing[nachId] = set else existing.add(0, set)
     existing.sortByDescending { it.lastUsed }
     val json = JSONArray().also { arr ->
         existing.forEach { s ->
