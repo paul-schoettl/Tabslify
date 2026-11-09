@@ -577,7 +577,8 @@ fun LandingPageOrApp(
                     storage = storage,
                     startTarget = null,
                     initialMenuItem = item,
-                    onMenuClick = null
+                    onMenuClick = null,
+                    onImmersiveChange = { webImmersive = it }
                 )
             }
 

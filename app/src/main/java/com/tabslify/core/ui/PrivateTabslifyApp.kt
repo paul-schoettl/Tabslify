@@ -157,6 +157,7 @@ import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
@@ -429,6 +430,7 @@ fun PrivateTabslifyApp(
         mutableStateOf(initialMenuItem)
     }
     var isFullScreen by rememberSaveable { mutableStateOf(false) }
+    var isWebFullScreen by remember { mutableStateOf(false) }
     var mediaBottomBarHeight by remember { mutableStateOf(0.dp) }
     var webViewUrl by rememberSaveable { mutableStateOf("https://www.google.com") }
     var currentUrl by rememberSaveable { mutableStateOf(webViewUrl) }
@@ -466,10 +468,13 @@ fun PrivateTabslifyApp(
     }
 
     val activity = context as? Activity
-    LaunchedEffect(isFullScreen) {
-        onImmersiveChange(isFullScreen)
+    val configuration = LocalConfiguration.current
+    val isImmersive = isFullScreen || isWebFullScreen ||
+        (selectedMenuItem == MenuItem.REMOTEDESKTOP && streamVollbild)
+    LaunchedEffect(isImmersive, configuration.orientation) {
+        onImmersiveChange(isImmersive)
         val controller = activity?.window?.insetsController ?: return@LaunchedEffect
-        if (isFullScreen) {
+        if (isImmersive) {
             controller.hide(android.view.WindowInsets.Type.systemBars())
             controller.systemBarsBehavior =
                 WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
@@ -477,6 +482,10 @@ fun PrivateTabslifyApp(
         } else {
             controller.show(android.view.WindowInsets.Type.systemBars())
         }
+    }
+
+    LaunchedEffect(isFullScreen) {
+        if (!isFullScreen) isWebFullScreen = false
     }
 
     DisposableEffect(Unit) {
@@ -576,7 +585,7 @@ fun PrivateTabslifyApp(
                         }
                     ),
                 topBar = {
-                    if (selectedMenuItem == MenuItem.REMOTEDESKTOP && streamVollbild) {
+                    if (isImmersive) {
                         Box(Modifier)
                     } else {
                     TopAppBar(
@@ -755,6 +764,7 @@ fun PrivateTabslifyApp(
                                     ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
                                 customView = view
                                 customViewCallback = callback
+                                isWebFullScreen = true
 
                                 activity.window.insetsController?.apply {
                                     hide(android.view.WindowInsets.Type.systemBars())
@@ -771,6 +781,7 @@ fun PrivateTabslifyApp(
                                 customView = null
                                 customViewCallback?.onCustomViewHidden()
                                 customViewCallback = null
+                                isWebFullScreen = false
                                 activity.window.insetsController?.apply {
                                     hide(android.view.WindowInsets.Type.systemBars())
                                     systemBarsBehavior =
