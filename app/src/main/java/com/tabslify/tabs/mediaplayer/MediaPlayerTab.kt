@@ -2948,7 +2948,7 @@ object MediaAnalyticsManager {
     }
 
     fun isAnalyticsEnabled(): Boolean {
-        return prefs?.getBoolean(KEY_ANALYTICS_ENABLED, true) ?: true
+        return prefs?.getBoolean(KEY_ANALYTICS_ENABLED, false) ?: false
     }
 
     fun setAnalyticsEnabled(enabled: Boolean) {

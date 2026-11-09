@@ -1,7 +1,7 @@
 # Tabslify (Android App)
 
 > **One app to replace them all.**
-> Media player, browser, password & 2FA manager, notes, weather, movies, gallery, contacts, calendar, vocab trainer, AI chat — bundled into a single, privacy-first Android app.
+> Media player, browser, password & 2FA manager, notes, weather, movies, gallery, recorder, virus scanning, vocab trainer, AI chat — bundled into a single, privacy-first Android app.
 
 > [!IMPORTANT]
 > Englisch BETA in Progress...
@@ -12,10 +12,14 @@ Tabslify is a powerful, multi-functional Android application with **ONE** goal: 
 
 ## Why Tabslify?
 
-- 🧩 **20+ tools in one place** — stop juggling a dozen apps for the things you do every day.
+- 🧩 **A dozen tools in one place** — stop juggling a pile of separate apps for the things you do every day.
 - 🔒 **Privacy by default** — no ads, no ad or behavioral tracking; optional local analysis (e.g. music) is off unless you turn it on.
 - 🤖 **AI where it actually helps** — chat, OCR vocab extraction, and optional listening-analysis for your music.
 - 🎨 **Modern, animated UI** — built with Jetpack Compose and Material 3, tuned for Samsung OneUI 8.5.
+
+## Requirements
+
+- Android 15 or newer (minSdk 35)
 
 ## Tabs
 
@@ -35,23 +39,14 @@ Tabslify is a powerful, multi-functional Android application with **ONE** goal: 
 - **Well-configured WebView:** A highly optimized WebView for the best browsing experience.
 - **Quick Link Buttons:** Set up quick-link buttons for maximum flow.
 
-### Date Calculator
-- **Calculate Day Differences:** Pick a start & end date to see the days between them.
-
 ### Explore
-- **Optional location feature (opt-in):** See the percentage of the world you've visited.
+- **Optional location feature (opt-in, off by default):** See the percentage of the world you've visited.
 
 ### Movie Discover
 - Discover thousands of movies across different genres, powered by TMDB (The Movie Database).
 
 ### Gallery
 - View & delete pictures and videos from your local storage.
-
-### Calendar
-- Plan tasks for an organized day.
-
-### Contacts
-- Manage all your contacts in one place.
 
 ### Media Player
 - Play, sort and manage music & podcasts locally.
@@ -62,7 +57,6 @@ Tabslify is a powerful, multi-functional Android application with **ONE** goal: 
 
 ### Quick Access
 - Get information about network, display, battery and your device.
-- View a diagram of your battery history.
 
 ### Vocabs
 - **AI OCR:** Upload an image and get structured vocabulary out of it.
@@ -71,6 +65,19 @@ Tabslify is a powerful, multi-functional Android application with **ONE** goal: 
 ### Weather
 - View the weather for your current location.
 - **Clean GUI:** Swipe through the tab with plenty of animations!
+
+### VirusTotal
+- **File & URL scans:** Check files and links against VirusTotal.
+
+## Not in the public beta (dev-only)
+
+The following features exist in the codebase but are gated to the developer build and are not part of the public beta:
+
+- Gmail, Private Cloud, PC Manager and Remote Desktop
+- FocusGuard, Heise News, Date Calculator, Calendar and TikTok
+- Pushups / Ride Tracking and Suggestion
+- Semantic search / local embeddings
+- WhatsApp forwarding, voice notes, LAN/PC sync and cloud backup
 
 ## Pictures
 <table>
@@ -90,10 +97,6 @@ Tabslify is a powerful, multi-functional Android application with **ONE** goal: 
     </tr>
     <tr>
         <td style="vertical-align: top; padding-right: 16px;">
-            <img src="Preview/DayCalculator.jpg"
-             style="width:auto; border-radius:12px; max-height: 600px"  alt="Image shows DayCalculatorTab"/>
-        </td>
-        <td style="vertical-align: top; padding-right: 16px;">
             <img src="Preview/Explore.jpg"
              style="width:auto; border-radius:12px; max-height: 600px"  alt="Image shows ExploreTab"/>
         </td>
@@ -112,7 +115,7 @@ Tabslify is a powerful, multi-functional Android application with **ONE** goal: 
   <tr>
     <td style="vertical-align: top; padding-right: 16px;">
       <ul>
-        <li><strong>MASSIVE Command System:</strong> Run commands straight from a notification — manage todos, reply to WhatsApp / Telegram messages, browse your gallery, and MUCH more.</li>
+        <li><strong>MASSIVE Command System:</strong> Run commands straight from a notification — manage todos, browse your gallery, control media and weather, and MUCH more.</li>
       </ul>
     </td>
     <td style="vertical-align: top;">
