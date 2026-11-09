@@ -258,6 +258,7 @@ fun FitnessTabContent(
                     }
             )
         }
+        PushUpEditDialog(vm = vm)
     }
 }
 

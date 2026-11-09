@@ -15,8 +15,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -57,7 +64,11 @@ fun PushUpHud(vm: FitnessViewModel, modifier: Modifier = Modifier) {
                 .padding(horizontal = 20.dp, vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            RepHero(reps = vm.reps, phase = vm.phase)
+            RepHero(
+                reps = vm.reps,
+                phase = vm.phase,
+                onDecrement = { vm.decrementReps() }
+            )
             Spacer(Modifier.height(14.dp))
             StatsRow(vm = vm)
         }
@@ -92,7 +103,7 @@ fun PushUpHud(vm: FitnessViewModel, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun RepHero(reps: Int, phase: PushUpPhase) {
+private fun RepHero(reps: Int, phase: PushUpPhase, onDecrement: () -> Unit) {
     val pulse by animateFloatAsState(
         targetValue = if (phase == PushUpPhase.DOWN) 1.08f else 1f,
         animationSpec = spring(),
@@ -105,14 +116,32 @@ private fun RepHero(reps: Int, phase: PushUpPhase) {
     }
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = reps.toString(),
-            fontSize = 92.sp,
-            lineHeight = 96.sp,
-            fontWeight = FontWeight.Bold,
-            color = TextPrimary,
-            modifier = Modifier.scale(pulse)
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(
+                onClick = onDecrement,
+                enabled = reps > 0,
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(AccentSoft.copy(alpha = 0.9f))
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Remove,
+                    contentDescription = stringResource(R.string.fitness_rep_minus),
+                    tint = TextPrimary
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Text(
+                text = reps.toString(),
+                fontSize = 92.sp,
+                lineHeight = 96.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary,
+                modifier = Modifier.scale(pulse)
+            )
+            Spacer(Modifier.width(56.dp))
+        }
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(50))

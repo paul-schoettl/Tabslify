@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Icon
@@ -172,7 +173,8 @@ fun HistoryScreen(vm: FitnessViewModel, modifier: Modifier = Modifier) {
         when (tab) {
             HistoryTab.SESSIONS -> SessionsList(
                 sessions = sessions,
-                onDeleteRequest = { sessionToDelete = it }
+                onDeleteRequest = { sessionToDelete = it },
+                onEditRequest = { vm.openPushUpEditorForSession(it) }
             )
             HistoryTab.STATS -> StatsOverview(
                 vm = vm,
@@ -189,7 +191,11 @@ private enum class HistoryTab { SESSIONS, STATS }
 private enum class HistoryRange { WEEK, MONTH }
 
 @Composable
-private fun SessionsList(sessions: List<WorkoutSession>, onDeleteRequest: (String) -> Unit) {
+private fun SessionsList(
+    sessions: List<WorkoutSession>,
+    onDeleteRequest: (String) -> Unit,
+    onEditRequest: (String) -> Unit
+) {
     if (sessions.isEmpty()) {
         Box(
             modifier = Modifier
@@ -245,7 +251,12 @@ private fun SessionsList(sessions: List<WorkoutSession>, onDeleteRequest: (Strin
                 SessionCard(
                     session = session,
                     timeFmt = timeFmt,
-                    onDelete = { onDeleteRequest(session.sessionId) }
+                    onDelete = { onDeleteRequest(session.sessionId) },
+                    onEdit = if (session.sessionId.startsWith("pushup_")) {
+                        { onEditRequest(session.sessionId) }
+                    } else {
+                        null
+                    }
                 )
             }
         }
@@ -273,7 +284,8 @@ private fun DayHeader(displayDate: String, nWorkouts: Int, minutes: Int, kcal: F
 private fun SessionCard(
     session: WorkoutSession,
     timeFmt: SimpleDateFormat,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onEdit: (() -> Unit)?
 ) {
     var expanded by remember { mutableStateOf(false) }
     val start = timeFmt.format(Date(session.dateStartMs))
@@ -591,6 +603,25 @@ private fun SessionCard(
                                 modifier = Modifier.padding(end = 8.dp, top = 6.dp)
                             )
                         } else {
+                            if (onEdit != null) {
+                                IconButton(onClick = onEdit) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Edit,
+                                            contentDescription = stringResource(R.string.fitness_history_session_edit),
+                                            tint = AccentDim
+                                        )
+                                        Text(
+                                            stringResource(R.string.fitness_history_session_edit),
+                                            color = AccentDim,
+                                            fontSize = 11.sp
+                                        )
+                                    }
+                                }
+                            }
                             IconButton(onClick = onDelete) {
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                     Icon(

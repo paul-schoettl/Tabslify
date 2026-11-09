@@ -50,14 +50,24 @@ enum class WorkoutMode { CAMERA_POSE, MANUAL }
 
 enum class BikeFilter { ALL, BIKE, EBIKE }
 
+data class PushUpEditorState(
+    val sessionId: String,
+    val durationMs: Long,
+    val originalReps: Int,
+    val repTimesMs: List<Long>,
+    val fromHistory: Boolean
+)
+
 class FitnessViewModel(application: Application) : AndroidViewModel(application) {
 
     private val prefs = application.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     private val counter = PushUpCounter()
-    private val armCounter = ArmExtensionCounter()
     private var timerJob: Job? = null
     private var sessionStartedAtMs = 0L
     private var lostFrames = 0
+    private val detectedRepTimes = mutableStateListOf<Long>()
+    private var editingPushUpSession: WorkoutSession? = null
+    private var pushUpBestBeforeSession = 0
 
     private val storage = FitnessStorage(application)
 
@@ -95,6 +105,12 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         private set
 
     var lastRepAtMs by mutableLongStateOf(0L)
+        private set
+
+    var calibrationRemainingMs by mutableLongStateOf(0L)
+        private set
+
+    var pushUpEditor by mutableStateOf<PushUpEditorState?>(null)
         private set
 
     var errorMessage by mutableStateOf<String?>(null)
@@ -571,10 +587,108 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             dateEndMs = now,
             entries = entry,
             totalCalories = kcal,
-            name = ""
+            name = "",
+            repTimesMs = detectedRepTimes.toList()
         )
         storage.saveSession(session)
         refreshStats()
+        return session
+    }
+
+    fun decrementReps() {
+        if (reps <= 0) return
+        reps--
+        if (detectedRepTimes.isNotEmpty()) {
+            detectedRepTimes.removeAt(detectedRepTimes.lastIndex)
+        }
+    }
+
+    fun openPushUpEditorForSession(sessionId: String) {
+        if (!sessionId.startsWith("pushup_")) return
+        val session = storage.loadAllSessions().firstOrNull { it.sessionId == sessionId } ?: return
+        pushUpBestBeforeSession = personalBest
+        openPushUpEditor(session, fromHistory = true)
+    }
+
+    private fun openPushUpEditor(session: WorkoutSession, fromHistory: Boolean) {
+        editingPushUpSession = session
+        val sessionReps = session.entries.sumOf { entry -> entry.sets.sumOf { it.reps } }
+        pushUpEditor = PushUpEditorState(
+            sessionId = session.sessionId,
+            durationMs = (session.dateEndMs - session.dateStartMs).coerceAtLeast(0L),
+            originalReps = sessionReps,
+            repTimesMs = session.repTimesMs,
+            fromHistory = fromHistory
+        )
+    }
+
+    fun applyPushUpEdit(reps: Int, repTimesMs: List<Long>) {
+        val session = editingPushUpSession ?: return
+        val editor = pushUpEditor ?: return
+        val corrected = reps.coerceIn(0, 9999)
+        val durationMs = (session.dateEndMs - session.dateStartMs).coerceAtLeast(0L)
+        val existing = session.entries.firstOrNull()
+        val entry = WorkoutEntry(
+            entryId = existing?.entryId ?: "pushup_entry_${session.dateEndMs}",
+            exerciseId = "chest_pushups",
+            sets = listOf(
+                ExerciseSet(
+                    setNumber = 1,
+                    reps = corrected,
+                    durationSeconds = (durationMs / 1000L).toInt(),
+                    completed = true
+                )
+            ),
+            notes = existing?.notes.orEmpty(),
+            startedAtMs = existing?.startedAtMs ?: session.dateStartMs,
+            finishedAtMs = existing?.finishedAtMs ?: session.dateEndMs
+        )
+        val factor = storage.calorieFactor()
+        val kcal = (((corrected * 0.35f) + (durationMs / 60_000f) * 6f) * factor)
+            .coerceAtLeast(0f)
+        val updated = session.copy(
+            entries = listOf(entry),
+            totalCalories = kcal,
+            repTimesMs = repTimesMs
+        )
+        storage.saveSession(updated)
+        if (!editor.fromHistory) {
+            this.reps = corrected
+            detectedRepTimes.clear()
+            detectedRepTimes.addAll(repTimesMs)
+        }
+        applyPersonalBest(corrected, editor.fromHistory)
+        refreshStats()
+        pushUpEditor = null
+        editingPushUpSession = null
+    }
+
+    fun dismissPushUpEditor() {
+        val editor = pushUpEditor ?: return
+        if (!editor.fromHistory) {
+            applyPersonalBest(editor.originalReps, fromHistory = false)
+        }
+        pushUpEditor = null
+        editingPushUpSession = null
+    }
+
+    private fun applyPersonalBest(reps: Int, fromHistory: Boolean) {
+        if (fromHistory) {
+            if (reps > personalBest) {
+                personalBest = reps
+                prefs.edit { putInt(KEY_BEST, reps) }
+                isNewRecord = true
+            }
+            return
+        }
+        if (reps > pushUpBestBeforeSession) {
+            personalBest = reps
+            prefs.edit { putInt(KEY_BEST, reps) }
+            isNewRecord = true
+        } else {
+            personalBest = pushUpBestBeforeSession
+            isNewRecord = false
+        }
     }
 
     fun dismissHint() {
@@ -588,10 +702,12 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
 
     fun startSession() {
         counter.reset()
-        armCounter.reset()
         lostFrames = 0
         lastRepAtMs = 0L
         reps = 0
+        detectedRepTimes.clear()
+        calibrationRemainingMs = 0L
+        trackingIssue = TrackingIssue.CALIBRATING
         phase = PushUpPhase.UNKNOWN
         formHintRes = null
         isNewRecord = false
@@ -614,12 +730,13 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         timerJob = null
         phase = PushUpPhase.UNKNOWN
         formHintRes = null
-        if (reps > personalBest) {
-            personalBest = reps
-            prefs.edit { putInt(KEY_BEST, reps) }
-            isNewRecord = true
+        calibrationRemainingMs = 0L
+        pushUpBestBeforeSession = personalBest
+        isNewRecord = false
+        if (wasRunning) {
+            val session = saveSessionFromPushUps()
+            if (session != null) openPushUpEditor(session, fromHistory = false)
         }
-        if (wasRunning) saveSessionFromPushUps()
     }
 
     fun resetSession() {
@@ -629,13 +746,16 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         phase = PushUpPhase.UNKNOWN
         formHintRes = null
         counter.reset()
-        armCounter.reset()
         lostFrames = 0
         lastRepAtMs = 0L
         reps = 0
+        detectedRepTimes.clear()
+        calibrationRemainingMs = 0L
         elapsedMs = 0L
         isNewRecord = false
         formHintRes = null
+        pushUpEditor = null
+        editingPushUpSession = null
     }
 
     fun switchCamera() {
@@ -644,49 +764,74 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
 
     fun onPoseFrame(newFrame: PoseFrame) {
         frame = newFrame
-
         val trackable = PoseMetrics.isTrackable(newFrame)
+        val signals = PoseMetrics.pushUpSignals(newFrame)
         poseDetected = trackable
 
-        val angle = if (trackable) PoseMetrics.elbowAngle(newFrame) else Float.NaN
-        val extension = if (trackable) PoseMetrics.armExtension(newFrame) else Float.NaN
-        val usable = !angle.isNaN() || !extension.isNaN()
-
-        if (!usable) {
+        if (!trackable) {
             lostFrames++
             if (lostFrames >= LOST_FRAME_GRACE) {
                 counter.onPoseLost()
-                armCounter.onPoseLost()
                 phase = PushUpPhase.UNKNOWN
-                trackingIssue = if (trackable) TrackingIssue.ARMS_HIDDEN else TrackingIssue.NO_BODY
+                trackingIssue = TrackingIssue.NO_BODY
+                calibrationRemainingMs = counter.calibrationRemainingMs
             }
             return
         }
 
-        lostFrames = 0
-        val now = System.currentTimeMillis()
+        if (!signals.elbowAngle.isNaN() && !isRunning) {
+            elbowAngle = signals.elbowAngle.roundToInt()
+        }
 
         if (!isRunning) {
-            if (!angle.isNaN()) elbowAngle = angle.roundToInt()
-            trackingIssue = TrackingIssue.NONE
+            trackingIssue = when {
+                !signals.armsVisible -> TrackingIssue.ARMS_HIDDEN
+                !signals.fullyInFrame -> TrackingIssue.NO_BODY
+                else -> TrackingIssue.NONE
+            }
             return
         }
 
-        val angleRep = if (angle.isNaN()) null else counter.submit(angle, now)
-        val extensionRep = if (extension.isNaN()) null else armCounter.submit(extension, now)
+        val now = System.currentTimeMillis()
+        val sample = PushUpSample(
+            timestampMs = now,
+            elbowAngle = signals.elbowAngle,
+            bodyAngle = signals.bodyAngle,
+            torsoInclination = signals.torsoInclination,
+            poseConfidence = signals.poseConfidence,
+            armsVisible = signals.armsVisible,
+            fullyInFrame = signals.fullyInFrame,
+            wristsPlanted = signals.wristsPlanted,
+            valid = signals.valid
+        )
+        val rep = counter.submit(sample)
+        phase = counter.phase
+        calibrationRemainingMs = counter.calibrationRemainingMs
+        if (!counter.smoothedAngle.isNaN() && counter.smoothedAngle < PushUpCounter.MAX_ANGLE) {
+            elbowAngle = counter.smoothedAngle.roundToInt()
+        }
 
-        if (!angle.isNaN()) elbowAngle = counter.smoothedAngle.roundToInt()
-        phase = if (counter.phase == PushUpPhase.UNKNOWN) armCounter.phase else counter.phase
+        if (signals.valid) {
+            lostFrames = 0
+        } else {
+            lostFrames++
+            if (lostFrames >= LOST_FRAME_GRACE) {
+                counter.onPoseLost()
+                phase = PushUpPhase.UNKNOWN
+            }
+        }
 
-        if ((angleRep != null || extensionRep != null) && now - lastRepAtMs >= REP_REFRACTORY_MS) {
+        if (rep != null) {
             reps++
+            detectedRepTimes.add(now - sessionStartedAtMs)
             lastRepAtMs = now
         }
 
-        trackingIssue = if (reps == 0 && counter.phase == PushUpPhase.UNKNOWN && !armCounter.calibrated) {
-            TrackingIssue.CALIBRATING
-        } else {
-            TrackingIssue.NONE
+        trackingIssue = when {
+            !signals.armsVisible -> TrackingIssue.ARMS_HIDDEN
+            !signals.fullyInFrame -> TrackingIssue.NO_BODY
+            !counter.calibrated -> TrackingIssue.CALIBRATING
+            else -> TrackingIssue.NONE
         }
 
         formHintRes = resolveHint(newFrame)
@@ -709,7 +854,6 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
 
     companion object {
         private const val LOST_FRAME_GRACE = 8
-        private const val REP_REFRACTORY_MS = 700L
         private const val EXPLORE_HISTORY_DAYS = 30
         private const val DEFAULT_BIKE_RANGE_DAYS = 30
     }

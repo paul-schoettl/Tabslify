@@ -172,21 +172,242 @@ object PoseLandmarks {
     )
 }
 
+data class PushUpSignals(
+    val elbowAngle: Float,
+    val bodyAngle: Float,
+    val torsoInclination: Float,
+    val armConfidence: Float,
+    val poseConfidence: Float,
+    val armsVisible: Boolean,
+    val fullyInFrame: Boolean,
+    val wristsPlanted: Boolean,
+    val valid: Boolean
+)
+
 object PoseMetrics {
-    private const val MIN_VISIBILITY = 0.4f
+    const val MIN_VISIBILITY = 0.45f
+    const val MIN_PRESENCE = 0.45f
+    private const val MIN_CONFIDENCE = 0.45f
+    private const val MAX_ELBOW_SIDE_DIFF = 35f
+    private const val WRIST_UNDER_SHOULDER_RATIO = 0.45f
+    private const val WRIST_BELOW_SHOULDER_MARGIN = 0.01f
+
+    private val LEFT_ARM = intArrayOf(
+        PoseLandmarks.LEFT_SHOULDER, PoseLandmarks.LEFT_ELBOW, PoseLandmarks.LEFT_WRIST
+    )
+    private val RIGHT_ARM = intArrayOf(
+        PoseLandmarks.RIGHT_SHOULDER, PoseLandmarks.RIGHT_ELBOW, PoseLandmarks.RIGHT_WRIST
+    )
+    private val BODY_INDICES = intArrayOf(
+        PoseLandmarks.LEFT_SHOULDER, PoseLandmarks.RIGHT_SHOULDER,
+        PoseLandmarks.LEFT_ELBOW, PoseLandmarks.RIGHT_ELBOW,
+        PoseLandmarks.LEFT_WRIST, PoseLandmarks.RIGHT_WRIST,
+        PoseLandmarks.LEFT_HIP, PoseLandmarks.RIGHT_HIP,
+        PoseLandmarks.LEFT_KNEE, PoseLandmarks.RIGHT_KNEE,
+        PoseLandmarks.LEFT_ANKLE, PoseLandmarks.RIGHT_ANKLE
+    )
 
     fun visibility(frame: PoseFrame, index: Int): Float {
         val landmark = frame.landmarks.getOrNull(index) ?: return 0f
         return landmark.visibility().orElse(0f)
     }
 
+    private fun confidence(frame: PoseFrame, index: Int): Float {
+        val landmark = frame.landmarks.getOrNull(index) ?: return 0f
+        val visibility = landmark.visibility().orElse(0f)
+        val presence = landmark.presence().orElse(0f)
+        return minOf(visibility, presence)
+    }
+
+    private fun jointOk(frame: PoseFrame, index: Int): Boolean =
+        confidence(frame, index) >= MIN_CONFIDENCE
+
+    private fun sideArmVisible(frame: PoseFrame, indices: IntArray): Boolean =
+        indices.all { jointOk(frame, it) }
+
+    private fun sideArmConfidence(frame: PoseFrame, indices: IntArray): Float =
+        indices.minOf { confidence(frame, it) }
+
+    private fun armsVisible(frame: PoseFrame): Boolean =
+        sideArmVisible(frame, LEFT_ARM) && sideArmVisible(frame, RIGHT_ARM)
+
     fun isTrackable(frame: PoseFrame): Boolean {
         if (frame.landmarks.size < 33 || frame.worldLandmarks.size < 33) return false
-        val armIndices = listOf(
-            PoseLandmarks.LEFT_SHOULDER, PoseLandmarks.LEFT_ELBOW, PoseLandmarks.LEFT_WRIST,
-            PoseLandmarks.RIGHT_SHOULDER, PoseLandmarks.RIGHT_ELBOW, PoseLandmarks.RIGHT_WRIST
+        return sideArmVisible(frame, LEFT_ARM) || sideArmVisible(frame, RIGHT_ARM)
+    }
+
+    fun pushUpSignals(frame: PoseFrame): PushUpSignals {
+        if (frame.landmarks.size < 33 || frame.worldLandmarks.size < 33) {
+            return PushUpSignals(
+                elbowAngle = Float.NaN,
+                bodyAngle = Float.NaN,
+                torsoInclination = Float.NaN,
+                armConfidence = 0f,
+                poseConfidence = 0f,
+                armsVisible = false,
+                fullyInFrame = false,
+                wristsPlanted = false,
+                valid = false
+            )
+        }
+
+        val leftArmVisible = sideArmVisible(frame, LEFT_ARM)
+        val rightArmVisible = sideArmVisible(frame, RIGHT_ARM)
+        val bothArmsVisible = leftArmVisible && rightArmVisible
+        val armConfidence = minOf(
+            sideArmConfidence(frame, LEFT_ARM),
+            sideArmConfidence(frame, RIGHT_ARM)
         )
-        return armIndices.count { visibility(frame, it) >= MIN_VISIBILITY } >= 2
+        val poseConfidence = BODY_INDICES.minOf { confidence(frame, it) }
+
+        val leftElbow = if (leftArmVisible) {
+            sideAngle(
+                frame,
+                PoseLandmarks.LEFT_SHOULDER,
+                PoseLandmarks.LEFT_ELBOW,
+                PoseLandmarks.LEFT_WRIST
+            )
+        } else {
+            Float.NaN
+        }
+        val rightElbow = if (rightArmVisible) {
+            sideAngle(
+                frame,
+                PoseLandmarks.RIGHT_SHOULDER,
+                PoseLandmarks.RIGHT_ELBOW,
+                PoseLandmarks.RIGHT_WRIST
+            )
+        } else {
+            Float.NaN
+        }
+
+        val elbowAngle = when {
+            leftElbow.isNaN() || rightElbow.isNaN() -> Float.NaN
+            kotlin.math.abs(leftElbow - rightElbow) > MAX_ELBOW_SIDE_DIFF -> Float.NaN
+            kotlin.math.abs(leftElbow - rightElbow) <= 20f -> (leftElbow + rightElbow) / 2f
+            sideArmConfidence(frame, LEFT_ARM) >= sideArmConfidence(frame, RIGHT_ARM) -> leftElbow
+            else -> rightElbow
+        }
+
+        val bodyAngle = averageOf(
+            sideBodyAngle(
+                frame,
+                PoseLandmarks.LEFT_SHOULDER,
+                PoseLandmarks.LEFT_HIP,
+                PoseLandmarks.LEFT_ANKLE
+            ),
+            sideBodyAngle(
+                frame,
+                PoseLandmarks.RIGHT_SHOULDER,
+                PoseLandmarks.RIGHT_HIP,
+                PoseLandmarks.RIGHT_ANKLE
+            )
+        )
+        val torsoInclination = averageOf(
+            sideTorsoInclination(frame, PoseLandmarks.LEFT_SHOULDER, PoseLandmarks.LEFT_HIP),
+            sideTorsoInclination(frame, PoseLandmarks.RIGHT_SHOULDER, PoseLandmarks.RIGHT_HIP)
+        )
+
+        val fullyInFrame = BODY_INDICES.all { index ->
+            val landmark = frame.landmarks.getOrNull(index) ?: return@all false
+            landmark.x() in -0.01f..1.01f && landmark.y() in -0.01f..1.01f
+        }
+
+        val aspect = if (frame.imageHeight > 0) {
+            frame.imageWidth.toFloat() / frame.imageHeight.toFloat()
+        } else {
+            1f
+        }
+        val shoulderMid = midpoint(frame, PoseLandmarks.LEFT_SHOULDER, PoseLandmarks.RIGHT_SHOULDER)
+        val hipMid = midpoint(frame, PoseLandmarks.LEFT_HIP, PoseLandmarks.RIGHT_HIP)
+        val torsoLength = if (shoulderMid != null && hipMid != null) {
+            distance(shoulderMid, hipMid, aspect)
+        } else {
+            0f
+        }
+        val wristsPlanted = torsoLength > 1e-4f && (
+            wristPlanted(
+                frame,
+                PoseLandmarks.LEFT_SHOULDER,
+                PoseLandmarks.LEFT_WRIST,
+                torsoLength,
+                aspect
+            ) || wristPlanted(
+                frame,
+                PoseLandmarks.RIGHT_SHOULDER,
+                PoseLandmarks.RIGHT_WRIST,
+                torsoLength,
+                aspect
+            )
+        )
+
+        val valid = bothArmsVisible &&
+            fullyInFrame &&
+            wristsPlanted &&
+            poseConfidence >= MIN_CONFIDENCE &&
+            !elbowAngle.isNaN() &&
+            !bodyAngle.isNaN() &&
+            !torsoInclination.isNaN()
+
+        return PushUpSignals(
+            elbowAngle = elbowAngle,
+            bodyAngle = bodyAngle,
+            torsoInclination = torsoInclination,
+            armConfidence = armConfidence,
+            poseConfidence = poseConfidence,
+            armsVisible = bothArmsVisible,
+            fullyInFrame = fullyInFrame,
+            wristsPlanted = wristsPlanted,
+            valid = valid
+        )
+    }
+
+    private fun wristPlanted(
+        frame: PoseFrame,
+        shoulderIndex: Int,
+        wristIndex: Int,
+        torsoLength: Float,
+        aspect: Float
+    ): Boolean {
+        if (!jointOk(frame, shoulderIndex) || !jointOk(frame, wristIndex)) return false
+        val shoulder = frame.landmarks.getOrNull(shoulderIndex) ?: return false
+        val wrist = frame.landmarks.getOrNull(wristIndex) ?: return false
+        val horizontal = kotlin.math.abs(wrist.x() - shoulder.x()) * aspect
+        val below = wrist.y() >= shoulder.y() + WRIST_BELOW_SHOULDER_MARGIN
+        return below && horizontal <= WRIST_UNDER_SHOULDER_RATIO * torsoLength
+    }
+
+    private fun sideBodyAngle(frame: PoseFrame, shoulder: Int, hip: Int, ankle: Int): Float {
+        if (!jointOk(frame, shoulder) || !jointOk(frame, hip) || !jointOk(frame, ankle)) {
+            return Float.NaN
+        }
+        val s = frame.worldLandmarks.getOrNull(shoulder) ?: return Float.NaN
+        val h = frame.worldLandmarks.getOrNull(hip) ?: return Float.NaN
+        val a = frame.worldLandmarks.getOrNull(ankle) ?: return Float.NaN
+        return angleAt(
+            s.x(), s.y(), s.z(),
+            h.x(), h.y(), h.z(),
+            a.x(), a.y(), a.z()
+        )
+    }
+
+    private fun sideTorsoInclination(frame: PoseFrame, shoulder: Int, hip: Int): Float {
+        if (!jointOk(frame, shoulder) || !jointOk(frame, hip)) return Float.NaN
+        val s = frame.worldLandmarks.getOrNull(shoulder) ?: return Float.NaN
+        val h = frame.worldLandmarks.getOrNull(hip) ?: return Float.NaN
+        val dy = kotlin.math.abs(s.y() - h.y())
+        val dx = s.x() - h.x()
+        val dz = s.z() - h.z()
+        val horizontal = sqrt(dx * dx + dz * dz)
+        if (horizontal < 1e-5f && dy < 1e-5f) return Float.NaN
+        return Math.toDegrees(kotlin.math.atan2(dy, horizontal).toDouble()).toFloat()
+    }
+
+    private fun averageOf(left: Float, right: Float): Float = when {
+        left.isNaN() && right.isNaN() -> Float.NaN
+        left.isNaN() -> right
+        right.isNaN() -> left
+        else -> (left + right) / 2f
     }
 
     fun hipReliable(frame: PoseFrame): Boolean {

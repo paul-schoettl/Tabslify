@@ -133,6 +133,8 @@ class FitnessStorage(context: Context) {
                     .put("end", entry.finishedAtMs)
             )
         }
+        val repTimesArr = JSONArray()
+        s.repTimesMs.forEach { repTimesArr.put(it) }
         return JSONObject()
             .put("id", s.sessionId)
             .put("start", s.dateStartMs)
@@ -140,6 +142,7 @@ class FitnessStorage(context: Context) {
             .put("entries", entriesArr)
             .put("kcal", s.totalCalories.toDouble())
             .put("name", s.name)
+            .put("repTimes", repTimesArr)
     }
 
     private fun parseSession(obj: JSONObject): WorkoutSession? {
@@ -168,13 +171,20 @@ class FitnessStorage(context: Context) {
                     finishedAtMs = eObj.optLong("end", 0L)
                 )
             }
+            val repTimesArr = obj.optJSONArray("repTimes")
+            val repTimes = if (repTimesArr == null) {
+                emptyList()
+            } else {
+                (0 until repTimesArr.length()).map { idx -> repTimesArr.optLong(idx, 0L) }
+            }
             WorkoutSession(
                 sessionId = obj.getString("id"),
                 dateStartMs = obj.getLong("start"),
                 dateEndMs = obj.getLong("end"),
                 entries = entries,
                 totalCalories = obj.getDouble("kcal").toFloat(),
-                name = obj.optString("name", "")
+                name = obj.optString("name", ""),
+                repTimesMs = repTimes
             )
         }.getOrNull()
     }

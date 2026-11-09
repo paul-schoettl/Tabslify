@@ -55,7 +55,8 @@ data class WorkoutSession(
     val dateEndMs: Long,
     val entries: List<WorkoutEntry>,
     val totalCalories: Float = 0f,
-    val name: String = ""
+    val name: String = "",
+    val repTimesMs: List<Long> = emptyList()
 )
 
 data class DayStats(
