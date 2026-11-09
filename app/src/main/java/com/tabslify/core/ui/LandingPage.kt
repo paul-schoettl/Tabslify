@@ -410,7 +410,12 @@ fun LandingPageOrApp(
                 "apkm" -> MenuItem.APKM_INSTALLER
                 "gmail" -> MenuItem.GMAIL
                 "virustotal" -> MenuItem.VIRUSTOTAL
+                "mediaplayer" -> MenuItem.MEDIAPLAYERTAB
+                "suggestion" -> MenuItem.SUGGESTION
                 else -> null
+            }
+            if (selectedMenuItem != null && !menuItemVisible(selectedMenuItem!!, context)) {
+                selectedMenuItem = null
             }
             if (selectedMenuItem != null && selectedMenuItem != MenuItem.APKM_INSTALLER) {
                 saveRecentTab(context, selectedMenuItem!!)
@@ -455,6 +460,7 @@ fun LandingPageOrApp(
     val pendingAiPrompt by svm.pendingAiPrompt.collectAsState()
     val appliedAiPrompt by svm.appliedAiPrompt.collectAsState()
     val pendingAiChatOpen by svm.pendingAiChatOpen.collectAsState()
+    val pendingWidgetTarget by svm.pendingWidgetTarget.collectAsState()
 
     LaunchedEffect(pendingAiPrompt, appliedAiPrompt) {
         val ziel = pendingAiPrompt ?: return@LaunchedEffect
@@ -481,6 +487,32 @@ fun LandingPageOrApp(
         isLandingShown = false
         landingOffsetX.snapTo(-1f)
         svm.setPendingAiChatOpen(null)
+    }
+
+    LaunchedEffect(pendingWidgetTarget) {
+        val ziel = pendingWidgetTarget ?: return@LaunchedEffect
+        val item = when (ziel) {
+            "mediaplayer" -> MenuItem.MEDIAPLAYERTAB
+            "aitab" -> MenuItem.AITAB
+            "suggestion" -> MenuItem.SUGGESTION
+            else -> null
+        }
+        if (item == null) {
+            svm.setPendingWidgetTarget(null)
+            return@LaunchedEffect
+        }
+        if (!menuItemVisible(item, context)) {
+            svm.setPendingWidgetTarget(null)
+            return@LaunchedEffect
+        }
+        hasLoadedApp = true
+        selectedMenuItem = item
+        saveRecentTab(context, item)
+        focusManager.clearFocus(force = true)
+        keyboardController?.hide()
+        isLandingShown = false
+        landingOffsetX.snapTo(-1f)
+        svm.setPendingWidgetTarget(null)
     }
 
     var pendingOverlayItem by remember { mutableStateOf<MenuItem?>(null) }
@@ -510,9 +542,11 @@ fun LandingPageOrApp(
 "gmail" -> MenuItem.GMAIL
                 "tiktok" -> MenuItem.TIKTOK
                     "virustotal" -> MenuItem.VIRUSTOTAL
+                    "mediaplayer" -> MenuItem.MEDIAPLAYERTAB
+                    "suggestion" -> MenuItem.SUGGESTION
                     else -> null
                 }
-            }
+            }?.takeIf { menuItemVisible(it, context) }
 
             key(selectedMenuItem, reloadKey) {
                 Box(Modifier.fillMaxSize()) {

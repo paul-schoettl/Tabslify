@@ -29,6 +29,13 @@ class BootReceiver : BroadcastReceiver() {
             rescheduleAlarms(context)
         }
 
+        if (prvt()) {
+            try {
+                TabslifyMixWidget.requestUpdate(context)
+            } catch (_: Exception) {
+            }
+        }
+
         val prefs = context.getSharedPreferences("app_prefs", MODE_PRIVATE)
         if (!prefs.getBoolean("services_master", true)) {
             return

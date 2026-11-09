@@ -152,6 +152,7 @@ class MainActivity : FragmentActivity() {
         applyVirusTotalDeepLink(intent)
         applyTextActionDeepLink(intent)
         applyAiChatDeepLink(intent)
+        applyWidgetTargetDeepLink(intent)
         applyVoiceDeepLink(intent)
         setContent {
             MaterialTheme(
@@ -216,7 +217,14 @@ class MainActivity : FragmentActivity() {
         applyVirusTotalDeepLink(intent)
         applyTextActionDeepLink(intent)
         applyAiChatDeepLink(intent)
+        applyWidgetTargetDeepLink(intent)
         applyVoiceDeepLink(intent)
+    }
+
+    private fun applyWidgetTargetDeepLink(intent: Intent) {
+        intent.getStringExtra(TabslifyMixWidget.EXTRA_WIDGET_TARGET)
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { sharedViewModel.setPendingWidgetTarget(it) }
     }
 
     private fun applyTikTokDeepLink(intent: Intent) {

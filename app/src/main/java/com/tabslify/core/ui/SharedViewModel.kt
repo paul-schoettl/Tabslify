@@ -72,4 +72,11 @@ class SharedViewModel : ViewModel() {
     fun setPendingAiChatOpen(value: String?) {
         _pendingAiChatOpen.value = value
     }
+
+    private val _pendingWidgetTarget = MutableStateFlow<String?>(null)
+    val pendingWidgetTarget = _pendingWidgetTarget
+
+    fun setPendingWidgetTarget(value: String?) {
+        _pendingWidgetTarget.value = value
+    }
 }

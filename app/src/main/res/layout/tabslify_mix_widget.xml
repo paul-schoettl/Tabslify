@@ -1,0 +1,297 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/mix_widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_mix_bg"
+    android:padding="12dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/mix_widget_greeting"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:fontFamily="@font/smb"
+                    android:maxLines="1"
+                    android:text="@string/mix_widget_greeting_default"
+                    android:textColor="@color/widget_text_primary"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/mix_widget_subtitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:fontFamily="@font/smb_regular"
+                    android:maxLines="1"
+                    android:text="@string/mix_widget_subtitle_default"
+                    android:textColor="@color/widget_text_secondary"
+                    android:textSize="9sp" />
+            </LinearLayout>
+
+            <ProgressBar
+                android:id="@+id/mix_widget_progress"
+                style="?android:attr/progressBarStyleSmall"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_marginEnd="6dp"
+                android:indeterminateTint="@color/widget_accent"
+                android:visibility="gone" />
+
+            <ImageView
+                android:id="@+id/mix_widget_shuffle"
+                android:layout_width="34dp"
+                android:layout_height="34dp"
+                android:background="@drawable/widget_mix_refresh_bg"
+                android:contentDescription="@string/mix_widget_refresh"
+                android:padding="8dp"
+                android:src="@drawable/ic_widget_refresh" />
+        </LinearLayout>
+
+        <FrameLayout
+            android:id="@+id/mix_widget_card_music"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginTop="8dp"
+            android:layout_weight="1"
+            android:background="@drawable/widget_mix_card_music"
+            android:paddingStart="10dp"
+            android:paddingTop="7dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="7dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:contentDescription="@string/mix_widget_music_label"
+                    android:src="@drawable/ic_widget_music" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:fontFamily="@font/smb_regular"
+                        android:letterSpacing="0.12"
+                        android:maxLines="1"
+                        android:text="@string/mix_widget_music_label"
+                        android:textColor="@color/widget_text_tertiary"
+                        android:textSize="7sp" />
+
+                    <TextView
+                        android:id="@+id/mix_widget_music_title"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:fontFamily="@font/smb"
+                        android:maxLines="1"
+                        android:text="@string/mix_widget_music_fallback"
+                        android:textColor="@color/widget_text_primary"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/mix_widget_music_subtitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:fontFamily="@font/smb_regular"
+                        android:maxLines="1"
+                        android:text="@string/mix_widget_music_hint"
+                        android:textColor="@color/widget_text_secondary"
+                        android:textSize="8sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:fontFamily="@font/smb_regular"
+                    android:text="›"
+                    android:textColor="@color/widget_accent_dim"
+                    android:textSize="16sp" />
+            </LinearLayout>
+        </FrameLayout>
+
+        <FrameLayout
+            android:id="@+id/mix_widget_card_ai"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginTop="6dp"
+            android:layout_weight="1"
+            android:background="@drawable/widget_mix_card_ai"
+            android:paddingStart="10dp"
+            android:paddingTop="7dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="7dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:contentDescription="@string/mix_widget_ai_label"
+                    android:src="@drawable/ic_widget_ai" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:fontFamily="@font/smb_regular"
+                        android:letterSpacing="0.12"
+                        android:maxLines="1"
+                        android:text="@string/mix_widget_ai_label"
+                        android:textColor="@color/widget_text_tertiary"
+                        android:textSize="7sp" />
+
+                    <TextView
+                        android:id="@+id/mix_widget_ai_title"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:fontFamily="@font/smb"
+                        android:maxLines="1"
+                        android:text="@string/mix_widget_ai_empty"
+                        android:textColor="@color/widget_text_primary"
+                        android:textSize="11sp" />
+
+                    <TextView
+                        android:id="@+id/mix_widget_ai_subtitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:fontFamily="@font/smb_regular"
+                        android:maxLines="1"
+                        android:text="@string/mix_widget_ai_hint"
+                        android:textColor="@color/widget_text_secondary"
+                        android:textSize="8sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:fontFamily="@font/smb_regular"
+                    android:text="›"
+                    android:textColor="@color/widget_accent"
+                    android:textSize="16sp" />
+            </LinearLayout>
+        </FrameLayout>
+
+        <FrameLayout
+            android:id="@+id/mix_widget_card_youtube"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginTop="6dp"
+            android:layout_weight="1"
+            android:background="@drawable/widget_mix_card_youtube"
+            android:paddingStart="10dp"
+            android:paddingTop="7dp"
+            android:paddingEnd="10dp"
+            android:paddingBottom="7dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:contentDescription="@string/mix_widget_yt_label"
+                    android:src="@drawable/ic_widget_youtube" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:fontFamily="@font/smb_regular"
+                        android:letterSpacing="0.12"
+                        android:maxLines="1"
+                        android:text="@string/mix_widget_yt_label"
+                        android:textColor="@color/widget_text_tertiary"
+                        android:textSize="7sp" />
+
+                    <TextView
+                        android:id="@+id/mix_widget_yt_title"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:fontFamily="@font/smb"
+                        android:maxLines="1"
+                        android:text="@string/mix_widget_yt_empty"
+                        android:textColor="@color/widget_text_primary"
+                        android:textSize="11sp" />
+
+                    <TextView
+                        android:id="@+id/mix_widget_yt_subtitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:ellipsize="end"
+                        android:fontFamily="@font/smb_regular"
+                        android:maxLines="1"
+                        android:text="@string/mix_widget_yt_hint"
+                        android:textColor="@color/widget_text_secondary"
+                        android:textSize="8sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:fontFamily="@font/smb_regular"
+                    android:text="›"
+                    android:textColor="@color/widget_success"
+                    android:textSize="16sp" />
+            </LinearLayout>
+        </FrameLayout>
+    </LinearLayout>
+</FrameLayout>

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="widget_bg_deep">#FF08080B</color>
+    <color name="widget_bg_surface">#FF101014</color>
+    <color name="widget_bg_card">#FF16161B</color>
+    <color name="widget_border">#FF26262E</color>
+    <color name="widget_accent">#FF7C6CFF</color>
+    <color name="widget_accent_dim">#FF4A3FA0</color>
+    <color name="widget_accent_soft">#FF221F3A</color>
+    <color name="widget_text_primary">#FFF4F4F7</color>
+    <color name="widget_text_secondary">#FFA6A6B2</color>
+    <color name="widget_text_tertiary">#FF8C8C9C</color>
+    <color name="widget_success">#FF4ADE80</color>
+</resources>
