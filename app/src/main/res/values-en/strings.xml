@@ -2535,6 +2535,12 @@
     <string name="suggestion_retry">Try again</string>
     <string name="suggestion_valid_until">Valid until %1$s</string>
     <string name="suggestion_refresh">Refresh</string>
+    <string name="suggestion_feedback_reason_label">Reason (optional)</string>
+    <string name="suggestion_feedback_known">Already seen it</string>
+    <string name="suggestion_feedback_dislike">I don\'t like it</string>
+    <string name="suggestion_feedback_loading">Loading a new suggestion …</string>
+    <string name="suggestion_feedback_error">Could not save feedback</string>
+    <string name="suggestion_feedback_timeout">No new suggestion received. Please try again later.</string>
     <string name="update_title">App update</string>
     <string name="update_subtitle">Download the APK in parts from Supabase Storage, verify it and install it</string>
     <string name="update_installed">Installed: %1$s (versionCode %2$d)</string>

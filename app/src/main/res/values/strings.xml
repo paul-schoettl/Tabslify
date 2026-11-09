@@ -13,6 +13,12 @@
     <string name="suggestion_retry">Erneut versuchen</string>
     <string name="suggestion_valid_until">Gültig bis %1$s</string>
     <string name="suggestion_refresh">Aktualisieren</string>
+    <string name="suggestion_feedback_reason_label">Grund (optional)</string>
+    <string name="suggestion_feedback_known">Kenn ich schon</string>
+    <string name="suggestion_feedback_dislike">Gefällt mir nicht</string>
+    <string name="suggestion_feedback_loading">Neue Empfehlung wird geladen …</string>
+    <string name="suggestion_feedback_error">Feedback konnte nicht gespeichert werden</string>
+    <string name="suggestion_feedback_timeout">Keine neue Empfehlung erhalten. Bitte später erneut versuchen.</string>
     <string name="mix_widget_label">Tabslify Mix</string>
     <string name="mix_widget_description">Zufälliger Mix aus Musik, KI-Zusammenfassung und YouTube-Empfehlung</string>
     <string name="mix_widget_greeting_default">Hallo</string>
