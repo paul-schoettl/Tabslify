@@ -39,6 +39,8 @@ import com.tabslify.R
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.io.IOException
+import java.io.Reader
 import com.tabslify.core.ui.Accent
 import com.tabslify.core.ui.AccentDim
 import com.tabslify.core.ui.BgCard
@@ -210,14 +212,35 @@ fun JsonEditorContent(
     }
 }
 
+private const val MAX_JSON_FILE_CHARS = 4 * 1024 * 1024
+
+private fun readTextLimited(reader: Reader, tooLargeMessage: String): String {
+    val builder = StringBuilder()
+    val buffer = CharArray(8192)
+    while (true) {
+        val read = reader.read(buffer)
+        if (read < 0) break
+        builder.append(buffer, 0, read)
+        if (builder.length > MAX_JSON_FILE_CHARS) {
+            throw IOException(tooLargeMessage)
+        }
+    }
+    return builder.toString()
+}
+
 private fun loadJsonFile(context: Context, filePath: String, fileUri: Uri?): String {
+    val tooLargeMessage = context.getString(R.string.json_file_too_large)
     return try {
         if (fileUri != null && fileUri.scheme == "content") {
             context.contentResolver.openInputStream(fileUri)?.use { inputStream ->
-                inputStream.bufferedReader().use { it.readText() }
+                inputStream.bufferedReader().use { readTextLimited(it, tooLargeMessage) }
             } ?: throw Exception(context.getString(R.string.konnte_datei_nicht_offnen))
         } else {
-            File(filePath).readText()
+            val file = File(filePath)
+            if (file.length() > MAX_JSON_FILE_CHARS) {
+                throw IOException(tooLargeMessage)
+            }
+            file.bufferedReader().use { readTextLimited(it, tooLargeMessage) }
         }
     } catch (e: Exception) {
         context.getString(R.string.error_datei_konnte_nicht_geladen, e.message)
