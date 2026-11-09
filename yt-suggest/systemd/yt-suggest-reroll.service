@@ -1,0 +1,16 @@
+[Unit]
+Description=Watch Supabase suggestion feedback jobs and reroll the daily suggestion
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/AndroidStudioProjects/Cloud1/yt-suggest
+ExecStart=%h/AndroidStudioProjects/Cloud1/yt-suggest/.venv/bin/python %h/AndroidStudioProjects/Cloud1/yt-suggest/reroll.py --watch
+Restart=always
+RestartSec=5
+Nice=10
+IOSchedulingClass=idle
+
+[Install]
+WantedBy=default.target

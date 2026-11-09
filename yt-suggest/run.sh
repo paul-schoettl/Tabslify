@@ -3,7 +3,13 @@ set -u
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$DIR" || exit 1
-mkdir -p logs
+mkdir -p logs state
+
+exec 9>"$DIR/state/pipeline.lock"
+if ! flock -w 900 9; then
+    echo "$(date --iso-8601=seconds) ERROR pipeline lock timeout" >> logs/run.log
+    exit 1
+fi
 
 PYTHON="$DIR/.venv/bin/python"
 if [ ! -x "$PYTHON" ]; then

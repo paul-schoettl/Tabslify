@@ -122,6 +122,38 @@ def excluded_from_supabase(env: dict[str, str], days: int, logfile: Path) -> lis
     return []
 
 
+def excluded_from_feedback(env: dict[str, str], logfile: Path) -> list[str]:
+    config = supabase_config(env)
+    if not config:
+        return []
+    url, key = config
+    query = urllib.parse.urlencode(
+        {
+            "select": "video_id",
+            "order": "created_at.desc",
+            "limit": "10000",
+        }
+    )
+    request = urllib.request.Request(
+        f"{url}/rest/v1/suggestion_feedback?{query}",
+        headers={
+            "apikey": key,
+            "Authorization": f"Bearer {key}",
+            "Accept": "application/json",
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=25) as response:
+            rows = json.loads(response.read().decode("utf-8"))
+        return [row["video_id"] for row in rows if row.get("video_id")]
+    except urllib.error.HTTPError as error:
+        body = error.read().decode("utf-8", errors="replace")[:300]
+        log(f"supabase feedback exclusion failed HTTP {error.code}: {body}", logfile)
+    except Exception as error:
+        log(f"supabase feedback exclusion failed {type(error).__name__}: {error}", logfile)
+    return []
+
+
 def excluded_from_local(state_dir: Path, days: int, logfile: Path) -> list[str]:
     path = state_dir / "recent.json"
     if not path.exists():
@@ -333,6 +365,7 @@ def main() -> int:
         raw = load_json(raw_path)
         env = load_env(args.env)
         excluded = set(excluded_from_supabase(env, args.exclude_days, args.log))
+        excluded.update(excluded_from_feedback(env, args.log))
         excluded.update(excluded_from_local(args.state_dir, args.exclude_days, args.log))
         candidates = [
             row

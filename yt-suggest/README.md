@@ -9,11 +9,12 @@ The Tabslify app reads it through the `get_suggestion` Edge Function.
 | File | Purpose |
 |---|---|
 | `yt_scrape.py` | Playwright Chromium with the persistent profile in `profile/`. Reads history (~50), likes (~30) and the YouTube homepage (~40 candidates), filters Shorts/live/ads/already watched, writes `raw/YYYY-MM-DD.json`. |
-| `pick.py` | Reads the newest raw file, removes IDs suggested in the last 14 days, asks Command Code for exactly one candidate, falls back to the most-liked channel. Writes `state/pick.json`. |
+| `pick.py` | Reads the newest raw file, removes IDs suggested in the last 14 days and every permanently rejected ID from `public.suggestion_feedback`, asks Command Code for exactly one candidate, falls back to the most-liked channel. Writes `state/pick.json`. |
 | `push.py` | Writes the pick into `public.daily_suggestion` with the service key from `.env`. Updates the local recent cache. |
-| `run.sh` | Runs scrape, pick and push sequentially. A failed step leaves the previous suggestion untouched. |
-| `systemd/` | User timer at 17:55 with `Persistent=true`. |
-| `supabase/` | Migration SQL and the `get_suggestion` Edge Function source (also applied to Supabase project `vfctgombfsgirctobpca`). |
+| `run.sh` | Runs scrape, pick and push sequentially under the shared pipeline lock. A failed step leaves the previous suggestion untouched. |
+| `reroll.py` | Watches `public.suggestion_jobs` and runs pick + `push.py --valid-from now` for each feedback job. |
+| `systemd/` | Daily timer at 17:55 with `Persistent=true`; `yt-suggest-reroll.service` keeps the reroll watcher running. |
+| `supabase/` | Migration SQL plus the `get_suggestion` and `suggestion_feedback` Edge Function sources (also applied to Supabase project `vfctgombfsgirctobpca`). |
 
 ## Setup
 
@@ -86,9 +87,9 @@ opening YouTube again:
 
 ```bash
 mkdir -p ~/.config/systemd/user
-cp systemd/yt-suggest.service systemd/yt-suggest.timer ~/.config/systemd/user/
+cp systemd/yt-suggest.service systemd/yt-suggest.timer systemd/yt-suggest-reroll.service ~/.config/systemd/user/
 systemctl --user daemon-reload
-systemctl --user enable --now yt-suggest.timer
+systemctl --user enable --now yt-suggest.timer yt-suggest-reroll.service
 systemctl --user list-timers yt-suggest.timer
 ```
 
@@ -97,6 +98,7 @@ The units assume the repository is at `~/AndroidStudioProjects/Cloud1/yt-suggest
 
 ```bash
 journalctl --user -u yt-suggest.service -n 100
+journalctl --user -u yt-suggest-reroll.service -n 100
 ```
 
 `Persistent=true` runs a missed execution after the PC was off. The timer fires at 17:55 and the
@@ -118,6 +120,27 @@ Edge Function: `supabase/functions/get_suggestion/index.ts`
 * Deployed with `verify_jwt: false` because the app sends the publishable key, matching the other
   read-only functions of this project.
 * Accepts `GET` and `POST` because `supabase-kt` `functions.invoke` uses POST.
+
+## Feedback and immediate reroll
+
+Migration: `supabase/20261105_suggestion_feedback.sql`
+
+* `public.suggestion_feedback` stores one row per rejected `video_id` with `feedback_type`
+  (`known` or `dislike`), an optional `reason`, the source `suggestion_id` and `created_at`.
+  `pick.py` reads every row and excludes those IDs permanently in addition to the 14-day window.
+* `public.suggestion_jobs` is the work queue for the reroll watcher.
+
+Edge Function: `supabase/functions/suggestion_feedback/index.ts`
+
+* Takes `{"video_id", "feedback_type", "reason"?, "suggestion_id"?}`.
+* Upserts the feedback, expires the current `daily_suggestion` row and enqueues a
+  `suggestion_jobs` row. Returns `{"ok": true, "job_id": ...}`.
+* `reroll.py` (systemd user service `yt-suggest-reroll.service`) polls the queue every 3 seconds,
+  runs `pick.py` and `push.py --valid-from now`, and marks the job `done` or `failed`. The app polls
+  `get_suggestion` until the video ID changes.
+
+The shared `state/pipeline.lock` keeps the daily run and a reroll from writing
+`state/pick.json` at the same time.
 
 ## Assumptions
 

@@ -5,6 +5,7 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -29,6 +30,8 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -38,6 +41,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -63,12 +67,17 @@ import com.tabslify.core.ui.TextTertiary
 import io.github.jan.supabase.functions.functions
 import io.ktor.client.statement.bodyAsText
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import org.json.JSONObject
 import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 private data class DailySuggestion(
+    val id: Long,
     val videoId: String,
     val title: String,
     val channel: String,
@@ -84,6 +93,7 @@ private fun parseSuggestion(body: String): DailySuggestion? {
     val videoId = objectValue.optString("video_id").takeIf { it.isNotBlank() } ?: return null
     val duration = if (objectValue.isNull("duration")) null else objectValue.optInt("duration")
     return DailySuggestion(
+        id = objectValue.optLong("id"),
         videoId = videoId,
         title = objectValue.optString("title"),
         channel = objectValue.optString("channel"),
@@ -117,29 +127,95 @@ private fun formatValidUntil(value: String): String {
     }
 }
 
+private suspend fun fetchSuggestion(): DailySuggestion? {
+    val response = Config.client.functions.invoke(
+        function = "get_suggestion",
+        body = buildJsonObject {},
+    )
+    return parseSuggestion(response.bodyAsText())
+}
+
 @Composable
 fun SuggestionTabContent() {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     var suggestion by remember { mutableStateOf<DailySuggestion?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var refreshKey by remember { mutableIntStateOf(0) }
+    var reason by remember { mutableStateOf("") }
+    var feedbackInFlight by remember { mutableStateOf<String?>(null) }
+    var feedbackError by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(refreshKey) {
         isLoading = true
         error = null
         try {
-            val response = Config.client.functions.invoke(
-                function = "get_suggestion",
-                body = JSONObject(),
-            )
-            suggestion = parseSuggestion(response.bodyAsText())
+            suggestion = fetchSuggestion()
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             error = e.message ?: e.javaClass.simpleName
         } finally {
             isLoading = false
+        }
+    }
+
+    val submitFeedback: (String) -> Unit = { type ->
+        val current = suggestion
+        if (current != null && feedbackInFlight == null) {
+            feedbackError = null
+            feedbackInFlight = type
+            scope.launch {
+                try {
+                    val body = buildJsonObject {
+                        put("video_id", current.videoId)
+                        put("feedback_type", type)
+                        put("reason", reason.trim())
+                        if (current.id > 0L) put("suggestion_id", current.id)
+                    }
+                    val response = Config.client.functions.invoke(
+                        function = "suggestion_feedback",
+                        body = body,
+                    )
+                    val root = JSONObject(response.bodyAsText())
+                    if (!root.optBoolean("ok", false)) {
+                        throw IllegalStateException(
+                            root.optString("error").ifBlank {
+                                context.getString(R.string.suggestion_feedback_error)
+                            }
+                        )
+                    }
+                    var updated: DailySuggestion? = null
+                    val deadline = System.currentTimeMillis() + 120_000L
+                    while (System.currentTimeMillis() < deadline) {
+                        delay(2500)
+                        val next = try {
+                            fetchSuggestion()
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (_: Exception) {
+                            null
+                        }
+                        if (next != null && next.videoId != current.videoId) {
+                            updated = next
+                            break
+                        }
+                    }
+                    if (updated != null) {
+                        suggestion = updated
+                        reason = ""
+                    } else {
+                        feedbackError = context.getString(R.string.suggestion_feedback_timeout)
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    feedbackError = e.message ?: context.getString(R.string.suggestion_feedback_error)
+                } finally {
+                    feedbackInFlight = null
+                }
+            }
         }
     }
 
@@ -386,6 +462,74 @@ fun SuggestionTabContent() {
                                     Text(
                                         text = stringResource(R.string.suggestion_open_youtube),
                                         fontWeight = FontWeight.Bold,
+                                    )
+                                }
+                                Spacer(Modifier.height(14.dp))
+                                OutlinedTextField(
+                                    value = reason,
+                                    onValueChange = { reason = it },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = feedbackInFlight == null,
+                                    label = { Text(stringResource(R.string.suggestion_feedback_reason_label)) },
+                                    maxLines = 3,
+                                    shape = RoundedCornerShape(14.dp),
+                                )
+                                Spacer(Modifier.height(10.dp))
+                                Row(modifier = Modifier.fillMaxWidth()) {
+                                    OutlinedButton(
+                                        onClick = { submitFeedback("known") },
+                                        enabled = feedbackInFlight == null,
+                                        modifier = Modifier.weight(1f),
+                                        shape = RoundedCornerShape(14.dp),
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = TextPrimary),
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.suggestion_feedback_known),
+                                            fontSize = 13.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    }
+                                    Spacer(Modifier.width(10.dp))
+                                    OutlinedButton(
+                                        onClick = { submitFeedback("dislike") },
+                                        enabled = feedbackInFlight == null,
+                                        modifier = Modifier.weight(1f),
+                                        shape = RoundedCornerShape(14.dp),
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = ErrorRed),
+                                    ) {
+                                        Text(
+                                            text = stringResource(R.string.suggestion_feedback_dislike),
+                                            fontSize = 13.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    }
+                                }
+                                if (feedbackInFlight != null) {
+                                    Spacer(Modifier.height(8.dp))
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(14.dp),
+                                            strokeWidth = 2.dp,
+                                            color = Accent,
+                                        )
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(
+                                            text = stringResource(R.string.suggestion_feedback_loading),
+                                            color = TextSecondary,
+                                            fontSize = 12.sp,
+                                        )
+                                    }
+                                }
+                                feedbackError?.let { message ->
+                                    Spacer(Modifier.height(8.dp))
+                                    Text(
+                                        text = message,
+                                        color = ErrorRed,
+                                        fontSize = 12.sp,
                                     )
                                 }
                             }
