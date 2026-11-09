@@ -178,10 +178,9 @@ object Config {
     fun ensureDefaultLanguage(context: Context) {
         val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
         if (prefs.getBoolean("language_initialized", false)) return
-        val systemLanguage = java.util.Locale.getDefault().language
-        val defaultLang = if (systemLanguage == "de") "de" else "en"
         prefs.edit(commit = true) { putBoolean("language_initialized", true) }
-        setAppLanguage(context, defaultLang)
+        if (currentAppLanguage(context).isNotEmpty()) return
+        setAppLanguage(context, "en")
     }
 
     fun cms(): Int = System.currentTimeMillis().toInt()
