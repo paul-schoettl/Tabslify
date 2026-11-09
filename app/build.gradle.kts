@@ -96,6 +96,9 @@ android {
         checkReleaseBuilds = false
         abortOnError = false
     }
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
     sourceSets {
         listOf("debug", "fast").forEach { devVariante ->
             getByName(devVariante).apply {
