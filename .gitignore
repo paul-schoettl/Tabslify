@@ -30,3 +30,4 @@ supabase/
 !yt-suggest/supabase/**
 TODOS.txt
 .opencode/opencode.jsonc
+__pycache__/
