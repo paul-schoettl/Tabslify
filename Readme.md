@@ -8,12 +8,12 @@
 >
 > <sub><sub>0:49 AM ET · Sep 1, 26</sub></sub>
 
-Tabslify is a powerful, multi-functional Android application with **ONE** goal: **replacing** and **improving** third-party apps with a **single** app — **no tracking** (optional tracking for the Music Player for AI analysis, disabled by default), **optional server binding**, and **enhanced privacy**.
+Tabslify is a powerful, multi-functional Android application with **ONE** goal: **replacing** and **improving** third-party apps with a **single** app — **no ad or behavioral tracking** (optional local analysis such as the music player is opt-in and off by default), **optional server binding**, and **enhanced privacy**.
 
 ## Why Tabslify?
 
 - 🧩 **20+ tools in one place** — stop juggling a dozen apps for the things you do every day.
-- 🔒 **Privacy by default** — no tracking, no ads; tracking features are opt-in and off unless you turn them on.
+- 🔒 **Privacy by default** — no ads, no ad or behavioral tracking; optional local analysis (e.g. music) is off unless you turn it on.
 - 🤖 **AI where it actually helps** — chat, OCR vocab extraction, and optional listening-analysis for your music.
 - 🎨 **Modern, animated UI** — built with Jetpack Compose and Material 3, tuned for Samsung OneUI 8.5.
 
@@ -39,7 +39,7 @@ Tabslify is a powerful, multi-functional Android application with **ONE** goal: 
 - **Calculate Day Differences:** Pick a start & end date to see the days between them.
 
 ### Explore
-- **Optional Tracking Feature:** See the percentage of the world you've visited.
+- **Optional location feature (opt-in):** See the percentage of the world you've visited.
 
 ### Movie Discover
 - Discover thousands of movies across different genres, powered by TMDB (The Movie Database).
@@ -105,7 +105,7 @@ Tabslify is a powerful, multi-functional Android application with **ONE** goal: 
 - Play songs or podcasts — with position saving, of course.
 - Podcast auto-stop after 20 min.
 - Podcast queue.
-- **Optional tracking for AI analysis.**
+- **Optional local listening analysis (opt-in, off by default).**
 
 ### Quiet Hours (Biggest part of app)
 <table>
