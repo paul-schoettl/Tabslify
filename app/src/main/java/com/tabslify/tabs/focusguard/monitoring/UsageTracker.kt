@@ -10,6 +10,8 @@ import com.tabslify.tabs.focusguard.data.CATEGORY_GAMING
 import com.tabslify.tabs.focusguard.data.CATEGORY_OTHER
 import com.tabslify.tabs.focusguard.data.CATEGORY_SOCIAL
 import com.tabslify.tabs.focusguard.data.FocusGuardConfig
+import com.tabslify.core.ui.FeatureToggle
+import com.tabslify.core.ui.isFeatureEnabled
 import java.time.LocalDate
 import java.time.ZoneId
 
@@ -46,6 +48,7 @@ object UsageTracker {
 
     @SuppressLint("MissingPermission")
     fun hasUsageAccess(ctx: Context): Boolean {
+        if (!isFeatureEnabled(ctx, FeatureToggle.USAGE_STATS)) return false
         val usm = ctx.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
         val now = System.currentTimeMillis()
         val stats = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, now - 60_000, now)
@@ -59,6 +62,7 @@ object UsageTracker {
 
     @SuppressLint("MissingPermission")
     fun currentForegroundPackage(ctx: Context): String? {
+        if (!isFeatureEnabled(ctx, FeatureToggle.USAGE_STATS)) return null
         val usm = ctx.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
         val now = System.currentTimeMillis()
         val events = usm.queryEvents(now - 120_000, now)
@@ -75,6 +79,7 @@ object UsageTracker {
 
     @SuppressLint("MissingPermission")
     fun querySessions(ctx: Context, date: LocalDate): List<AppUsageLog> {
+        if (!isFeatureEnabled(ctx, FeatureToggle.USAGE_STATS)) return emptyList()
         val zone = ZoneId.systemDefault()
         val dayStart = date.atStartOfDay(zone).toInstant().toEpochMilli()
         val dayEnd = date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()

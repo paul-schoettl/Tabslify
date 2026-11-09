@@ -151,6 +151,7 @@ object BatteryDataRepository {
     }
 
     fun loadForUi(ctx: Context) {
+        if (!BatteryFeature.ENABLED) return
         init(ctx)
         if (!initialized) return
         uiActive = true
@@ -182,6 +183,7 @@ object BatteryDataRepository {
     }
 
     fun addSample(sample: BatterySample) {
+        if (!BatteryFeature.ENABLED) return
         if (!initialized) init(context)
         var shouldAppend = false
         val prev = lastSample
@@ -211,6 +213,7 @@ object BatteryDataRepository {
 
     suspend fun syncToSupabase(context: Context): Boolean = withContext(Dispatchers.IO) {
         runCatching {
+            if (!BatteryFeature.ENABLED) return@withContext false
             if (!prvt()) return@withContext false
             if (!Config.hasAuthSession()) {
                 Log.e("BatterySync", "Überspringe Cloud-Sync, keine Auth-Session")
@@ -301,12 +304,17 @@ fun readBatterySample(context: Context): BatterySample? {
 class BatterySamplingWorker(appContext: Context, workerParams: WorkerParameters) :
     CoroutineWorker(appContext, workerParams) {
     override suspend fun doWork(): Result {
+        if (!BatteryFeature.ENABLED) return Result.success()
         readBatterySample(applicationContext)?.let { BatteryDataRepository.addSample(it) }
         return Result.success()
     }
 }
 
 fun startBatteryWorker(context: Context) {
+    if (!BatteryFeature.ENABLED) {
+        stopBatteryWorker(context)
+        return
+    }
     WorkManager.getInstance(context).enqueueUniquePeriodicWork(
         "BatterySampling", ExistingPeriodicWorkPolicy.KEEP,
         PeriodicWorkRequestBuilder<BatterySamplingWorker>(15, TimeUnit.MINUTES).build()
@@ -319,6 +327,7 @@ fun stopBatteryWorker(context: Context) {
 
 @Composable
 fun BatteryChartScreen(onDismiss: () -> Unit) {
+    if (!BatteryFeature.ENABLED) return
     val context = LocalContext.current
 
     DisposableEffect(Unit) {

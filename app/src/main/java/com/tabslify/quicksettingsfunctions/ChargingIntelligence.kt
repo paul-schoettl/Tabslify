@@ -92,6 +92,7 @@ object ChargeSessionRepository {
     }
 
     fun onChargingStarted(event: ChargingPercentEvent) {
+        if (!BatteryFeature.ENABLED) return
         val cal = Calendar.getInstance()
         val session = ChargingSession(
             startTimestamp = event.timestamp,
@@ -105,6 +106,7 @@ object ChargeSessionRepository {
     }
 
     fun onChargingPercent(event: ChargingPercentEvent) {
+        if (!BatteryFeature.ENABLED) return
         val session = _currentSession.value ?: return
         if (session.events.lastOrNull()?.level == event.level) return
         val updated = session.copy(events = session.events + event)
@@ -113,6 +115,7 @@ object ChargeSessionRepository {
     }
 
     fun onChargingStopped(event: ChargingPercentEvent) {
+        if (!BatteryFeature.ENABLED) return
         val session = _currentSession.value ?: return
         val completed = session.copy(endTimestamp = event.timestamp, endLevel = event.level)
         val updated = PrefsCleanup.capToLast(_allSessions.value + completed, MAX_SESSIONS)
@@ -168,6 +171,7 @@ object ChargeSessionRepository {
     private fun syncSessionsToSupabase(sessions: List<ChargingSession>) =
         appScope.launch(Dispatchers.IO) {
             runCatching {
+                if (!BatteryFeature.ENABLED) return@runCatching
                 if (!prvt()) {
                     Toast.makeText(
                         context,
@@ -266,6 +270,10 @@ class ChargingTrackerService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        if (!BatteryFeature.ENABLED) {
+            stopSelf()
+            return
+        }
         val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
         if (!prefs.getBoolean("services_master", true) || !prefs.getBoolean(
                 "service_charge",
@@ -338,6 +346,7 @@ class ChargingTrackerService : Service() {
 // Manifest-Receiver für Strom angeschlossen/getrennt
 class ChargingPowerReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        if (!BatteryFeature.ENABLED) return
         when (intent.action) {
             Intent.ACTION_POWER_CONNECTED ->
                 context.startForegroundService(Intent(context, ChargingTrackerService::class.java))

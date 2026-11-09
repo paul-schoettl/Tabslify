@@ -47,8 +47,11 @@ import com.tabslify.tabs.focusguard.FocusGuardViewModel
 import com.tabslify.tabs.focusguard.data.CATEGORY_ENTERTAINMENT
 import com.tabslify.tabs.focusguard.data.CATEGORY_GAMING
 import com.tabslify.tabs.focusguard.data.CATEGORY_SOCIAL
+import com.tabslify.tabs.focusguard.monitoring.SleepTracker
 import androidx.core.net.toUri
 import com.tabslify.core.ui.Accent
+import com.tabslify.core.ui.FeatureToggle
+import com.tabslify.core.ui.isFeatureEnabled
 
 @Composable
 fun FocusGuardConfigScreen(vm: FocusGuardViewModel, modifier: Modifier = Modifier) {
@@ -69,20 +72,28 @@ fun FocusGuardConfigScreen(vm: FocusGuardViewModel, modifier: Modifier = Modifie
             }
         }
 
-        item {
-            FgSectionCard(stringResource(R.string.focusguard_permission_usage)) {
-                PermissionRow(
-                    granted = vm.hasUsageAccess,
-                    hint = stringResource(R.string.focusguard_permission_usage_hint),
-                    buttonText = stringResource(R.string.focusguard_permission_usage),
-                    onClick = {
-                        context.startActivity(
-                            Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
-                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            }
-                        )
-                    }
-                )
+        if (isFeatureEnabled(context, FeatureToggle.USAGE_STATS)) {
+            item {
+                FgSectionCard(stringResource(R.string.focusguard_permission_usage)) {
+                    PermissionRow(
+                        granted = vm.hasUsageAccess,
+                        hint = stringResource(R.string.focusguard_permission_usage_hint),
+                        buttonText = stringResource(R.string.focusguard_permission_usage),
+                        onClick = {
+                            context.startActivity(
+                                Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                            )
+                        }
+                    )
+                }
+            }
+        }
+
+        if (isFeatureEnabled(context, FeatureToggle.HEALTH)) {
+            item {
+                HealthConnectPermissionSection()
             }
         }
 

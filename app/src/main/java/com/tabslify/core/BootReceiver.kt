@@ -7,11 +7,14 @@ import android.content.Context.MODE_PRIVATE
 import android.content.Intent
 import androidx.core.content.ContextCompat
 import com.tabslify.quiethoursnotificationhelper.DailyDigestScheduler
+import com.tabslify.core.objects.prvt
 import com.tabslify.services.BlockedNotificationReceiver
 import com.tabslify.services.QuietHoursNotificationService.Companion.schedulePodcastCheck
 import com.tabslify.services.QuietHoursNotificationService
 import com.tabslify.tabs.exploretab.ExploreLocationTracker
 import com.tabslify.tabs.focusguard.FocusGuardService
+import com.tabslify.tabs.focusguard.FocusGuardFeature
+import com.tabslify.widget.TabslifyMixWidget
 
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -39,7 +42,7 @@ class BootReceiver : BroadcastReceiver() {
             }
         }
 
-        if (prefs.getBoolean("service_focusguard", false)) {
+        if (FocusGuardFeature.ENABLED && prefs.getBoolean("service_focusguard", false)) {
             try {
                 ContextCompat.startForegroundService(
                     context,
@@ -53,6 +56,11 @@ class BootReceiver : BroadcastReceiver() {
             }
             try {
                 com.tabslify.tabs.focusguard.monitoring.scheduleFocusGuardWorkers(context)
+            } catch (_: Exception) {
+            }
+        } else if (!FocusGuardFeature.ENABLED) {
+            try {
+                com.tabslify.tabs.focusguard.monitoring.cancelFocusGuardWorkers(context)
             } catch (_: Exception) {
             }
         }

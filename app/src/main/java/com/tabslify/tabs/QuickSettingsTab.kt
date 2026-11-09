@@ -62,6 +62,7 @@ import com.tabslify.core.objects.tNotify
 import com.tabslify.core.ui.PloppingButton
 import com.tabslify.core.ui.showBatteryInfo
 import com.tabslify.quicksettingsfunctions.BatteryChartScreen
+import com.tabslify.quicksettingsfunctions.BatteryFeature
 import com.tabslify.quicksettingsfunctions.showNetworkInfo
 import com.tabslify.services.QuietHoursNotificationService.Companion.SSN_CHANNEL_ID
 import kotlinx.coroutines.delay
@@ -123,9 +124,9 @@ fun QuickSettingsTabContent() {
             ))
         Spacer(Modifier.height(8.dp))
         QuickSettingRow(
-            listOf(
+            listOfNotNull(
                 stringResource(R.string.batterie_info_2) to { showBatteryInfo(context) },
-                stringResource(R.string.batterie_diagramm) to { showBatteryChart = true },
+                if (BatteryFeature.ENABLED) stringResource(R.string.batterie_diagramm) to { showBatteryChart = true } else null,
                 stringResource(R.string.gerate_info) to { showDeviceInfo(context) }
             )
         )
@@ -137,7 +138,7 @@ fun QuickSettingsTabContent() {
         )
 
     }
-    if (showBatteryChart) {
+    if (BatteryFeature.ENABLED && showBatteryChart) {
         BatteryChartScreen(
             onDismiss = { showBatteryChart = false }
         )

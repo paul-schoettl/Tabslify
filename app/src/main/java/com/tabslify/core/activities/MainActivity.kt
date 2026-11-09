@@ -41,11 +41,13 @@ import com.tabslify.core.ui.SharedViewModel
 import com.tabslify.core.ui.TextPrimary
 import com.tabslify.core.ui.Typography
 import com.tabslify.inactive.ChatService
+import com.tabslify.quicksettingsfunctions.BatteryFeature
 import com.tabslify.quicksettingsfunctions.startBatteryWorker
 import com.tabslify.services.QuietHoursNotificationService
 import com.tabslify.tabs.JsonEditorContent
 import com.tabslify.tabs.pendingApkmUri
 import com.tabslify.tabs.virustotal.pendingVirusTotalReport
+import com.tabslify.widget.TabslifyMixWidget
 import io.github.jan.supabase.storage.storage
 import java.io.File
 
@@ -133,7 +135,7 @@ class MainActivity : FragmentActivity() {
             if (masterEnabled) {
                 runCatching { ChatService.startService(this) }
 
-                if (appPrefs.getBoolean("service_battery", true)) {
+                if (BatteryFeature.ENABLED && appPrefs.getBoolean("service_battery", true)) {
                     runCatching { startBatteryWorker(this) }
                 }
             }

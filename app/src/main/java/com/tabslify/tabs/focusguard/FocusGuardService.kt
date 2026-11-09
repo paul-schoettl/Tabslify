@@ -74,6 +74,11 @@ class FocusGuardService : Service() {
         super.onCreate()
         val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
         ensureServiceChannel()
+        if (!FocusGuardFeature.ENABLED) {
+            startForeground(NOTIFICATION_ID, createForegroundNotification())
+            stopSelf()
+            return
+        }
         if (!prefs.getBoolean("services_master", true) || !prefs.getBoolean("service_focusguard", false)) {
             startForeground(NOTIFICATION_ID, createForegroundNotification())
             stopSelf()

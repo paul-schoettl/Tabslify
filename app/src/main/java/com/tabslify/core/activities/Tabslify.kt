@@ -23,15 +23,23 @@ import com.tabslify.core.functions.errorInsert
 import com.tabslify.core.logging.AppLog
 import com.tabslify.core.logging.LogLevel
 import com.tabslify.core.objects.Config
+import com.tabslify.core.ui.getDeviceName
 import com.tabslify.core.objects.Config.client
 import com.tabslify.core.objects.PrefsBackup
 import com.tabslify.core.objects.prvt
-import com.tabslify.core.ui.getDeviceName
+import com.tabslify.core.ui.FeatureToggle
+import com.tabslify.core.ui.isFeatureEnabled
 import com.tabslify.quicksettingsfunctions.BatteryDataRepository
+import com.tabslify.quicksettingsfunctions.BatteryFeature
+import com.tabslify.quicksettingsfunctions.stopBatteryWorker
 import com.tabslify.tabs.ainotify.AI_NOTIFY_TOPIC
+import com.tabslify.tabs.focusguard.FocusGuardFeature
+import com.tabslify.tabs.focusguard.FocusGuardService
+import com.tabslify.tabs.focusguard.monitoring.cancelFocusGuardWorkers
 import com.tabslify.tabs.tiktok.TIKTOK_PUSH_TOPIC
 import com.tabslify.tabs.tiktok.TikTokDmClient
 import com.tabslify.tabs.tiktok.TikTokFrontier
+import com.tabslify.widget.CommandCodeUsageWidget
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -117,9 +125,11 @@ class Tabslify : Application() {
             FirebaseMessaging.getInstance().subscribeToTopic(AI_NOTIFY_TOPIC)
             FirebaseMessaging.getInstance().subscribeToTopic("emails")
             FirebaseMessaging.getInstance().subscribeToTopic(TIKTOK_PUSH_TOPIC)
-            serviceScope.launch {
-                client.auth.awaitInitialization()
-                runCatching { PrefsBackup.autoBackup(this@Tabslify) }
+            if (isFeatureEnabled(this, FeatureToggle.CLOUD_BACKUP)) {
+                serviceScope.launch {
+                    client.auth.awaitInitialization()
+                    runCatching { PrefsBackup.autoBackup(this@Tabslify) }
+                }
             }
         }
 
@@ -145,7 +155,35 @@ class Tabslify : Application() {
         Coil.setImageLoader(imageLoader)
 
         BatteryDataRepository.init(this)
+        if (!BatteryFeature.ENABLED) {
+            stopBatteryWorker(this)
+        }
         com.tabslify.tabs.focusguard.data.FocusGuardRepository.init(this)
+        if (!FocusGuardFeature.ENABLED) {
+            stopService(Intent(this, FocusGuardService::class.java))
+            cancelFocusGuardWorkers(this)
+        }
+        syncPrivateComponents()
+    }
+
+    private fun syncPrivateComponents() {
+        syncComponentEnabled(CommandCodeUsageWidget::class.java)
+        syncComponentEnabled(ShareActivity::class.java)
+    }
+
+    private fun syncComponentEnabled(componentClass: Class<*>) {
+        val state = if (prvt()) {
+            PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+        } else {
+            PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+        }
+        runCatching {
+            packageManager.setComponentEnabledSetting(
+                ComponentName(this, componentClass),
+                state,
+                PackageManager.DONT_KILL_APP
+            )
+        }
     }
 }
 

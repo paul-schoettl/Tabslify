@@ -10,6 +10,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.tabslify.tabs.focusguard.FocusGuardNotifications
+import com.tabslify.tabs.focusguard.FocusGuardFeature
 import com.tabslify.tabs.focusguard.data.FocusGuardConfig
 import com.tabslify.tabs.focusguard.data.FocusGuardDatabase
 import com.tabslify.tabs.focusguard.data.FocusGuardRepository
@@ -21,6 +22,7 @@ import java.util.concurrent.TimeUnit
 class FocusGuardUsageLogWorker(context: Context, params: WorkerParameters) :
     CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
+        if (!FocusGuardFeature.ENABLED) return Result.success()
         return try {
             val ctx = applicationContext
             FocusGuardRepository.init(ctx)
@@ -57,6 +59,7 @@ class FocusGuardUsageLogWorker(context: Context, params: WorkerParameters) :
 class FocusGuardDailyResetWorker(context: Context, params: WorkerParameters) :
     CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
+        if (!FocusGuardFeature.ENABLED) return Result.success()
         return try {
             val ctx = applicationContext
             FocusGuardRepository.init(ctx)
@@ -122,6 +125,7 @@ class FocusGuardDailyResetWorker(context: Context, params: WorkerParameters) :
 class FocusGuardStudyReminderWorker(context: Context, params: WorkerParameters) :
     CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
+        if (!FocusGuardFeature.ENABLED) return Result.success()
         return try {
             val ctx = applicationContext
             FocusGuardRepository.init(ctx)
@@ -144,6 +148,7 @@ class FocusGuardStudyReminderWorker(context: Context, params: WorkerParameters) 
 class FocusGuardSyncWorker(context: Context, params: WorkerParameters) :
     CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
+        if (!FocusGuardFeature.ENABLED) return Result.success()
         return try {
             FocusGuardRepository.init(applicationContext)
             FocusGuardRepository.syncToSupabase()
@@ -156,6 +161,7 @@ class FocusGuardSyncWorker(context: Context, params: WorkerParameters) :
 
 object FocusGuardSummaryRunner {
     suspend fun run(context: Context) {
+        if (!FocusGuardFeature.ENABLED) return
         FocusGuardRepository.init(context)
         val db = FocusGuardDatabase.get(context)
         val todayYmd = todayYmd()
@@ -222,6 +228,10 @@ object FocusGuardSummaryRunner {
 }
 
 fun scheduleFocusGuardWorkers(context: Context) {
+    if (!FocusGuardFeature.ENABLED) {
+        cancelFocusGuardWorkers(context)
+        return
+    }
     WorkManager.getInstance(context).enqueueUniquePeriodicWork(
         "focusguard_usage_log",
         ExistingPeriodicWorkPolicy.KEEP,
