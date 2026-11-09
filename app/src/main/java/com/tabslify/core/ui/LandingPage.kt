@@ -3600,6 +3600,10 @@ fun SettingsFrame(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                ApkUpdatePanel(visible = visible)
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 Text(
                     text = BuildConfig.VERSION_NAME,
                     modifier = Modifier
