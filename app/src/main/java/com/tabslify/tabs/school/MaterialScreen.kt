@@ -117,6 +117,7 @@ import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import kotlin.time.Duration.Companion.minutes
 import com.tabslify.core.ui.ErrorRed
+import com.tabslify.core.ui.ErrorSoft
 import com.tabslify.core.ui.SuccessGreen
 
 data class MaterialUploadState(
@@ -593,7 +594,7 @@ fun MaterialienScreen(
                 Text("⚠️", fontSize = 14.sp)
                 Text(
                     errorMsg ?: "",
-                    color = ErrorRed.copy(alpha = 0.35f),
+                    color = ErrorSoft,
                     fontSize = 13.sp,
                     modifier = Modifier.weight(1f)
                 )
@@ -935,7 +936,7 @@ fun MaterialienScreen(
                         )
                         Text(
                             selectedSubject!!,
-                            color = Color.White.copy(alpha = 0.45f),
+                            color = Color.White.copy(alpha = 0.72f),
                             fontSize = 12.sp
                         )
                     }

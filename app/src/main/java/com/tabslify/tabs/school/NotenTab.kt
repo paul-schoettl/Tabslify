@@ -29,7 +29,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -56,11 +55,14 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.edit
 import com.tabslify.R
 import com.tabslify.core.objects.prvt
+import com.tabslify.core.ui.AccentFill
 import com.tabslify.core.ui.AccentViolet
 import com.tabslify.core.ui.AccentVioletDim
 import com.tabslify.core.ui.AlertDialogTabslify
 import com.tabslify.core.ui.BgCard
 import com.tabslify.core.ui.BgSurface
+import com.tabslify.core.ui.OnAccentFill
+import com.tabslify.core.ui.OnAccentFillMuted
 import com.tabslify.core.ui.TextPrimary
 import com.tabslify.core.ui.TextSecondary
 import com.tabslify.core.ui.TextTertiary
@@ -487,8 +489,8 @@ private fun NotenFachListe(
             modifier = Modifier
                 .align(Alignment.End)
                 .padding(20.dp),
-            containerColor = AccentViolet,
-            contentColor = TextPrimary
+            containerColor = AccentFill,
+            contentColor = OnAccentFill
         ) {
             Icon(Icons.Default.Add, stringResource(R.string.fach_erstellen))
         }
@@ -510,7 +512,7 @@ private fun NotenFachKarte(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.primary)
+            .background(AccentFill)
             .clickable { onOpen() }
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -528,7 +530,7 @@ private fun NotenFachKarte(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 fach.name,
-                color = TextPrimary,
+                color = OnAccentFill,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
@@ -539,7 +541,7 @@ private fun NotenFachKarte(
                 else pluralStringResource(
                     R.plurals.noten_anzahl, fach.eintraege.size, fach.eintraege.size
                 ),
-                color = TextTertiary,
+                color = OnAccentFillMuted,
                 fontSize = 12.sp
             )
         }
@@ -814,8 +816,8 @@ private fun NotenFachInhalt(
             modifier = Modifier
                 .align(Alignment.End)
                 .padding(20.dp),
-            containerColor = AccentViolet,
-            contentColor = TextPrimary
+            containerColor = AccentFill,
+            contentColor = OnAccentFill
         ) {
             Icon(Icons.Default.Add, stringResource(R.string.noten_eintrag_hinzufuegen))
         }
@@ -842,12 +844,12 @@ private fun NotenZeile(
             modifier = Modifier
                 .size(44.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(Brush.linearGradient(listOf(AccentViolet, AccentVioletDim))),
+                .background(Brush.linearGradient(listOf(AccentFill, AccentVioletDim))),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 notenText,
-                color = Color.White,
+                color = OnAccentFill,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -888,14 +890,14 @@ private fun NotenChip(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
-            .background(if (selected) AccentViolet.copy(alpha = 0.2f) else BgSurface)
+            .background(if (selected) AccentFill else BgSurface)
             .clickable { onClick() }
             .padding(horizontal = 10.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text,
-            color = if (selected) AccentViolet else TextSecondary,
+            color = if (selected) OnAccentFill else TextSecondary,
             fontSize = 12.sp,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
             maxLines = 1,

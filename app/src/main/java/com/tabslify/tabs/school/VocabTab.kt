@@ -55,7 +55,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -96,14 +95,20 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.content.edit
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.tabslify.R
 import com.tabslify.core.objects.Config
 import com.tabslify.core.objects.prvt
+import com.tabslify.core.ui.AccentFill
 import com.tabslify.core.ui.AccentViolet
 import com.tabslify.core.ui.AccentVioletDim
 import com.tabslify.core.ui.AlertDialogTabslify
 import com.tabslify.core.ui.BgCard
 import com.tabslify.core.ui.BgSurface
+import com.tabslify.core.ui.ErrorSoft
+import com.tabslify.core.ui.ErrorSurface
+import com.tabslify.core.ui.OnAccentFill
+import com.tabslify.core.ui.OnAccentFillMuted
 import com.tabslify.core.ui.TextPrimary
 import com.tabslify.core.ui.TextSecondary
 import com.tabslify.core.ui.TextTertiary
@@ -800,7 +805,7 @@ fun SchoolDashboard(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier
                         .clip(RoundedCornerShape(16.dp))
-                        .background(MaterialTheme.colorScheme.primary)
+                        .background(AccentFill)
                         .clickable { onVocabClick() }
                         .padding(horizontal = 20.dp, vertical = 18.dp)
                         .weight(1f)
@@ -808,11 +813,11 @@ fun SchoolDashboard(
                     Icon(
                         Icons.Default.Style,
                         contentDescription = "",
-                        tint = LocalContentColor.current.copy(0.4f)
+                        tint = OnAccentFillMuted
                     )
                     Text(
                         stringResource(R.string.vokabeln),
-                        color = TextPrimary,
+                        color = OnAccentFill,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -824,7 +829,7 @@ fun SchoolDashboard(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         modifier = Modifier
                             .clip(RoundedCornerShape(16.dp))
-                            .background(MaterialTheme.colorScheme.primary)
+                            .background(AccentFill)
                             .clickable { onMaterialClick() }
                             .padding(horizontal = 20.dp, vertical = 18.dp)
                             .weight(1f)
@@ -832,11 +837,11 @@ fun SchoolDashboard(
                         Icon(
                             Icons.AutoMirrored.Filled.StickyNote2,
                             contentDescription = "",
-                            tint = LocalContentColor.current.copy(0.4f)
+                            tint = OnAccentFillMuted
                         )
                         Text(
                             stringResource(R.string.materialien),
-                            color = TextPrimary,
+                            color = OnAccentFill,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -853,7 +858,7 @@ fun SchoolDashboard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier
                         .clip(RoundedCornerShape(16.dp))
-                        .background(MaterialTheme.colorScheme.primary)
+                        .background(AccentFill)
                         .clickable { onNotenClick() }
                         .padding(horizontal = 10.dp, vertical = 18.dp)
                         .weight(1f)
@@ -875,7 +880,7 @@ fun SchoolDashboard(
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 8.dp)
                     .clip(RoundedCornerShape(16.dp))
-                    .background(if (faelligGesamt > 0) MaterialTheme.colorScheme.primary else BgSurface)
+                    .background(if (faelligGesamt > 0) AccentFill else BgSurface)
                     .clickable(enabled = faelligGesamt > 0) { onDueClick() }
                     .padding(horizontal = 20.dp, vertical = 18.dp),
                 contentAlignment = Alignment.CenterStart
@@ -888,7 +893,7 @@ fun SchoolDashboard(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             stringResource(R.string.heute_due),
-                            color = if (faelligGesamt > 0) TextPrimary else TextSecondary,
+                            color = if (faelligGesamt > 0) OnAccentFill else TextSecondary,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -896,7 +901,7 @@ fun SchoolDashboard(
                             if (faelligGesamt > 0) pluralStringResource(
                                 R.plurals.faellige_vokabeln, faelligGesamt, faelligGesamt
                             ) else stringResource(R.string.alles_gelernt),
-                            color = TextTertiary,
+                            color = if (faelligGesamt > 0) OnAccentFillMuted else TextTertiary,
                             fontSize = 12.sp
                         )
                     }
@@ -969,14 +974,14 @@ fun VocabTabContent(
                         modifier = Modifier
                             .clickable { onNewSet() }
                             .clip(RoundedCornerShape(16.dp))
-                            .background(MaterialTheme.colorScheme.primary)
+                            .background(AccentFill)
                             .padding(horizontal = 20.dp, vertical = 18.dp)
                             .weight(1f)
                     ) {
                         Text("📷", fontSize = 22.sp)
                         Text(
                             stringResource(R.string.scannen),
-                            color = TextPrimary,
+                            color = OnAccentFill,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -1036,7 +1041,7 @@ fun VocabTabContent(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(16.dp))
-                                .background(MaterialTheme.colorScheme.primary)
+                                .background(AccentFill)
                                 .clickable { onOpenSet(set) }
                                 .padding(horizontal = 16.dp, vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically
@@ -1066,7 +1071,7 @@ fun VocabTabContent(
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
                                             set.name,
-                                            color = TextPrimary,
+                                            color = OnAccentFill,
                                             fontSize = 20.sp,
                                             fontWeight = FontWeight.SemiBold
                                         )
@@ -1078,7 +1083,7 @@ fun VocabTabContent(
                                                 stringResource(
                                                     R.string.sitzende_vokabeln, sitzt, set.vokabeln.size
                                                 ),
-                                                color = TextTertiary,
+                                                color = OnAccentFillMuted,
                                                 fontSize = 11.sp
                                             )
                                             if (faellig > 0) {
@@ -1086,7 +1091,7 @@ fun VocabTabContent(
                                                     stringResource(
                                                         R.string.faellig_kurz, faellig
                                                     ),
-                                                    color = AccentViolet,
+                                                    color = OnAccentFillMuted,
                                                     fontSize = 11.sp,
                                                     fontWeight = FontWeight.Medium
                                                 )
@@ -1099,7 +1104,7 @@ fun VocabTabContent(
                                                             LocalLocale.current.platformLocale
                                                         ).format(Date(setFortschritt.lastSession))
                                                     ),
-                                                    color = TextTertiary,
+                                                    color = OnAccentFillMuted,
                                                     fontSize = 11.sp
                                                 )
                                             }
@@ -1110,13 +1115,13 @@ fun VocabTabContent(
                                         Box(
                                             modifier = Modifier
                                                 .clip(RoundedCornerShape(8.dp))
-                                                .background(ErrorRed.copy(alpha = 0.2f))
+                                                .background(ErrorSurface)
                                                 .clickable { onLearnWeak(set) }
                                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                                         ) {
                                             Text(
                                                 "✗ $weakCount",
-                                                color = ErrorRed,
+                                                color = ErrorSoft,
                                                 fontSize = 12.sp,
                                                 fontWeight = FontWeight.Bold
                                             )
@@ -1211,8 +1216,8 @@ fun VocabTabContent(
                                             .background(
                                                 Brush.linearGradient(
                                                     listOf(
-                                                        AccentViolet.copy(0.2f),
-                                                        AccentVioletDim.copy(0.2f)
+                                                        OnAccentFill.copy(0.28f),
+                                                        OnAccentFill.copy(0.18f)
                                                     )
                                                 )
                                             )
@@ -1223,14 +1228,7 @@ fun VocabTabContent(
                                                     .fillMaxWidth(masteryQuote)
                                                     .fillMaxHeight()
                                                     .clip(RoundedCornerShape(4.dp))
-                                                    .background(
-                                                        Brush.linearGradient(
-                                                            listOf(
-                                                                AccentViolet,
-                                                                AccentVioletDim
-                                                            )
-                                                        )
-                                                    )
+                                                    .background(OnAccentFill)
                                             )
                                         }
                                     }
@@ -1241,13 +1239,13 @@ fun VocabTabContent(
                                         Box(
                                             modifier = Modifier
                                                 .clip(RoundedCornerShape(8.dp))
-                                                .background(AccentViolet.copy(alpha = 0.2f))
+                                                .background(OnAccentFill.copy(alpha = 0.18f))
                                                 .clickable { onOpenSet(set) }
                                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                                         ) {
                                             Text(
                                                 "▶ ${session.currentIndex}/${set.vokabeln.size}",
-                                                color = AccentViolet,
+                                                color = OnAccentFill,
                                                 fontSize = 12.sp,
                                                 fontWeight = FontWeight.Bold
                                             )
@@ -1269,8 +1267,8 @@ fun VocabTabContent(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(20.dp),
-                containerColor = AccentViolet,
-                contentColor = TextPrimary
+                containerColor = AccentFill,
+                contentColor = OnAccentFill
             ) {
                 Icon(
                     imageVector = Icons.Default.Shuffle,
@@ -1385,7 +1383,7 @@ fun UploadScreen(
                             .clip(RoundedCornerShape(12.dp))
                             .background(
                                 if (bitmap != null && !isExtracting) SolidColor(
-                                    MaterialTheme.colorScheme.primary
+                                    AccentFill
                                 ) else Brush.horizontalGradient(listOf(BgCard, BgCard))
                             )
                             .clickable(enabled = bitmap != null && !isExtracting) { onExtract() }
@@ -1407,7 +1405,7 @@ fun UploadScreen(
                         } else {
                             Text(
                                 stringResource(R.string.text_erkennen),
-                                color = if (bitmap != null) TextPrimary else TextTertiary,
+                                color = if (bitmap != null) OnAccentFill else TextTertiary,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
@@ -1428,7 +1426,7 @@ fun UploadScreen(
                     ) {
                         Text("⚠️", fontSize = 16.sp)
                         Spacer(Modifier.width(8.dp))
-                        Text(it, color = ErrorRed.copy(alpha = 0.35f), fontSize = 13.sp)
+                        Text(it, color = ErrorSoft, fontSize = 13.sp)
                     }
                 }
             }
@@ -1730,7 +1728,7 @@ fun ReviewScreen(
                 modifier = Modifier
                     .clip(RoundedCornerShape(10.dp))
                     .background(
-                        if (currentVokabeln.isNotEmpty() && !isExtracting) SolidColor(MaterialTheme.colorScheme.primary)
+                        if (currentVokabeln.isNotEmpty() && !isExtracting) SolidColor(AccentFill)
                         else Brush.horizontalGradient(listOf(BgCard, BgCard))
                     )
                     .clickable(enabled = currentVokabeln.isNotEmpty() && !isExtracting) {
@@ -1743,7 +1741,7 @@ fun ReviewScreen(
             ) {
                 Text(
                     if (changes > 0) stringResource(R.string.bestatigen, changes) else if (checkExist && !fromScan) stringResource(R.string.umbenennen) else stringResource(R.string.speichern_2),
-                    color = if (currentVokabeln.isNotEmpty()) TextPrimary else TextTertiary,
+                    color = if (currentVokabeln.isNotEmpty() && !isExtracting) OnAccentFill else TextTertiary,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -1755,7 +1753,7 @@ fun ReviewScreen(
                         .clip(RoundedCornerShape(10.dp))
                         .background(
                             if (currentVokabeln.isNotEmpty() && !isExtracting) SolidColor(
-                                MaterialTheme.colorScheme.primary
+                                AccentFill
                             )
                             else Brush.horizontalGradient(listOf(BgCard, BgCard))
                         )
@@ -1764,7 +1762,7 @@ fun ReviewScreen(
                 ) {
                     Text(
                         stringResource(R.string.lernen),
-                        color = if (currentVokabeln.isNotEmpty()) TextPrimary else TextTertiary,
+                        color = if (currentVokabeln.isNotEmpty() && !isExtracting) OnAccentFill else TextTertiary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -1788,7 +1786,7 @@ fun ReviewScreen(
                 )
                 Text(
                     stringResource(R.string.ki_erkennt_vokabeln_bisher, vokabeln.size),
-                    color = AccentViolet,
+                    color = TextPrimary,
                     fontSize = 13.sp
                 )
             }
@@ -1845,12 +1843,12 @@ fun ReviewScreen(
                                         .clickable(enabled = !isExtracting) { vokabelToDelete = vokabel }
                                         .padding(vertical = 10.dp),
                                     contentAlignment = Alignment.Center
-                                ) { Text(stringResource(R.string.loschen), color = ErrorRed.copy(alpha = 0.35f), fontSize = 13.sp) }
+                                ) { Text(stringResource(R.string.loschen), color = ErrorSoft, fontSize = 13.sp) }
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
                                         .clip(RoundedCornerShape(10.dp))
-                                        .background(MaterialTheme.colorScheme.primary)
+                                        .background(AccentFill)
                                         .clickable {
                                             val idx =
                                                 currentVokabeln.indexOfFirst { it.id == vokabel.id }
@@ -1871,7 +1869,7 @@ fun ReviewScreen(
                                 ) {
                                     Text(
                                         stringResource(R.string.speichern),
-                                        color = TextPrimary,
+                                        color = OnAccentFill,
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.SemiBold
                                     )
@@ -2295,7 +2293,7 @@ fun LearnScreen(
                                 .fillMaxWidth(0.9f)
                                 .fillMaxHeight(0.6f)
                                 .clip(RoundedCornerShape(24.dp))
-                                .background(MaterialTheme.colorScheme.primary)
+                                .background(AccentFill)
                                 .clickable { aufgedeckt = true }
                                 .padding(vertical = 40.dp),
                             contentAlignment = Alignment.Center
@@ -2306,7 +2304,7 @@ fun LearnScreen(
                                     fontSize = 28.sp,
                                     fontWeight = FontWeight.Bold,
                                     textAlign = TextAlign.Center,
-                                    color = TextPrimary,
+                                    color = OnAccentFill,
                                     modifier = Modifier.padding(horizontal = 24.dp)
                                 )
                                 if (fehlerZahl > 0) {
@@ -2317,7 +2315,7 @@ fun LearnScreen(
                                     Spacer(Modifier.height(20.dp))
                                     Text(
                                         stringResource(R.string.tippe_zum_aufdecken),
-                                        color = TextPrimary.copy(0.4f),
+                                        color = OnAccentFillMuted,
                                         fontSize = 12.sp
                                     )
                                 }
@@ -2329,7 +2327,7 @@ fun LearnScreen(
                                 .fillMaxWidth(0.9f)
                                 .fillMaxHeight(0.6f)
                                 .clip(RoundedCornerShape(24.dp))
-                                .background(MaterialTheme.colorScheme.primary)
+                                .background(AccentFill)
                                 .clickable { aufgedeckt = false }
                                 .graphicsLayer { rotationY = 180f },
                             contentAlignment = Alignment.Center
@@ -2343,7 +2341,7 @@ fun LearnScreen(
                                     fontSize = 28.sp,
                                     fontWeight = FontWeight.Bold,
                                     textAlign = TextAlign.Center,
-                                    color = TextPrimary,
+                                    color = OnAccentFill,
                                     modifier = Modifier.padding(horizontal = 24.dp)
                                 )
                                 HinweisBereich(
@@ -2401,7 +2399,7 @@ fun LearnScreen(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(16.dp))
-                                .background(MaterialTheme.colorScheme.primary)
+                                .background(AccentFill)
                                 .clickable { beantworte(karte, true) }
                                 .padding(vertical = 16.dp),
                             contentAlignment = Alignment.Center
@@ -2412,13 +2410,13 @@ fun LearnScreen(
                             ) {
                                 Text(
                                     "✓",
-                                    color = TextPrimary,
+                                    color = OnAccentFill,
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
                                     stringResource(R.string.richtig),
-                                    color = TextPrimary,
+                                    color = OnAccentFill,
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )
@@ -2437,7 +2435,7 @@ fun LearnScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(24.dp))
-                            .background(MaterialTheme.colorScheme.primary)
+                            .background(AccentFill)
                             .padding(vertical = 26.dp, horizontal = 18.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -2446,7 +2444,7 @@ fun LearnScreen(
                             fontSize = 26.sp,
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center,
-                            color = TextPrimary
+                            color = OnAccentFill
                         )
                         if (fehlerZahl > 0) {
                             Box(modifier = Modifier.align(Alignment.TopEnd)) {
@@ -2474,14 +2472,14 @@ fun LearnScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(14.dp))
-                                .background(MaterialTheme.colorScheme.primary)
+                                .background(AccentFill)
                                 .clickable(enabled = tipEingabe.isNotBlank()) { pruefeEingabe() }
                                 .padding(vertical = 14.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 stringResource(R.string.pruefen),
-                                color = TextPrimary,
+                                color = OnAccentFill,
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
@@ -2534,14 +2532,14 @@ fun LearnScreen(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .clip(RoundedCornerShape(12.dp))
-                                            .background(MaterialTheme.colorScheme.primary)
+                                            .background(AccentFill)
                                             .clickable { weiter() }
                                             .padding(vertical = 12.dp),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Text(
                                             stringResource(R.string.weiter),
-                                            color = TextPrimary,
+                                            color = OnAccentFill,
                                             fontSize = 14.sp,
                                             fontWeight = FontWeight.SemiBold
                                         )
@@ -2681,7 +2679,7 @@ fun LearnScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(14.dp))
-                            .background(MaterialTheme.colorScheme.primary)
+                            .background(AccentFill)
                             .clickable {
                                 clearSessionState(prefs, sessionKey)
                                 queue = ordneKarten(schwerpunkt.karten, shuffleOrder)
@@ -2699,7 +2697,7 @@ fun LearnScreen(
                     ) {
                         Text(
                             stringResource(R.string.nochmal),
-                            color = TextPrimary,
+                            color = OnAccentFill,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -2797,12 +2795,12 @@ private fun FehlerAbzeichen(anzahl: Int) {
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(ErrorRed.copy(alpha = 0.35f))
+            .background(ErrorSurface)
             .padding(horizontal = 8.dp, vertical = 3.dp)
     ) {
         Text(
             stringResource(R.string.falsch_zaehler, anzahl),
-            color = ErrorRed.copy(alpha = 0.35f),
+            color = ErrorSoft,
             fontSize = 11.sp,
             fontWeight = FontWeight.Medium
         )
@@ -2833,7 +2831,7 @@ private fun HinweisBereich(
             )
         }
         if (text != null) {
-            Text(text, color = TextSecondary, fontSize = 13.sp)
+            Text(text, color = OnAccentFill, fontSize = 13.sp)
         }
     }
 }
@@ -2860,7 +2858,7 @@ fun SaveSetDialog(initial: String, onConfirm: (String) -> Unit, onDismiss: () ->
                     .clip(RoundedCornerShape(10.dp))
                     .background(
                         if (name.isNotBlank())
-                            SolidColor(MaterialTheme.colorScheme.primary)
+                            SolidColor(AccentFill)
                         else
                             Brush.horizontalGradient(listOf(BgCard, BgCard))
                     )
@@ -2869,7 +2867,7 @@ fun SaveSetDialog(initial: String, onConfirm: (String) -> Unit, onDismiss: () ->
             ) {
                 Text(
                     stringResource(R.string.speichern),
-                    color = if (name.isNotBlank()) TextPrimary else TextTertiary,
+                    color = if (name.isNotBlank()) OnAccentFill else TextTertiary,
                     fontWeight = FontWeight.SemiBold
                 )
             }
@@ -2961,12 +2959,12 @@ fun MergeVocabSetsDialog(
                                     .size(20.dp)
                                     .clip(RoundedCornerShape(4.dp))
                                     .background(
-                                        if (isSelected) AccentViolet else BgSurface
+                                        if (isSelected) AccentFill else BgSurface
                                     ),
                                 contentAlignment = Alignment.Center
                             ) {
                                 if (isSelected) {
-                                    Text("✓", color = TextPrimary, fontSize = 12.sp)
+                                    Text("✓", color = OnAccentFill, fontSize = 12.sp)
                                 }
                             }
 
@@ -2996,7 +2994,7 @@ fun MergeVocabSetsDialog(
                     .clip(RoundedCornerShape(10.dp))
                     .background(
                         if (selectedSets.size >= 2 && mergeName.isNotBlank())
-                            SolidColor(AccentViolet)
+                            SolidColor(AccentFill)
                         else
                             Brush.horizontalGradient(listOf(BgCard, BgCard))
                     )
@@ -3014,7 +3012,7 @@ fun MergeVocabSetsDialog(
                 Text(
                     stringResource(R.string.mischen, selectedSets.size),
                     color = if (selectedSets.size >= 2 && mergeName.isNotBlank())
-                        TextPrimary else TextTertiary,
+                        OnAccentFill else TextTertiary,
                     fontWeight = FontWeight.SemiBold
                 )
             }
