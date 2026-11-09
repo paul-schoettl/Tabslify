@@ -58,7 +58,6 @@
     <string name="so_bedienst_du_die_galerie">How to use the gallery:\n\n1. Swipe up and down to browse through your photos and videos.\n2. Tap an image to open it fullscreen.\n3. Pinch two fingers apart to zoom.</string>
     <string name="so_bedienst_du_den_passwort">How to use the password manager:\n\n1. Tap the plus icon to create a new entry with name, username, password, URL and notes.\n2. Use the magic-wand icon to generate strong passwords automatically.\n3. Optionally store a 2FA secret per entry (scan a QR code or enter a Base32 key) – the 6-digit code is then regenerated every 30 seconds.\n4. Tap an entry to see details, show/hide the password or copy it.\n5. Use the search to quickly find entries.\n\nAll passwords and keys are stored encrypted.</string>
     <string name="so_bedienst_du_das_wetter">How to use the weather:\n\n1. On first launch your location is requested to load the local weather.\n2. Swipe sideways to switch between current weather, hourly and daily forecast.\n3. Pull the view down to refresh the data.</string>
-    <string name="so_bedienst_du_die_kontakte">How to use the contacts:\n\n1. Allow contact access on first launch.\n2. Tap the plus icon to create a new contact.\n3. Tap a contact to see details or edit it.\n4. Use the delete icon to remove a contact.</string>
     <string name="so_bedienst_du_den_rekorder">How to use the recorder:\n\n1. Tap the record button to start a voice note.\n2. Tap again to stop and save the recording.\n3. Tap a recording in the list to play it.\n4. Long-press a recording to rename or delete it.\n\nAll recordings stay local on the device.</string>
     <string name="so_bedienst_du_den_datumsrechner">How to use the date calculator:\n\n1. Pick a start and an end date for time spans – the difference is calculated.</string>
     <string name="so_bedienst_du_die_film">How to use the movie recommendations:\n\n1. Pick a genre at the top to narrow down the suggestions.\n2. Tap „🎲 New movies" to load new random suggestions.\n3. Tap the star to bookmark a movie – use „Bookmarked“ to show only your bookmarked movies.\n4. Tap a movie to open poster, rating and description.</string>
@@ -112,7 +111,7 @@
     <string name="chargingtrackerservice_ladeuberwachung">ChargingTrackerService: charging monitoring</string>
     <string name="audioforegroundservice_audioaufnahmen">AudioForegroundService: audio recordings</string>
     <string name="gallerytab_anzeige_von_bildern_und">GalleryTab: displaying images and videos from the gallery</string>
-    <string name="contactstab_laden_speichern_und_loschen">ContactsTab: loading, saving and deleting contacts</string>
+    <string name="contactstab_laden_speichern_und_loschen">Read contacts (e.g. for PC commands)</string>
     <string name="bootreceiver_starten_von_quiethoursnotificationservice_beim">BootReceiver: starting QuietHoursNotificationService at device boot</string>
     <string name="audiorecordertab_audioforegroundservice_audioaufnahmen_mit_mikrofon">AudioRecorderTab &amp; AudioForegroundService: audio recordings with the microphone</string>
     <string name="quiethoursnotificationservice_anfrage_zum_ignorieren_von">QuietHoursNotificationService: request to ignore battery optimizations for reliable background services</string>
@@ -250,7 +249,6 @@
     <string name="gallerie">Gallery</string>
     <string name="authenticator">Authenticator</string>
     <string name="wetter">Weather</string>
-    <string name="kontakte">Contacts</string>
     <string name="recorder">Recorder</string>
     <string name="date_calculator">Date Calculator</string>
     <string name="filme_discovery">Movie Discovery</string>
@@ -646,14 +644,8 @@
     <string name="erstellen">Create</string>
     <string name="eintrag_loschen">Delete entry?</string>
     <string name="wird_unwiderruflich_geloscht">\"%1$s\" will be permanently deleted.</string>
-    <string name="keine_berechtigung_auf_kontakte">No permission for contacts</string>
-    <string name="kontakte_laden">Load contacts</string>
     <string name="neu_erstellen">Create new</string>
-    <string name="lade_kontakte">Loading contacts…</string>
-    <string name="keine_kontakte_vorhanden">No contacts available</string>
     <string name="bearbeiten">Edit</string>
-    <string name="neuer_kontakt">New contact</string>
-    <string name="kontakt_bearbeiten">Edit contact</string>
     <string name="name">Name</string>
     <string name="e_mail">Email</string>
     <string name="telefon">Phone</string>
@@ -2444,9 +2436,6 @@
     <string name="ai_notify_unvollstaendig">Please answer all questions</string>
     <string name="ai_notify_eigene_antwort">Your answer</string>
     <string name="ai_notify_quelle">from %1$s</string>
-    <string name="bluetooth_noch_an">Bluetooth is still on</string>
-    <string name="bluetooth_noch_an_text">%1$s is no longer needed - Bluetooth can go off again</string>
-    <string name="bluetooth_ausschalten">Turn off</string>
     <string name="datei_wirklich_loeschen">Really delete file?</string>
     <string name="datei_wird_geloescht">\"%1$s\" will be deleted from the cloud. This cannot be undone.</string>
 

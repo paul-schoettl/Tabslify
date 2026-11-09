@@ -75,7 +75,6 @@
     <string name="so_bedienst_du_die_galerie">So bedienst du die Galerie:\n\n1. Wische nach oben und unten, um durch deine Fotos und Videos zu blättern.\n2. Tippe ein Bild an, um es im Vollbild zu öffnen.\n3. Ziehe zwei Finger auseinander, um zu zoomen.</string> <!-- app/src/main/java/com/tabslify/core/objects/Config.kt:85 -->
     <string name="so_bedienst_du_den_passwort">So bedienst du den Passwort-Manager:\n\n1. Tippe auf das Plus-Symbol, um einen neuen Eintrag mit Name, Benutzername, Passwort, URL und Notizen anzulegen.\n2. Über das Zauberstab-Symbol erzeugst du starke Passwörter automatisch.\n3. Optional hinterlegst du pro Eintrag ein 2FA-Secret (QR-Code scannen oder Base32-Schlüssel eingeben) – der 6-stellige Code wird dann alle 30 Sekunden neu erzeugt.\n4. Tippe einen Eintrag an, um Details zu sehen, das Passwort ein-/auszublenden oder es zu kopieren.\n5. Nutze die Suche, um Einträge schnell zu finden.\n\nAlle Passwörter und Schlüssel werden verschlüsselt gespeichert.</string> <!-- app/src/main/java/com/tabslify/core/objects/Config.kt:86 -->
     <string name="so_bedienst_du_das_wetter">So bedienst du das Wetter:\n\n1. Beim ersten Öffnen wird dein Standort abgefragt, um das lokale Wetter zu laden.\n2. Wische seitwärts, um zwischen aktuellem Wetter, Stunden- und Tagesvorhersage zu wechseln.\n3. Ziehe die Ansicht nach unten, um die Daten zu aktualisieren.</string> <!-- app/src/main/java/com/tabslify/core/objects/Config.kt:87 -->
-    <string name="so_bedienst_du_die_kontakte">So bedienst du die Kontakte:\n\n1. Erlaube beim ersten Öffnen den Kontakt-Zugriff.\n2. Tippe auf das Plus-Symbol, um einen neuen Kontakt anzulegen.\n3. Tippe einen Kontakt an, um Details zu sehen oder ihn zu bearbeiten.\n4. Über das Löschen-Symbol entfernst du einen Kontakt.</string> <!-- app/src/main/java/com/tabslify/core/objects/Config.kt:88 -->
     <string name="so_bedienst_du_den_rekorder">So bedienst du den Rekorder:\n\n1. Tippe auf den Aufnahme-Knopf, um eine Sprachnotiz zu starten.\n2. Tippe erneut, um die Aufnahme zu stoppen und zu speichern.\n3. Tippe eine Aufnahme in der Liste an, um sie abzuspielen.\n4. Halte eine Aufnahme gedrückt, um sie umzubenennen oder zu löschen.\n\nAlle Aufnahmen bleiben lokal auf dem Gerät.</string> <!-- app/src/main/java/com/tabslify/core/objects/Config.kt:89 -->
     <string name="so_bedienst_du_den_datumsrechner">So bedienst du den Datumsrechner:\n\n1. Wähle für Zeitspannen ein Start- und ein Enddatum – die Differenz wird berechnet.</string> <!-- app/src/main/java/com/tabslify/core/objects/Config.kt:90 -->
     <string name="so_bedienst_du_die_film">So bedienst du die Film-Empfehlungen:\n\n1. Wähle oben ein Genre aus, um die Vorschläge einzugrenzen.\n2. Tippe auf „🎲 Neue Filme“, um neue Zufallsvorschläge zu laden.\n3. Tippe auf den Stern, um einen Film zu merken – über „Gemerkte“ zeigst du nur deine gemerkten Filme an.\n4. Tippe einen Film an, um Poster, Bewertung und Beschreibung zu öffnen.</string> <!-- app/src/main/java/com/tabslify/core/objects/Config.kt:91 -->
@@ -143,7 +142,7 @@
     <!-- app/src/main/java/com/tabslify/core/ui/LandingPage.kt:1034 | LandingPage.kt:1127 -->
     <string name="gallerytab_anzeige_von_bildern_und">GalleryTab: Anzeige von Bildern und Videos aus der Galerie</string> <!-- app/src/main/java/com/tabslify/core/ui/LandingPage.kt:1035 -->
     <!-- app/src/main/java/com/tabslify/core/ui/LandingPage.kt:1037 | LandingPage.kt:1128 -->
-    <string name="contactstab_laden_speichern_und_loschen">ContactsTab: Laden, Speichern und Löschen von Kontakten</string> <!-- app/src/main/java/com/tabslify/core/ui/LandingPage.kt:1038 -->
+    <string name="contactstab_laden_speichern_und_loschen">Kontakte lesen (z. B. für PC-Befehle)</string> <!-- app/src/main/java/com/tabslify/core/ui/LandingPage.kt:1038 -->
     <string name="bootreceiver_starten_von_quiethoursnotificationservice_beim">BootReceiver: Starten von QuietHoursNotificationService beim Gerätestart</string> <!-- app/src/main/java/com/tabslify/core/ui/LandingPage.kt:1041 -->
     <string name="audiorecordertab_audioforegroundservice_audioaufnahmen_mit_mikrofon">AudioRecorderTab &amp; AudioForegroundService: Audioaufnahmen mit Mikrofon</string> <!-- app/src/main/java/com/tabslify/core/ui/LandingPage.kt:1044 -->
     <string name="quiethoursnotificationservice_anfrage_zum_ignorieren_von">QuietHoursNotificationService: Anfrage zum Ignorieren von Batterieoptimierungen für zuverlässige Hintergrunddienste</string> <!-- app/src/main/java/com/tabslify/core/ui/LandingPage.kt:1047 -->
@@ -287,7 +286,6 @@
     <string name="gallerie">Gallerie</string> <!-- app/src/main/java/com/tabslify/core/ui/PrivateTabslifyApp.kt:236 -->
     <string name="authenticator">Authenticator</string> <!-- app/src/main/java/com/tabslify/core/ui/PrivateTabslifyApp.kt:244 -->
     <string name="wetter">Wetter</string> <!-- app/src/main/java/com/tabslify/core/ui/PrivateTabslifyApp.kt:249 -->
-    <string name="kontakte">Kontakte</string> <!-- app/src/main/java/com/tabslify/core/ui/PrivateTabslifyApp.kt:254 -->
     <string name="recorder">Recorder</string> <!-- app/src/main/java/com/tabslify/core/ui/PrivateTabslifyApp.kt:286 -->
     <string name="date_calculator">Date Calculator</string> <!-- app/src/main/java/com/tabslify/core/ui/PrivateTabslifyApp.kt:291 -->
     <string name="filme_discovery">Filme Discovery</string> <!-- app/src/main/java/com/tabslify/core/ui/PrivateTabslifyApp.kt:296 -->
@@ -1198,15 +1196,9 @@
     <string name="erstellen">Erstellen</string> <!-- app/src/main/java/com/tabslify/tabs/CalenderTab.kt:954 | NotesTab.kt:477 -->
     <string name="eintrag_loschen">Eintrag löschen?</string> <!-- app/src/main/java/com/tabslify/tabs/CalenderTab.kt:967 | Passwordmanagerscreen.kt:761 | MediaPlayerTab.kt:3914 -->
     <string name="wird_unwiderruflich_geloscht">\"%1$s\" wird unwiderruflich gelöscht.</string> <!-- app/src/main/java/com/tabslify/tabs/CalenderTab.kt:970 | MediaPlayerTab.kt:1467  ||  %1$s=existingEntry?.title -->
-    <string name="keine_berechtigung_auf_kontakte">Keine Berechtigung auf Kontakte</string> <!-- app/src/main/java/com/tabslify/tabs/ContactsTab.kt:80 -->
-    <string name="kontakte_laden">Kontakte laden</string> <!-- app/src/main/java/com/tabslify/tabs/ContactsTab.kt:118 -->
     <string name="neu_erstellen">Neu erstellen</string> <!-- app/src/main/java/com/tabslify/tabs/ContactsTab.kt:130 -->
-    <string name="lade_kontakte">Lade Kontakte…</string> <!-- app/src/main/java/com/tabslify/tabs/ContactsTab.kt:140 -->
     <!-- app/src/main/java/com/tabslify/tabs/ContactsTab.kt:148  ||  %1$s=state.error -->
-    <string name="keine_kontakte_vorhanden">Keine Kontakte vorhanden</string> <!-- app/src/main/java/com/tabslify/tabs/ContactsTab.kt:157 -->
     <string name="bearbeiten">Bearbeiten</string> <!-- app/src/main/java/com/tabslify/tabs/ContactsTab.kt:245 | AITab.kt:792 | Passwordmanagerscreen.kt:751 -->
-    <string name="neuer_kontakt">Neuer Kontakt</string> <!-- app/src/main/java/com/tabslify/tabs/ContactsTab.kt:272 -->
-    <string name="kontakt_bearbeiten">Kontakt bearbeiten</string> <!-- app/src/main/java/com/tabslify/tabs/ContactsTab.kt:272 -->
     <string name="name">Name</string> <!-- app/src/main/java/com/tabslify/tabs/ContactsTab.kt:281 | VocabTab.kt:1845 | VocabTab.kt:1913 -->
     <string name="e_mail">E-Mail</string> <!-- app/src/main/java/com/tabslify/tabs/ContactsTab.kt:287 -->
     <string name="telefon">Telefon</string> <!-- app/src/main/java/com/tabslify/tabs/ContactsTab.kt:293 -->
@@ -3158,9 +3150,6 @@
     <string name="ai_notify_unvollstaendig">Bitte alle Fragen beantworten</string>
     <string name="ai_notify_eigene_antwort">Eigene Antwort</string>
     <string name="ai_notify_quelle">von %1$s</string>
-    <string name="bluetooth_noch_an">Bluetooth ist noch an</string>
-    <string name="bluetooth_noch_an_text">%1$s wird nicht mehr gebraucht - Bluetooth kann wieder aus</string>
-    <string name="bluetooth_ausschalten">Ausschalten</string>
     <string name="datei_wirklich_loeschen">Datei wirklich löschen?</string> <!-- app/src/main/java/com/tabslify/core/ui/PrivateTabslifyApp.kt:2099 -->
     <string name="datei_wird_geloescht">\"%1$s\" wird aus der Cloud gelöscht. Das kann nicht rückgängig gemacht werden.</string> <!-- app/src/main/java/com/tabslify/core/ui/PrivateTabslifyApp.kt:2100  ||  %1$s=file.name -->
 
