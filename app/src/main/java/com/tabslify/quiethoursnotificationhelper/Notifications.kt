@@ -59,11 +59,11 @@ fun checkQuietHours(context: Context) {
         updateNotification(context)
 
         showSimpleNotificationExtern(
-            if (nowQuietHours) "🌙 Ruhezeit aktiviert" else "☀️ Ruhezeit beendet",
+            if (nowQuietHours) context.getString(R.string.qh_notif_quiet_started_title) else context.getString(R.string.qh_notif_quiet_ended_title),
             if (nowQuietHours) {
-                "Benachrichtigungen werden gesammelt"
+                context.getString(R.string.qh_notif_quiet_started_text)
             } else {
-                "Normale Benachrichtigungen aktiv"
+                context.getString(R.string.qh_notif_quiet_ended_text)
             },
             10.seconds,
             context,
@@ -151,10 +151,10 @@ fun createNotificationChannel(context: Context) {
     notificationManager.createNotificationChannel(
         NotificationChannel(
             CHANNEL_ID,
-            "Ruhezeiten Überwachung",
+            context.getString(R.string.qh_notif_channel_quiet_monitor),
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
-            description = "Überwacht Ruhezeiten "
+            description = context.getString(R.string.qh_notif_channel_quiet_monitor_desc)
             setShowBadge(false)
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
         })
@@ -162,10 +162,10 @@ fun createNotificationChannel(context: Context) {
     notificationManager.createNotificationChannel(
         NotificationChannel(
             MONITOR_CHANNEL_ID,
-            "Ruhezeiten Status",
+            context.getString(R.string.qh_notif_channel_quiet_status),
             NotificationManager.IMPORTANCE_LOW
         ).apply {
-            description = "Lautlose Dauernotification der Ruhezeiten-Überwachung"
+            description = context.getString(R.string.qh_notif_channel_quiet_status_desc)
             setShowBadge(false)
             setSound(null, null)
             enableVibration(false)
@@ -175,10 +175,10 @@ fun createNotificationChannel(context: Context) {
     notificationManager.createNotificationChannel(
         NotificationChannel(
             GALLERY_CHANNEL_ID,
-            "Galerie",
+            context.getString(R.string.galerie),
             NotificationManager.IMPORTANCE_LOW
         ).apply {
-            description = "Deine persönliche Galerie"
+            description = context.getString(R.string.qh_notif_channel_gallery_desc)
             setShowBadge(false)
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
         })
@@ -186,21 +186,21 @@ fun createNotificationChannel(context: Context) {
     notificationManager.createNotificationChannel(
         NotificationChannel(
             SSN_CHANNEL_ID,
-            "Show Simple Notification",
+            context.getString(R.string.qh_notif_channel_simple),
             NotificationManager.IMPORTANCE_LOW
         ).apply {
-            description = "Generelle Benachrichtigung"
+            description = context.getString(R.string.qh_notif_channel_simple_desc)
             setShowBadge(false)
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
         })
 
     notificationManager.createNotificationChannel(
         NotificationChannel(
-            "Nachrichten",
-            "Nachrichten",
+            context.getString(R.string.qh_notif_channel_messages),
+            context.getString(R.string.qh_notif_channel_messages),
             NotificationManager.IMPORTANCE_LOW
         ).apply {
-            description = "Nachrichten"
+            description = context.getString(R.string.qh_notif_channel_messages)
             setShowBadge(true)
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
         })
@@ -209,10 +209,10 @@ fun createNotificationChannel(context: Context) {
         notificationManager.createNotificationChannel(
             NotificationChannel(
                 VOICE_NOTE_CHANNEL_ID,
-                "Sprachnachrichten Player",
+                context.getString(R.string.qh_notif_channel_voice_player),
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Steuerung für WhatsApp Sprachnachrichten"
+                description = context.getString(R.string.qh_notif_channel_voice_player_desc)
                 setShowBadge(false)
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             })
@@ -222,20 +222,20 @@ fun createNotificationChannel(context: Context) {
         notificationManager.createNotificationChannel(
             NotificationChannel(
                 MAIL_CHANNEL_ID,
-                "AI Zusammenfassungen von E-Mails",
+                context.getString(R.string.qh_notif_channel_mail),
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "AI generierte Zusammenfassungen von E-Mails"
+                description = context.getString(R.string.qh_notif_channel_mail_desc)
                 setShowBadge(true)
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             })
         notificationManager.createNotificationChannel(
             NotificationChannel(
                 ChatService.CHANNEL_ID,
-                "Chat Service",
+                context.getString(R.string.qh_notif_channel_chat_service),
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Hintergrund-Service für Chat-Nachrichten"
+                description = context.getString(R.string.qh_notif_channel_chat_service_desc)
                 setShowBadge(false)
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
                 setSound(null, null)
@@ -243,10 +243,10 @@ fun createNotificationChannel(context: Context) {
         notificationManager.createNotificationChannel(
             NotificationChannel(
                 "chat_messages",
-                "Chat Nachrichten",
+                context.getString(R.string.qh_notif_channel_chat_messages),
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Benachrichtigungen für neue Chat-Nachrichten"
+                description = context.getString(R.string.qh_notif_channel_chat_messages_desc)
                 setShowBadge(true)
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
                 enableVibration(true)
@@ -255,10 +255,10 @@ fun createNotificationChannel(context: Context) {
         notificationManager.createNotificationChannel(
             NotificationChannel(
                 AI_NOTIFY_CHANNEL_ID,
-                "KI Fragen",
+                context.getString(R.string.qh_notif_channel_ai_questions),
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Fragen von KI Agents mit Antwort direkt auf dem Handy"
+                description = context.getString(R.string.qh_notif_channel_ai_questions_desc)
                 setShowBadge(true)
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
                 enableVibration(true)
@@ -267,10 +267,10 @@ fun createNotificationChannel(context: Context) {
         notificationManager.createNotificationChannel(
             NotificationChannel(
                 TIKTOK_PUSH_CHANNEL_ID,
-                "TikTok Direktnachrichten",
+                context.getString(R.string.qh_notif_channel_tiktok_dm),
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "Neue TikTok-Nachrichten, die ein anderes Geraet gemeldet hat"
+                description = context.getString(R.string.qh_notif_channel_tiktok_dm_desc)
                 setShowBadge(true)
                 lockscreenVisibility = Notification.VISIBILITY_PUBLIC
                 enableVibration(true)
@@ -281,10 +281,10 @@ fun createNotificationChannel(context: Context) {
     notificationManager.createNotificationChannel(
         NotificationChannel(
             "ai_tab_notification_channel",
-            "AITab Answers",
+            context.getString(R.string.qh_notif_channel_ai_tab),
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
-            description = "Notification if AITab is not opened and receives an AI answer"
+            description = context.getString(R.string.qh_notif_channel_ai_tab_desc)
             setShowBadge(true)
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             enableVibration(true)
@@ -294,10 +294,10 @@ fun createNotificationChannel(context: Context) {
     notificationManager.createNotificationChannel(
         NotificationChannel(
             VIRUSTOTAL_CHANNEL_ID,
-            "VirusTotal Scans",
+            context.getString(R.string.qh_notif_channel_virustotal),
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
-            description = "Zusammenfassung abgeschlossener VirusTotal-Scans"
+            description = context.getString(R.string.qh_notif_channel_virustotal_desc)
             setShowBadge(true)
             lockscreenVisibility = Notification.VISIBILITY_PUBLIC
             enableVibration(true)
@@ -332,7 +332,7 @@ fun createNotification(context: Context): Notification {
     }
 
     val commandInput = RemoteInput.Builder("key_command_input")
-        .setLabel("Befehl eingeben...")
+        .setLabel(context.getString(R.string.qh_notif_command_input_label))
         .build()
 
     val commandBase = Intent(ACTION_EXECUTE_COMMAND)
@@ -347,7 +347,7 @@ fun createNotification(context: Context): Notification {
 
     val commandAction = NotificationCompat.Action.Builder(
         android.R.drawable.ic_menu_search,
-        "Befehl",
+        context.getString(R.string.qh_notif_command_action),
         commandPendingIntent
     )
         .addRemoteInput(commandInput)
@@ -417,7 +417,7 @@ fun createNotification(context: Context): Notification {
 
             builder.addAction(
                 android.R.drawable.ic_menu_preferences,
-                "Settings",
+                context.getString(R.string.qh_notif_settings_action),
                 settingsPendingIntent
             )
         }
@@ -427,7 +427,7 @@ fun createNotification(context: Context): Notification {
         val currentEnd = prefs.getString("quiet_hours_start", "7") ?: "7"
 
         val endRemoteInput = RemoteInput.Builder("key_time_input")
-            .setLabel("Endzeit (0-23)")
+            .setLabel(context.getString(R.string.qh_notif_end_time_label))
             .build()
 
         val endBase = Intent(ACTION_CHANGE_END)
@@ -440,7 +440,7 @@ fun createNotification(context: Context): Notification {
 
         val endAction = NotificationCompat.Action.Builder(
             android.R.drawable.ic_menu_recent_history,
-            "Ende: ${currentEnd}h",
+            context.getString(R.string.qh_notif_end_action, currentEnd),
             endPending
         )
             .addRemoteInput(endRemoteInput)
@@ -448,8 +448,8 @@ fun createNotification(context: Context): Notification {
             .build()
 
         builder
-            .setContentTitle("👀 Warte...")
-            .setContentText("Ready ab $currentEnd Uhr bis $currentStart Uhr")
+            .setContentTitle(context.getString(R.string.qh_notif_waiting_title))
+            .setContentText(context.getString(R.string.qh_notif_ready_range, currentEnd, currentStart))
             .addAction(endAction)
     }
 
@@ -463,7 +463,7 @@ fun createNotification(context: Context): Notification {
         )
         builder.addAction(
             android.R.drawable.ic_dialog_email,
-            "Connect",
+            context.getString(R.string.qh_notif_connect_action),
             syncPendingIntent
         )
     }

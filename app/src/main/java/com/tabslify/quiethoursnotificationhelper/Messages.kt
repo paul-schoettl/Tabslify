@@ -65,9 +65,9 @@ private fun buildReplyAction(
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE
     )
     return NotificationCompat.Action.Builder(
-        android.R.drawable.ic_menu_send, "Antworten", pi
+        android.R.drawable.ic_menu_send, context.getString(R.string.qh_msg_reply_action), pi
     )
-        .addRemoteInput(RemoteInput.Builder("key_text_reply").setLabel("Antwort").build())
+        .addRemoteInput(RemoteInput.Builder("key_text_reply").setLabel(context.getString(R.string.qh_msg_reply_label)).build())
         .setShowsUserInterface(false)
         .setAllowGeneratedReplies(false)
         .build()
@@ -81,7 +81,7 @@ private fun postChatNotification(key: String, context: Context, sourceLabel: Str
         val messagingId = notifId + 2000000
         val nm = context.getSystemService(NotificationManager::class.java)
 
-        val mePerson = Person.Builder().setName("Du").setKey("me").build()
+        val mePerson = Person.Builder().setName(context.getString(R.string.qh_msg_me)).setKey("me").build()
         val senderPerson = Person.Builder().setName(displayName).setKey(displayName).build()
         val messages = WhatsAppNotificationListener.messagesByContact[key] ?: emptyList()
 
@@ -122,12 +122,12 @@ private fun postChatNotification(key: String, context: Context, sourceLabel: Str
                         nm.notify(
                             partId, NotificationCompat.Builder(context, "Nachrichten")
                                 .setSmallIcon(android.R.drawable.stat_notify_chat)
-                                .setContentTitle("$sourceLabel · $displayName (Teil $partNum/${parts.size})")
+                                .setContentTitle(context.getString(R.string.qh_msg_part_title, sourceLabel, displayName, partNum, parts.size))
                                 .setContentText(part.take(100) + if (part.length > 100) "..." else "")
                                 .setStyle(
                                     NotificationCompat.BigTextStyle()
                                         .bigText(part)
-                                        .setBigContentTitle("$sourceLabel · $displayName (Teil $partNum/${parts.size})")
+                                        .setBigContentTitle(context.getString(R.string.qh_msg_part_title, sourceLabel, displayName, partNum, parts.size))
                                         .setSummaryText("⏰ $timeText")
                                 )
                                 .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -135,7 +135,7 @@ private fun postChatNotification(key: String, context: Context, sourceLabel: Str
                                 .setAutoCancel(false)
                                 .addAction(
                                     android.R.drawable.ic_menu_close_clear_cancel,
-                                    "Als gelesen markieren",
+                                    context.getString(R.string.qh_msg_mark_read),
                                     markPi
                                 )
                                 .build()
@@ -160,8 +160,8 @@ private fun postChatNotification(key: String, context: Context, sourceLabel: Str
                 nm.notify(
                     summaryId, NotificationCompat.Builder(context, "Nachrichten")
                         .setSmallIcon(android.R.drawable.stat_notify_chat)
-                        .setContentTitle("$sourceLabel · Lange Nachricht von $displayName")
-                        .setContentText("$partIndex Teile")
+                        .setContentTitle(context.getString(R.string.qh_msg_long_title, sourceLabel, displayName))
+                        .setContentText(context.getString(R.string.qh_msg_parts_count, partIndex))
                         .setPriority(NotificationCompat.PRIORITY_LOW)
                         .setGroup("long_$key")
                         .setGroupSummary(true)
@@ -200,25 +200,25 @@ fun updateSingleSenderNotification(sender: String, context: Context) {
         Log.w("Messages", "No messages for key: $key")
         return
     }
-    postChatNotification(key, context, "📨 Neu")
+    postChatNotification(key, context, context.getString(R.string.qh_msg_source_new))
 }
 
 fun updateChatNotification(key: String, context: Context) {
-    postChatNotification(key, context, "💬 Chat")
+    postChatNotification(key, context, context.getString(R.string.qh_msg_source_chat))
 }
 
 fun showUnreadMessages(context: Context) {
     val msgs = WhatsAppNotificationListener.messagesByContact
     if (msgs.isEmpty()) {
         showSimpleNotificationExtern(
-            "Keine unbeantworteten Nachrichten",
-            "Alle Nachrichten wurden beantwortet oder keine Daten verfügbar.",
+            context.getString(R.string.qh_msg_no_unanswered),
+            context.getString(R.string.qh_msg_all_answered),
             context = context,
             silent = false
         )
         return
     }
-    msgs.keys.forEach { key -> postChatNotification(key, context, "📋 Ungelesen") }
+    msgs.keys.forEach { key -> postChatNotification(key, context, context.getString(R.string.qh_msg_source_unread)) }
 }
 
 fun handleMessageSent(sender: String, messageText: String, context: Context) {
@@ -269,8 +269,8 @@ fun handleMessageSent(sender: String, messageText: String, context: Context) {
                 } else {
                     withContext(Dispatchers.Main) {
                         showSimpleNotificationExtern(
-                            "❌ Chat",
-                            "Antwort konnte nicht geladen werden.",
+                            context.getString(R.string.qh_msg_chat_error_title),
+                            context.getString(R.string.qh_msg_answer_failed),
                             context = appContext
                         )
                     }
@@ -287,8 +287,8 @@ fun handleMessageSent(sender: String, messageText: String, context: Context) {
                 "replyData ist null für key='$key'. replyActions-Keys: ${WhatsAppNotificationListener.replyActions.keys}"
             )
             showSimpleNotificationExtern(
-                "⚠️ Kein replyData",
-                "Kein Eintrag in replyActions für: $key",
+                context.getString(R.string.qh_msg_no_reply_data_title),
+                context.getString(R.string.qh_msg_no_reply_data_text, key),
                 context = context,
                 silent = false
             )
@@ -299,8 +299,8 @@ fun handleMessageSent(sender: String, messageText: String, context: Context) {
         if (creatorPackage == null) {
             Log.e("Messages", "creatorPackage ist null für key='$key'")
             showSimpleNotificationExtern(
-                "⚠️ Kein Package",
-                "PendingIntent hat kein creatorPackage",
+                context.getString(R.string.qh_msg_no_package_title),
+                context.getString(R.string.qh_msg_no_package_text),
                 context = context,
                 silent = false
             )
@@ -314,8 +314,8 @@ fun handleMessageSent(sender: String, messageText: String, context: Context) {
         if (!supported) {
             Log.w("Messages", "Unsupported messenger: ${replyData.pendingIntent.creatorPackage}")
             showSimpleNotificationExtern(
-                "⚠️ Nicht unterstützt",
-                "Messenger wird nicht unterstützt: ${replyData.pendingIntent.creatorPackage}",
+                context.getString(R.string.qh_msg_unsupported_title),
+                context.getString(R.string.qh_msg_unsupported_text, replyData.pendingIntent.creatorPackage),
                 20.seconds, context,
                 silent = false
             )
@@ -336,7 +336,7 @@ fun handleMessageSent(sender: String, messageText: String, context: Context) {
         } catch (e: Exception) {
             Log.e("Messages", "Send failed: ${e.message}")
             showSimpleNotificationExtern(
-                "Fehler", "Nachricht konnte nicht gesendet werden", context = context,
+                context.getString(R.string.fehler), context.getString(R.string.qh_msg_send_failed), context = context,
                 silent = false
             )
             return
@@ -398,7 +398,7 @@ fun createGeminiChat(name: String?, context: Context, replace: Boolean) {
     if (list.isEmpty()) {
         list.add(
             WhatsAppNotificationListener.Companion.ChatMessage(
-                "Neuer Gemini-Chat \"$title\" erstellt. Antworte auf diese Nachricht, um zu schreiben.",
+                context.getString(R.string.qh_msg_gemini_created, title),
                 System.currentTimeMillis(), false
             )
         )
@@ -410,8 +410,8 @@ fun extractLastMessage(context: Context) {
     val msgs = WhatsAppNotificationListener.messagesByContact
     if (msgs.isEmpty()) {
         showSimpleNotificationExtern(
-            "❌ Keine Nachrichten",
-            "Keine Nachrichten verfügbar",
+            context.getString(R.string.qh_msg_no_messages_title),
+            context.getString(R.string.qh_msg_no_messages_text),
             context = context
         )
         return
@@ -429,11 +429,11 @@ fun extractLastMessage(context: Context) {
     val timeText = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date(msg.timestamp))
     val builder = NotificationCompat.Builder(context, "Nachrichten")
         .setSmallIcon(android.R.drawable.ic_menu_info_details)
-        .setContentTitle("📋 Extrahierte Nachricht")
-        .setContentText("Von: $displayName um $timeText")
+        .setContentTitle(context.getString(R.string.qh_msg_extracted_title))
+        .setContentText(context.getString(R.string.qh_msg_from_at, displayName, timeText))
         .setStyle(
             NotificationCompat.BigTextStyle()
-                .bigText("Von: $displayName\nZeit: $timeText\n\n${msg.text}")
+                .bigText(context.getString(R.string.qh_msg_from_big, displayName, timeText, msg.text))
         )
         .setPriority(NotificationCompat.PRIORITY_HIGH)
         .setAutoCancel(true)

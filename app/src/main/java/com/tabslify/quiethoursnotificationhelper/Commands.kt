@@ -46,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
@@ -54,6 +55,7 @@ import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.tabslify.core.activities.Tabslify.Companion.appScope
 import com.tabslify.core.activities.Tabslify.Companion.serviceScope
+import com.tabslify.R
 import com.tabslify.core.functions.showSimpleNotificationExtern
 import com.tabslify.core.objects.Config
 import com.tabslify.core.objects.Config.SHOWCOMMANDS
@@ -164,7 +166,7 @@ private fun getAvailableCommands(context: Context): List<Command> {
     return listOf(
         Command(
             name = "flo",
-            description = "Setup MEDIA folders"
+            description = context.getString(R.string.qh_cmd_desc_flo)
         ) {
             val env = Environment.getExternalStorageDirectory()
 
@@ -182,7 +184,7 @@ private fun getAvailableCommands(context: Context): List<Command> {
         Command(
             name = "whatsapp",
             aliases = listOf("wh", "wa", "messages", "msg", "nachrichten"),
-            description = "Zeigt ungelesene Nachrichten"
+            description = context.getString(R.string.qh_cmd_desc_whatsapp)
         ) {
             showUnreadMessages(context)
         },
@@ -190,7 +192,7 @@ private fun getAvailableCommands(context: Context): List<Command> {
         Command(
             name = "t",
             aliases = listOf(),
-            description = "Zeigt ungelesene Nachrichten"
+            description = context.getString(R.string.qh_cmd_desc_whatsapp)
         ) {
 
 
@@ -207,19 +209,19 @@ private fun getAvailableCommands(context: Context): List<Command> {
         Command(
             name = "ai",
             aliases = listOf("aichat", "aiChat", "geminiChat", "gm", "newai", "newaichat", "na", "gemini"),
-            description = "Erstellt einen neuen AI-Chat (ai [name optional])"
+            description = context.getString(R.string.qh_cmd_desc_ai)
         ) {},
         Command(
             name = "music",
             aliases = listOf("m", "play", "player", "musik"),
-            description = "Startet Musik Player"
+            description = context.getString(R.string.qh_cmd_desc_music)
         ) {
             MediaPlayerService.startAndPlayMusic(context, null)
         },
         Command(
             name = "podcast",
             aliases = listOf("pd", "pc", "Podcast", "py"),
-            description = "Startet PodcastPlayerServiceCompat"
+            description = context.getString(R.string.qh_cmd_desc_podcast)
         ) {
             PodcastPlayerServiceCompat.startService(context)
             PodcastPlayerServiceCompat.sendPlayAction(context)
@@ -227,32 +229,32 @@ private fun getAvailableCommands(context: Context): List<Command> {
         Command(
             name = "managepodcast",
             aliases = listOf("mpd", "ManagePodcast"),
-            description = "Zeigt alle vollendeten Podcasts als Notification"
+            description = context.getString(R.string.qh_cmd_desc_managepodcast)
         ) {
             PodcastPlayerServiceCompat.managePodcast(context)
         },
         Command(
             name = "queue",
             aliases = listOf("q", "warteschlange", "playlist"),
-            description = "Zeigt Podcast-Warteschlange"
+            description = context.getString(R.string.qh_cmd_desc_queue)
         ) {
             showPodcastQueue(context)
         },
         Command(
             name = "qadd",
             aliases = listOf("qa", "queueadd", "addqueue"),
-            description = "Fügt Podcast zur Queue hinzu (Syntax: qadd [nummer])"
+            description = context.getString(R.string.qh_cmd_desc_qadd)
         ) {
             showSimpleNotificationExtern(
                 "ℹ️ Queue Add",
-                "Syntax: qadd [podcast-nummer]\nVerwende 'podcast' um Nummern zu sehen",
+                context.getString(R.string.qh_cmd_help_qadd),
                 context = context
             )
         },
         Command(
             name = "qremove",
             aliases = listOf("qr", "queueremove", "removequeue"),
-            description = "Entfernt Podcast aus Queue (Syntax: qremove [position])"
+            description = context.getString(R.string.qh_cmd_desc_qremove)
         ) {
             showSimpleNotificationExtern(
                 "ℹ️ Queue Remove",
@@ -263,25 +265,25 @@ private fun getAvailableCommands(context: Context): List<Command> {
         Command(
             name = "qclear",
             aliases = listOf("qc", "queueclear", "clearqueue"),
-            description = "Leert die komplette Queue"
+            description = context.getString(R.string.qh_cmd_desc_qclear)
         ) {
             clearPodcastQueue(context)
         },
         Command(
             name = "voice",
             aliases = listOf("v", "voicenote", "sprachnachricht", "audio"),
-            description = "Spielt Voice Notes von WhatsApp ab"
+            description = context.getString(R.string.qh_cmd_desc_voice)
         ) {
             if (prvt()) playLatestVoiceNote("Manual Command", context)
         },
         Command(
             name = "record",
             aliases = listOf("rec", "aufnahme", "audiorec", "recording"),
-            description = "Startet/Stoppt Audioaufnahme (Syntax: record start|stop)"
+            description = context.getString(R.string.qh_cmd_desc_record)
         ) {
             showSimpleNotificationExtern(
-                "ℹ️ Aufnahme",
-                "Verwende: record start | record stop",
+                context.getString(R.string.qh_cmd_title_recording),
+                context.getString(R.string.qh_cmd_help_record),
                 20.seconds,
                 context
             )
@@ -289,14 +291,14 @@ private fun getAvailableCommands(context: Context): List<Command> {
         Command(
             name = "help",
             aliases = listOf("h", "?", "commands", "befehle"),
-            description = "Zeigt alle verfügbaren Befehle"
+            description = context.getString(R.string.qh_cmd_desc_help)
         ) {
             showAvailableCommands(context)
         },
         Command(
             name = "flashlevel",
             aliases = listOf("flashl", "lightlevel", "torchlevel", "helligkeit", "flash", "f"),
-            description = "Setze Taschenlampen-Helligkeit (Syntax: flashlevel [1-max])"
+            description = context.getString(R.string.qh_cmd_desc_flashlevel)
         ) {
             val cameraManager = context.getSystemService(CAMERA_SERVICE) as CameraManager
             val cameraId = cameraManager.cameraIdList.firstOrNull()
@@ -308,25 +310,25 @@ private fun getAvailableCommands(context: Context): List<Command> {
         Command(
             name = "message",
             aliases = listOf("send", "senden", "write", "schreiben"),
-            description = "Sendet Nachricht an gespeicherten Kontakt"
+            description = context.getString(R.string.qh_cmd_desc_message)
         ) {
             showSimpleNotificationExtern(
-                "ℹ️ Verwendung",
-                "Syntax: message [deine nachricht]",
+                context.getString(R.string.qh_cmd_title_usage),
+                context.getString(R.string.qh_cmd_help_message),
                 context = context
             )
         },
         Command(
             name = "stopmediaplayer",
             aliases = listOf("stopm", "mediaplayerstop", "sm"),
-            description = "Stoppt Media Player Service"
+            description = context.getString(R.string.qh_cmd_desc_stopmediaplayer)
         ) {
             try {
                 MediaPlayerService.stopService(context)
             } catch (e: Exception) {
                 showSimpleNotificationExtern(
-                    "❌ Fehler",
-                    "Media Player konnte nicht gestoppt werden: ${e.message}",
+                    context.getString(R.string.fehler_2),
+                    context.getString(R.string.qh_cmd_stop_player_failed, e.message),
                     context = context
                 )
             }
@@ -334,74 +336,74 @@ private fun getAvailableCommands(context: Context): List<Command> {
         Command(
             name = "weather",
             aliases = listOf("w", "wetter", "forecast"),
-            description = "Zeigt Wetter (Syntax: weather [0-2] [0-23])"
+            description = context.getString(R.string.qh_cmd_desc_weather)
         ) {
             showSimpleNotificationExtern(
-                "ℹ️ Wetter",
-                "Syntax: weather [0=Heute, 1=Morgen, 2=Übermorgen] [0-23]",
+                context.getString(R.string.qh_cmd_title_weather),
+                context.getString(R.string.qh_cmd_help_weather),
                 context = context
             )
         },
         Command(
             name = "extract",
             aliases = listOf("e", "ex", "extrahieren"),
-            description = "Zeigt letzte WhatsApp Nachricht als separate Notification"
+            description = context.getString(R.string.qh_cmd_desc_extract)
         ) {
             extractLastMessage(context)
         },
         Command(
             name = "gallerie",
             aliases = listOf("gal", "g", "gallery"),
-            description = "Zeigt Gallerie als nots"
+            description = context.getString(R.string.qh_cmd_desc_gallerie)
         ) {
             loadGalleryImages(0, context)
         },
         Command(
             name = "setdowntime",
             aliases = listOf("set", "dt", "setdr"),
-            description = "Lege Downtime für QuietHoursNotificationService fest (setdowntime [Stunde])"
+            description = context.getString(R.string.qh_cmd_desc_setdowntime)
         ) {},
         // Ausgeblendet in public version:
         Command(
             name = "friendmessages",
             aliases = listOf("fm", "friendmsgs", "lastmsgs", "friend"),
-            description = "Zeigt letzte 3 Nachrichten von friend"
+            description = context.getString(R.string.qh_cmd_desc_friendmessages)
         ) {
             showLastFriendMessages(context)
         },
         Command(
             name = "sound",
             aliases = listOf("vibrate", "vib", "ton", "sound", "silent", "s"),
-            description = "Stellt Vibration/Ton ein (Syntax: sound [vibrate|silent|normal])"
+            description = context.getString(R.string.qh_cmd_desc_sound)
         ) {
             showSimpleNotificationExtern(
-                "ℹ️ Sound Befehle",
-                "sound vibrate - Nur Vibration\nsound silent - Stumm\nsound normal - Normal mit Ton",
+                context.getString(R.string.qh_cmd_title_sound),
+                context.getString(R.string.qh_cmd_help_sound),
                 context = context
             )
         },
         Command(
             name = "clearpodcasts",
             aliases = listOf("cp", "clearpod", "removepod"),
-            description = "Löscht alle Podcast-Auswahl Notifications"
+            description = context.getString(R.string.qh_cmd_desc_clearpodcasts)
         ) {
             clearPodcastSelectionNotifications(context)
         },
         Command(
             name = "tb",
             aliases = listOf("tagesbericht", "upload", "uploadimage"),
-            description = "Lädt aktuelles Galeriebild zu Supabase hoch (Syntax: tb [dd.mm.yy] [name])"
+            description = context.getString(R.string.qh_cmd_desc_tb)
         ) {
             showSimpleNotificationExtern(
-                "ℹ️ Tagesbericht Upload",
-                "Syntax: tb [dd.mm.yy] [bildname]\nBeispiel: tb 08.01.26 sonnenuntergang",
+                context.getString(R.string.qh_cmd_title_daily_report_upload),
+                context.getString(R.string.qh_cmd_help_tb_short),
                 context = context
             )
         },
         Command(
             name = "bitwarden",
             aliases = listOf("bw", "btw", "b"),
-            description = "Bw MP!"
+            description = context.getString(R.string.qh_cmd_desc_bitwarden)
         ) {
             val appContext = context.applicationContext
             val clipboard =
@@ -420,14 +422,14 @@ private fun getAvailableCommands(context: Context): List<Command> {
         Command(
             name = "battery",
             aliases = listOf("bat", "btt"),
-            description = "showBatteryInfo"
+            description = context.getString(R.string.qh_cmd_desc_battery)
         ) {
             showBatteryInfo(context)
         },
         Command(
             name = "favorite",
             aliases = listOf("fav", "f", "star", "⭐"),
-            description = "Markiert aktuellen Song als Favorit"
+            description = context.getString(R.string.qh_cmd_desc_favorite)
         ) {
             MusicPlayerServiceCompat.toggleFavorite(context)
         },
@@ -470,14 +472,14 @@ private fun getAvailableCommands(context: Context): List<Command> {
         Command(
             name = "favmode",
             aliases = listOf("onlyfavs", "favsonly", "favoritesmode"),
-            description = "Schaltet Favoriten-Modus um (nur Favoriten abspielen)"
+            description = context.getString(R.string.qh_cmd_desc_favmode)
         ) {
             MusicPlayerServiceCompat.toggleFavoritesMode(context)
         },
         Command(
             name = "algplay",
             aliases = listOf("ap", "algp", "smartplay"),
-            description = "Spielt algorithmische Playlist ab (algplay [id|name])"
+            description = context.getString(R.string.qh_cmd_desc_algplay)
         ) {
             val playlists = AlgorithmicPlaylistRegistry.all
             val text = playlists.joinToString("\n") { "${it.icon} ${it.id} – ${context.getString(it.nameRes)}" }
@@ -486,91 +488,84 @@ private fun getAvailableCommands(context: Context): List<Command> {
         Command(
             name = "speed",
             aliases = listOf("spd", "tempo", "geschwindigkeit"),
-            description = "Setzt Podcast-Geschwindigkeit (Syntax: speed [0.5-3.0])"
+            description = context.getString(R.string.qh_cmd_desc_speed)
         ) {
             showSimpleNotificationExtern(
-                "ℹ️ Geschwindigkeit",
-                "Syntax: speed [0.5-3.0]\nBeispiel: speed 1.5",
+                context.getString(R.string.qh_cmd_title_speed),
+                context.getString(R.string.qh_cmd_help_speed_short),
                 context = context
             )
         },
         Command(
             name = "*",
             aliases = listOf("todo", "task", "aufgabe"),
-            description = "Fügt To-do hinzu (Syntax: * meine aufgabe)"
+            description = context.getString(R.string.qh_cmd_desc_todo)
         ) {
             showSimpleNotificationExtern(
-                "ℹ️ To-do",
-                "Syntax: * \"deine aufgabe\"\nBeispiel: * \"Milch kaufen\"",
+                context.getString(R.string.qh_cmd_title_todo),
+                context.getString(R.string.qh_cmd_help_todo),
                 context = context
             )
         },
         Command(
             name = ".",
             aliases = listOf(),
-            description = "Sendet AI Command an Server"
+            description = context.getString(R.string.qh_cmd_desc_ai_command)
         ) {
             showSimpleNotificationExtern(
-                "ℹ️ AI Command Executor",
-                "Syntax: . dein_command\nBeispiel: . show_notification",
+                context.getString(R.string.qh_cmd_title_ai_command),
+                context.getString(R.string.qh_cmd_help_ai_command_short),
                 context = context
             )
         },
         Command(
             name = "todos",
             aliases = listOf("todoliste", "tasks", "aufgaben"),
-            description = "Zeigt alle To-dos"
+            description = context.getString(R.string.qh_cmd_desc_todos)
         ) {
             showAllTodos(context)
         },
         Command(
-            name = "todones",
-            aliases = listOf("dones"),
-            description = "Zeigt alle To-dos"
-        ) {
-            showOpenTodos(context)
-        },
-        Command(
             name = "todone",
             aliases = listOf("done", "erledigt", "check"),
-            description = "Markiert To-do als erledigt (Syntax: todone [nummer])"
+            description = context.getString(R.string.qh_cmd_desc_todone)
         ) {
             showSimpleNotificationExtern(
-                "ℹ️ To-do erledigen",
-                "Syntax: todone [nummer]\nVerwende 'todos' um Nummern zu sehen",
+                context.getString(R.string.qh_cmd_title_delete_todo),
+                context.getString(R.string.qh_cmd_help_todone),
                 context = context
             )
         },
         Command(
             name = "todorm",
             aliases = listOf("removetodo", "deletetodo"),
-            description = "Löscht To-do (Syntax: todorm [nummer])"
+            description = context.getString(R.string.qh_cmd_desc_todorm)
         ) {
             showSimpleNotificationExtern(
-                "ℹ️ To-do löschen",
-                "Syntax: todorm [nummer]\nVerwende 'todos' um Nummern zu sehen",
+                context.getString(R.string.qh_cmd_title_delete_todo),
+                context.getString(R.string.qh_cmd_help_todorm),
                 context = context
             )
         },
         Command(
             name = "bahn",
             aliases = listOf("zug", "train", "db"),
-            description = "Prüft den DB-Plan (planmäßige Ankunft 07:05 Uhr)"
+            description = context.getString(R.string.qh_cmd_desc_bahn)
         ) {
             showSimpleNotificationExtern(
-                "ℹ️ Bahn-Verbindung",
-                "Syntax: bahn\nPrüft morgen den Zug mit planmäßiger Ankunft 07:05 Uhr.",
+                context.getString(R.string.qh_cmd_title_bahn),
+                context.getString(R.string.qh_cmd_help_bahn_info),
                 context = context
             )
         },
         Command(
             name = "plcreate",
             aliases = listOf("plc", "createplaylist", "newplaylist"),
-            description = "Erstellt neue Playlist (Syntax: plcreate [music|podcast] \"Name\")"
+            description = context.getString(R.string.qh_cmd_desc_plcreate)
         ) {
             showSimpleNotificationExtern(
-                "ℹ️ Playlist erstellen",
-                "Syntax: plcreate [music|podcast] \"Name\"\nBeispiel: plcreate music \"Workout Mix\"",
+                context.getString(R.string.qh_cmd_title_create_playlist),
+                context.getString(R.string.qh_cmd_help_plcreate_long),
                 context = context
             )
         },
@@ -578,7 +573,7 @@ private fun getAvailableCommands(context: Context): List<Command> {
         Command(
             name = "playlists",
             aliases = listOf("pl", "pls", "showplaylists"),
-            description = "Zeigt alle Playlisten"
+            description = context.getString(R.string.qh_cmd_desc_playlists)
         ) {
             MediaPlayerService.showPlaylists(context)
         },
@@ -586,7 +581,7 @@ private fun getAvailableCommands(context: Context): List<Command> {
         Command(
             name = "plmusic",
             aliases = listOf("plm", "musicplaylists"),
-            description = "Zeigt nur Musik-Playlisten"
+            description = context.getString(R.string.qh_cmd_desc_plmusic)
         ) {
             MediaPlayerService.showPlaylists(context, MediaPlayerService.PlaylistType.MUSIC)
         },
@@ -594,11 +589,11 @@ private fun getAvailableCommands(context: Context): List<Command> {
         Command(
             name = "pladd",
             aliases = listOf("pla", "addtoplaylist"),
-            description = "Fügt aktuellen Song/Podcast zu Playlist hinzu"
+            description = context.getString(R.string.qh_cmd_desc_pladd)
         ) {
             showSimpleNotificationExtern(
-                "ℹ️ Zur Playlist hinzufügen",
-                "Verwende zuerst 'playlists' um Playlist-IDs zu sehen",
+                context.getString(R.string.qh_cmd_title_add_playlist),
+                context.getString(R.string.qh_cmd_help_pladd),
                 context = context
             )
         },
@@ -606,11 +601,11 @@ private fun getAvailableCommands(context: Context): List<Command> {
         Command(
             name = "plplay",
             aliases = listOf("plp", "playplaylist"),
-            description = "Spielt Playlist ab (Syntax: plplay [id])"
+            description = context.getString(R.string.qh_cmd_desc_plplay)
         ) {
             showSimpleNotificationExtern(
-                "ℹ️ Playlist abspielen",
-                "Syntax: plplay [playlist-id]\nVerwende 'playlists' um IDs zu sehen",
+                context.getString(R.string.qh_cmd_title_play_playlist),
+                context.getString(R.string.qh_cmd_help_plplay),
                 context = context
             )
         },
@@ -618,7 +613,7 @@ private fun getAvailableCommands(context: Context): List<Command> {
         Command(
             name = "plstop",
             aliases = listOf("pls", "stopplaylist", "deactivateplaylist"),
-            description = "Beendet aktuelle Playlist"
+            description = context.getString(R.string.qh_cmd_desc_plstop)
         ) {
             MediaPlayerService.deactivatePlaylist(context)
         },
@@ -626,102 +621,102 @@ private fun getAvailableCommands(context: Context): List<Command> {
         Command(
             name = "pldelete",
             aliases = listOf("pld", "deleteplaylist", "removeplaylist"),
-            description = "Löscht Playlist (Syntax: pldelete [id])"
+            description = context.getString(R.string.qh_cmd_desc_pldelete)
         ) {
             showSimpleNotificationExtern(
-                "ℹ️ Playlist löschen",
-                "Syntax: pldelete [playlist-id]\nVerwende 'playlists' um IDs zu sehen",
+                context.getString(R.string.qh_cmd_title_delete_playlist),
+                context.getString(R.string.qh_cmd_help_pldelete),
                 context = context
             )
         },
         Command(
             name = "showassign",
             aliases = listOf("sa"),
-            description = "Weist Podcast-Folgen einer Show zu (showassign [pattern] [show-name])"
+            description = context.getString(R.string.qh_cmd_desc_showassign)
         ) {
             showSimpleNotificationExtern(
-                "ℹ️ showassign",
-                "showassign [pattern] [show-name]",
+                context.getString(R.string.qh_cmd_title_showassign),
+                context.getString(R.string.qh_cmd_help_showassign_short),
                 context = context
             )
         },
         Command(
             name = "showcreate",
             aliases = listOf("sc"),
-            description = "Erstellt neue Podcast-Show (showcreate [name])"
+            description = context.getString(R.string.qh_cmd_desc_showcreate)
         ) {
             showSimpleNotificationExtern(
-                "ℹ️ showcreate",
-                "showcreate [show-name]",
+                context.getString(R.string.qh_cmd_title_showcreate),
+                context.getString(R.string.qh_cmd_help_showcreate_short),
                 context = context
             )
         },
         Command(
             name = "showlist",
             aliases = listOf("sl", "shows"),
-            description = "Listet alle Podcast-Shows"
+            description = context.getString(R.string.qh_cmd_desc_showlist)
         ) {
             val shows = PodcastShowManager.getShows()
             val text =
-                if (shows.isEmpty()) "Keine Shows" else shows.joinToString("\n") { "• ${it.name} (${it.id})" }
-            showSimpleNotificationExtern("🎙️ Podcast-Shows", text, context = context)
+                if (shows.isEmpty()) context.getString(R.string.qh_cmd_no_shows_short) else shows.joinToString("\n") { "• ${it.name} (${it.id})" }
+            showSimpleNotificationExtern(context.getString(R.string.qh_cmd_title_podcast_shows_plain), text, context = context)
         },
         Command(
             name = "showrename",
             aliases = listOf("sr"),
-            description = "Benennt Podcast-Show um (showrename [alt] [neu])"
+            description = context.getString(R.string.qh_cmd_desc_showrename)
         ) {
             showSimpleNotificationExtern(
-                "ℹ️ showrename",
-                "showrename [alter-name] [neuer-name]",
+                context.getString(R.string.qh_cmd_title_showrename),
+                context.getString(R.string.qh_cmd_help_showrename_short),
                 context = context
             )
         },
         Command(
             name = "stats",
             aliases = listOf("stat", "statistik"),
-            description = "Zeigt Analytics für Song/Podcast (stats [song|podcast] [suche])"
+            description = context.getString(R.string.qh_cmd_desc_stats)
         ) {
             showSimpleNotificationExtern(
                 "ℹ️ stats",
-                "stats [song|podcast] [dateiname-teilstring]",
+                context.getString(R.string.qh_cmd_help_stats_short),
                 context = context
             )
         },
         Command(
             name = "statsreset",
             aliases = listOf("resetstats"),
-            description = "Setzt Analytics zurück (statsreset [song|podcast] [suche])"
+            description = context.getString(R.string.qh_cmd_desc_statsreset)
         ) {
             showSimpleNotificationExtern(
-                "ℹ️ statsreset",
-                "statsreset [song|podcast] [dateiname-teilstring]",
+                context.getString(R.string.qh_cmd_title_statsreset),
+                context.getString(R.string.qh_cmd_help_statsreset_short),
                 context = context
             )
         },
         Command(
             name = "plshow",
             aliases = listOf("pldetails"),
-            description = "Zeigt Playlist-Details mit Song-Liste"
+            description = context.getString(R.string.qh_cmd_desc_plshow)
         ) {
             MediaPlayerService.showPlaylists(context)
         },
         Command(
             name = "Overlay",
             aliases = listOf("o", "ov"),
-            description = "Zeigt Youtube Overlay an"
+            description = context.getString(R.string.qh_cmd_desc_overlay_youtube)
         ) {
             showtestOverlay(context)
         },
         Command(
             name = "Other",
             aliases = listOf("Othertab", "ot"),
-            description = "Zeigt Overlay an"
+            description = context.getString(R.string.qh_cmd_desc_overlay)
         ) {
             if (!Settings.canDrawOverlays(context)) {
                 showSimpleNotificationExtern(
-                    "Fehler",
-                    "Overlay-Berechtigung fehlt!",
+                    context.getString(R.string.fehler),
+                    context.getString(R.string.overlay_berechtigung_fehlt),
                     context = context
                 )
                 return@Command
@@ -794,7 +789,7 @@ private fun getAvailableCommands(context: Context): List<Command> {
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Close,
-                                    contentDescription = "Schließen",
+                                    contentDescription = stringResource(R.string.schliesen),
                                     tint = Color.White
                                 )
                             }
@@ -820,11 +815,11 @@ private fun getAvailableCommands(context: Context): List<Command> {
         Command(
             name = "spotify",
             aliases = listOf("sp", "spot"),
-            description = "Zeigt Spotify Embed Overlay (Syntax: spotify [track-id])"
+            description = context.getString(R.string.qh_cmd_desc_spotify)
         ) {
             showSimpleNotificationExtern(
-                "ℹ️ Spotify",
-                "Syntax: spotify [track-id]\nBeispiel: spotify 2iM4bRLB5uT7fd7QoAgT0X",
+                context.getString(R.string.qh_cmd_title_spotify),
+                context.getString(R.string.qh_cmd_help_spotify),
                 context = context
             )
         },
@@ -833,7 +828,7 @@ private fun getAvailableCommands(context: Context): List<Command> {
 
 fun executeCommand(commandText: String, context: Context) {
     if (!QuietHoursNotificationService.isEnabled(context)) {
-        showSimpleNotificationExtern("Hintergrund Aktivität deaktiviert", "Du hast die Hintergrundaktivität deaktviert", context = context)
+        showSimpleNotificationExtern(context.getString(R.string.qh_cmd_background_disabled_title), context.getString(R.string.qh_cmd_background_disabled_text), context = context)
         return
     }
     if (commandText != "^" && commandText != "^^") {
@@ -884,8 +879,8 @@ fun executeCommand(commandText: String, context: Context) {
                     }
 
                     else -> showSimpleNotificationExtern(
-                        "❌ Fehler",
-                        "Syntax: record start | record stop",
+                        context.getString(R.string.fehler_2),
+                        context.getString(R.string.qh_cmd_help_record_syntax),
                         20.seconds,
                         context,
                         silent = false
@@ -893,8 +888,8 @@ fun executeCommand(commandText: String, context: Context) {
                 }
             } else {
                 showSimpleNotificationExtern(
-                    "ℹ️ Aufnahme",
-                    "Verwende: record start | record stop",
+                    context.getString(R.string.qh_cmd_title_recording),
+                    context.getString(R.string.qh_cmd_help_record),
                     20.seconds,
                     context
                 )
@@ -910,9 +905,9 @@ fun executeCommand(commandText: String, context: Context) {
                     val hour = parts[2]
 
                     val day = when (dayNum) {
-                        0 -> "heute"
-                        1 -> "morgen"
-                        2 -> "übermorgen"
+                        0 -> context.getString(R.string.qh_cmd_day_today)
+                        1 -> context.getString(R.string.qh_cmd_day_tomorrow)
+                        2 -> context.getString(R.string.qh_cmd_day_day_after_tomorrow)
                         else -> null
                     }
 
@@ -925,8 +920,8 @@ fun executeCommand(commandText: String, context: Context) {
                                         getLastKnownLocation(appContext)
                                     if (loc == null) {
                                         showSimpleNotificationExtern(
-                                            "❌ Standort-Fehler",
-                                            "Standort nicht verfügbar",
+                                            appContext.getString(R.string.qh_cmd_title_location_error),
+                                            appContext.getString(R.string.qh_cmd_location_unavailable),
                                             20.seconds,
                                             appContext
                                         )
@@ -950,8 +945,8 @@ fun executeCommand(commandText: String, context: Context) {
 
                                 } catch (e: Exception) {
                                     showSimpleNotificationExtern(
-                                        "❌ Wetter-Fehler",
-                                        "Wetterdaten konnten nicht abgerufen werden: ${e.message}",
+                                        appContext.getString(R.string.qh_cmd_title_weather_error),
+                                        appContext.getString(R.string.qh_cmd_weather_fetch_failed, e.message),
                                         20.seconds,
                                         appContext
                                     )
@@ -960,8 +955,8 @@ fun executeCommand(commandText: String, context: Context) {
                         }
                     } else {
                         showSimpleNotificationExtern(
-                            "❌ Ungültiger Tag",
-                            "Tag muss 0, 1 oder 2 sein",
+                            context.getString(R.string.qh_cmd_title_invalid_day),
+                            context.getString(R.string.qh_cmd_invalid_day_hint),
                             20.seconds,
                             context,
                             silent = false
@@ -969,8 +964,8 @@ fun executeCommand(commandText: String, context: Context) {
                     }
                 } else {
                     showSimpleNotificationExtern(
-                        "❌ Fehler",
-                        "Syntax: weather [0=Heute, 1=Morgen, 2=Übermorgen] [0-23]",
+                        context.getString(R.string.fehler_2),
+                        context.getString(R.string.qh_cmd_help_weather),
                         20.seconds,
                         context,
                         silent = false
@@ -978,8 +973,8 @@ fun executeCommand(commandText: String, context: Context) {
                 }
             } else {
                 showSimpleNotificationExtern(
-                    "ℹ️ Wetter",
-                    "Syntax: weather [0=Heute, 1=Morgen, 2=Übermorgen] [0-23]",
+                    context.getString(R.string.qh_cmd_title_weather),
+                    context.getString(R.string.qh_cmd_help_weather),
                     20.seconds,
                     context
                 )
@@ -999,8 +994,8 @@ fun executeCommand(commandText: String, context: Context) {
                         cameraManager.turnOnTorchWithStrengthLevel(cameraId, clampedLevel)
                     } catch (e: Exception) {
                         showSimpleNotificationExtern(
-                            "❌ Taschenlampe",
-                            "Helligkeit konnte nicht gesetzt werden: ${e.message}",
+                            context.getString(R.string.taschenlampe),
+                            context.getString(R.string.helligkeit_konnte_nicht_gesetzt_werden, e.message),
                             20.seconds,
                             context,
                             silent = false
@@ -1014,16 +1009,16 @@ fun executeCommand(commandText: String, context: Context) {
                         cameraManager.setTorchMode(cameraId, false)
                     } catch (_: Exception) {
                         showSimpleNotificationExtern(
-                            "❌ Taschenlampe",
-                            "Taschenlampe konnte nicht geschaltet werden",
+                            context.getString(R.string.taschenlampe),
+                            context.getString(R.string.qh_cmd_torch_toggle_failed),
                             context = context,
                             silent = false
                         )
                     }
                 } else {
                     showSimpleNotificationExtern(
-                        "❌ Ungültiger Wert",
-                        "Bitte eine Zahl >= 1 eingeben",
+                        context.getString(R.string.qh_cmd_title_invalid_value),
+                        context.getString(R.string.qh_cmd_enter_number),
                         20.seconds,
                         context,
                         silent = false
@@ -1046,8 +1041,8 @@ fun executeCommand(commandText: String, context: Context) {
                     .edit(commit = true) { putString("quiet_hours_start", argument) }
             } else {
                 showSimpleNotificationExtern(
-                    "Setdowntime",
-                    "setdowntime [Uhrzeit]",
+                    context.getString(R.string.qh_cmd_title_setdowntime),
+                    context.getString(R.string.qh_cmd_help_setdowntime),
                     context = context
                 )
             }
@@ -1069,8 +1064,8 @@ fun executeCommand(commandText: String, context: Context) {
                     addPodcastToQueue(index - 1, context)
                 } else {
                     showSimpleNotificationExtern(
-                        "❌ Ungültige Nummer",
-                        "Syntax: qadd [podcast-nummer]",
+                        context.getString(R.string.qh_cmd_title_invalid_number),
+                        context.getString(R.string.qh_cmd_help_qadd_syntax),
                         20.seconds,
                         context,
                         silent = false
@@ -1078,8 +1073,8 @@ fun executeCommand(commandText: String, context: Context) {
                 }
             } else {
                 showSimpleNotificationExtern(
-                    "ℹ️ Verwendung",
-                    "Syntax: qadd [podcast-nummer]\nVerwende 'podcast' um Nummern zu sehen",
+                    context.getString(R.string.qh_cmd_title_usage),
+                    context.getString(R.string.qh_cmd_help_qadd),
                     20.seconds,
                     context
                 )
@@ -1094,8 +1089,8 @@ fun executeCommand(commandText: String, context: Context) {
                     removePodcastFromQueue(position - 1, context)
                 } else {
                     showSimpleNotificationExtern(
-                        "❌ Ungültige Position",
-                        "Syntax: qremove [position]",
+                        context.getString(R.string.ungultige_position),
+                        context.getString(R.string.qh_cmd_help_qremove_syntax),
                         20.seconds,
                         context,
                         silent = false
@@ -1103,8 +1098,8 @@ fun executeCommand(commandText: String, context: Context) {
                 }
             } else {
                 showSimpleNotificationExtern(
-                    "ℹ️ Verwendung",
-                    "Syntax: qremove [position]\nVerwende 'queue' um Positionen zu sehen",
+                    context.getString(R.string.qh_cmd_title_usage),
+                    context.getString(R.string.qh_cmd_help_qremove),
                     20.seconds,
                     context
                 )
@@ -1124,8 +1119,8 @@ fun executeCommand(commandText: String, context: Context) {
             }
             val removed = context.deleteSharedPreferences("pc_secrets")
             showSimpleNotificationExtern(
-                if (removed) "🧹 Alte Prefs gelöscht" else "ℹ️ Nichts zu löschen",
-                if (removed) "pc_secrets wurde vollständig entfernt" else "pc_secrets war nicht vorhanden",
+                if (removed) context.getString(R.string.qh_cmd_prefs_cleared_title) else context.getString(R.string.qh_cmd_nothing_to_delete_title),
+                if (removed) context.getString(R.string.qh_cmd_prefs_cleared_text) else context.getString(R.string.qh_cmd_prefs_absent_text),
                 20.seconds,
                 context
             )
@@ -1150,8 +1145,8 @@ fun executeCommand(commandText: String, context: Context) {
                         uploadCurrentGalleryImageToSupabase(date, name, context)
                     } else {
                         showSimpleNotificationExtern(
-                            "❌ Fehler",
-                            "Syntax: tb [dd.mm.yy] [\"name mit leerzeichen\"]",
+                            context.getString(R.string.fehler_2),
+                            context.getString(R.string.qh_cmd_help_tb_syntax),
                             20.seconds,
                             context,
                             silent = false
@@ -1159,8 +1154,8 @@ fun executeCommand(commandText: String, context: Context) {
                     }
                 } else {
                     showSimpleNotificationExtern(
-                        "❌ Fehler",
-                        "Syntax: tb [dd.mm.yy] [\"name mit leerzeichen\"]",
+                        context.getString(R.string.fehler_2),
+                        context.getString(R.string.qh_cmd_help_tb_syntax),
                         20.seconds,
                         context,
                         silent = false
@@ -1168,8 +1163,8 @@ fun executeCommand(commandText: String, context: Context) {
                 }
             } else {
                 showSimpleNotificationExtern(
-                    "ℹ️ Upload",
-                    "Syntax: tb [dd.mm.yy] [\"name\" (optional)]\nBeispiel: tb 08.01.26 \"schöner sonnenuntergang\"\noder: tb 08.01.26 sonnenuntergang\noder: tb 08.01.26",
+                    context.getString(R.string.qh_cmd_title_upload),
+                    context.getString(R.string.qh_cmd_help_tb),
                     20.seconds,
                     context
                 )
@@ -1205,8 +1200,8 @@ fun executeCommand(commandText: String, context: Context) {
                     PodcastPlayerServiceCompat.setPlaybackSpeed(context, speed)
                 } else {
                     showSimpleNotificationExtern(
-                        "❌ Ungültige Geschwindigkeit",
-                        "Bitte einen Wert zwischen 0.5 und 3.0 eingeben",
+                        context.getString(R.string.qh_cmd_title_invalid_speed),
+                        context.getString(R.string.qh_cmd_invalid_speed_hint),
                         20.seconds,
                         context,
                         silent = false
@@ -1214,8 +1209,8 @@ fun executeCommand(commandText: String, context: Context) {
                 }
             } else {
                 showSimpleNotificationExtern(
-                    "ℹ️ Geschwindigkeit",
-                    "Syntax: speed [0.5-3.0]\nBeispiel: speed 1.5 für 1.5x Geschwindigkeit",
+                    context.getString(R.string.qh_cmd_title_speed),
+                    context.getString(R.string.qh_cmd_help_speed),
                     20.seconds,
                     context
                 )
@@ -1230,8 +1225,8 @@ fun executeCommand(commandText: String, context: Context) {
                     addTodo(todoText, context)
                 } else {
                     showSimpleNotificationExtern(
-                        "❌ Fehler",
-                        "Syntax: * \"deine aufgabe\"",
+                        context.getString(R.string.fehler_2),
+                        context.getString(R.string.qh_cmd_help_todo_syntax),
                         20.seconds,
                         context,
                         silent = false
@@ -1239,8 +1234,8 @@ fun executeCommand(commandText: String, context: Context) {
                 }
             } else {
                 showSimpleNotificationExtern(
-                    "ℹ️ To-do",
-                    "Syntax: * \"deine aufgabe\"\nBeispiel: * \"Milch kaufen\"",
+                    context.getString(R.string.qh_cmd_title_todo),
+                    context.getString(R.string.qh_cmd_help_todo),
                     context = context
                 )
             }
@@ -1258,8 +1253,8 @@ fun executeCommand(commandText: String, context: Context) {
                     sendAiExecuteCommand(context, userInput)
                 } else {
                     showSimpleNotificationExtern(
-                        "ℹ️ AI Command Executor",
-                        "Syntax: . was dieser command machen soll\nBeispiel: . Zeige einen Toast mit Text Guten Tag an",
+                        context.getString(R.string.qh_cmd_title_ai_command),
+                        context.getString(R.string.qh_cmd_help_ai_command),
                         context = context
                     )
                 }
@@ -1294,8 +1289,8 @@ fun executeCommand(commandText: String, context: Context) {
                     removeTodo(index - 1, context)
                 } else {
                     showSimpleNotificationExtern(
-                        "❌ Ungültige Nummer",
-                        "Syntax: todorm [nummer]",
+                        context.getString(R.string.qh_cmd_title_invalid_number),
+                        context.getString(R.string.qh_cmd_help_todorm_syntax),
                         20.seconds,
                         context,
                         silent = false
@@ -1303,8 +1298,8 @@ fun executeCommand(commandText: String, context: Context) {
                 }
             } else {
                 showSimpleNotificationExtern(
-                    "ℹ️ To-do löschen",
-                    "Syntax: todorm [nummer]",
+                    context.getString(R.string.qh_cmd_title_delete_todo),
+                    context.getString(R.string.qh_cmd_help_todorm_syntax),
                     context = context
                 )
             }
@@ -1319,8 +1314,8 @@ fun executeCommand(commandText: String, context: Context) {
             val daysAhead = argument?.toIntOrNull() ?: 1
             if (daysAhead !in 1..7) {
                 showSimpleNotificationExtern(
-                    "❌ Ungültige Eingabe",
-                    "Syntax: bahn [1-7]\n1=Morgen, 2=Übermorgen, etc.",
+                    context.getString(R.string.qh_cmd_title_invalid_input),
+                    context.getString(R.string.qh_cmd_help_bahn),
                     20.seconds,
                     context,
                     silent = false
@@ -1354,8 +1349,8 @@ fun executeCommand(commandText: String, context: Context) {
                             MediaPlayerService.createPlaylist(context, playlistName, type)
                         } else {
                             showSimpleNotificationExtern(
-                                "❌ Ungültiger Typ",
-                                "Typ muss 'music' oder 'podcast' sein",
+                                context.getString(R.string.qh_cmd_title_invalid_type),
+                                context.getString(R.string.qh_cmd_invalid_type_hint),
                                 20.seconds,
                                 context,
                                 silent = false
@@ -1363,8 +1358,8 @@ fun executeCommand(commandText: String, context: Context) {
                         }
                     } else {
                         showSimpleNotificationExtern(
-                            "❌ Fehler",
-                            "Syntax: plcreate [music|podcast] \"Name\"",
+                            context.getString(R.string.fehler_2),
+                            context.getString(R.string.qh_cmd_help_plcreate_syntax),
                             20.seconds,
                             context,
                             silent = false
@@ -1373,8 +1368,8 @@ fun executeCommand(commandText: String, context: Context) {
                 }
             } else {
                 showSimpleNotificationExtern(
-                    "ℹ️ Playlist erstellen",
-                    "Syntax: plcreate [music|podcast] \"Name\"\nBeispiel: plcreate music \"Workout\"",
+                    context.getString(R.string.qh_cmd_title_create_playlist),
+                    context.getString(R.string.qh_cmd_help_plcreate),
                     20.seconds,
                     context
                 )
@@ -1398,8 +1393,8 @@ fun executeCommand(commandText: String, context: Context) {
             } else {
                 MediaPlayerService.showPlaylists(context)
                 showSimpleNotificationExtern(
-                    "ℹ️ Zur Playlist hinzufügen",
-                    "Syntax: pladd [playlist-id]",
+                    context.getString(R.string.qh_cmd_title_add_playlist),
+                    context.getString(R.string.qh_cmd_help_pladd_syntax),
                     20.seconds,
                     context
                 )
@@ -1417,8 +1412,8 @@ fun executeCommand(commandText: String, context: Context) {
                 MediaPlayerService.deletePlaylist(context, argument)
             } else {
                 showSimpleNotificationExtern(
-                    "ℹ️ Playlist löschen",
-                    "Syntax: pldelete [playlist-id]\nVerwende 'playlists' um IDs zu sehen",
+                    context.getString(R.string.qh_cmd_title_delete_playlist),
+                    context.getString(R.string.qh_cmd_help_pldelete),
                     20.seconds,
                     context
                 )
@@ -1429,8 +1424,8 @@ fun executeCommand(commandText: String, context: Context) {
         "^" -> {
             if (commandHistory.isEmpty()) {
                 showSimpleNotificationExtern(
-                    "❌ Keine History",
-                    "Kein vorheriger Befehl verfügbar",
+                    context.getString(R.string.qh_cmd_title_no_history),
+                    context.getString(R.string.qh_cmd_no_previous_command),
                     20.seconds,
                     context
                 )
@@ -1445,8 +1440,8 @@ fun executeCommand(commandText: String, context: Context) {
         "^^" -> {
             if (commandHistory.size < 2) {
                 showSimpleNotificationExtern(
-                    "❌ Keine History",
-                    "Kein vorletzter Befehl verfügbar",
+                    context.getString(R.string.qh_cmd_title_no_history),
+                    context.getString(R.string.qh_cmd_no_previous_previous_command),
                     20.seconds,
                     context
                 )
@@ -1467,15 +1462,15 @@ fun executeCommand(commandText: String, context: Context) {
                     val showName = args[1]
                     PodcastShowManager.assignPattern(pattern, showName)
                     showSimpleNotificationExtern(
-                        "✓ Pattern zugewiesen",
-                        "\"$pattern\" → \"$showName\"\nAlle Folgen mit diesem Pattern werden dieser Show zugeordnet.",
+                        context.getString(R.string.qh_cmd_title_pattern_assigned),
+                        context.getString(R.string.qh_cmd_pattern_assigned_text, pattern, showName),
                         context = context,
                         silent = false
                     )
                 } else {
                     showSimpleNotificationExtern(
-                        "ℹ️ showassign",
-                        "Syntax: showassign [dateiname-teilstring] [show-name]\nBeispiel: showassign heise \"Heise Show\"",
+                        context.getString(R.string.qh_cmd_title_showassign),
+                        context.getString(R.string.qh_cmd_help_showassign),
                         20.seconds, context
                     )
                 }
@@ -1491,14 +1486,14 @@ fun executeCommand(commandText: String, context: Context) {
                 if (showName != null) {
                     val show = PodcastShowManager.createShow(showName)
                     showSimpleNotificationExtern(
-                        "✓ Show erstellt",
-                        "\"${show.name}\" (ID: ${show.id})",
+                        context.getString(R.string.qh_cmd_title_show_created),
+                        context.getString(R.string.qh_cmd_show_created_text, show.name, show.id),
                         10.seconds, context
                     )
                 } else {
                     showSimpleNotificationExtern(
-                        "❌ Fehler",
-                        "Syntax: showcreate [show-name]",
+                        context.getString(R.string.fehler_2),
+                        context.getString(R.string.qh_cmd_help_showcreate_syntax),
                         20.seconds,
                         context,
                         silent = false
@@ -1506,8 +1501,8 @@ fun executeCommand(commandText: String, context: Context) {
                 }
             } else {
                 showSimpleNotificationExtern(
-                    "ℹ️ showcreate",
-                    "Syntax: showcreate [show-name]\nBeispiel: showcreate \"Lex Fridman\"",
+                    context.getString(R.string.qh_cmd_title_showcreate),
+                    context.getString(R.string.qh_cmd_help_showcreate),
                     20.seconds,
                     context
                 )
@@ -1519,8 +1514,8 @@ fun executeCommand(commandText: String, context: Context) {
             val shows = PodcastShowManager.getShows()
             if (shows.isEmpty()) {
                 showSimpleNotificationExtern(
-                    "📂 Shows",
-                    "Keine Shows vorhanden. Verwende 'showcreate'.",
+                    context.getString(R.string.qh_cmd_title_shows),
+                    context.getString(R.string.qh_cmd_no_shows_text),
                     context = context
                 )
             } else {
@@ -1530,7 +1525,7 @@ fun executeCommand(commandText: String, context: Context) {
                     "• ${show.name} (${show.id})$patterns"
                 }
                 showSimpleNotificationExtern(
-                    "🎙️ Podcast-Shows (${shows.size})",
+                    context.getString(R.string.qh_cmd_title_podcast_shows, shows.size),
                     text,
                     context = context
                 )
@@ -1547,15 +1542,15 @@ fun executeCommand(commandText: String, context: Context) {
                     val newName = args[1]
                     val success = PodcastShowManager.renameShow(oldName, newName)
                     showSimpleNotificationExtern(
-                        if (success) "✓ Umbenannt" else "❌ Show nicht gefunden",
-                        if (success) "\"$oldName\" → \"$newName\"" else "Keine Show mit Namen \"$oldName\"",
+                        if (success) context.getString(R.string.qh_cmd_title_renamed) else context.getString(R.string.qh_cmd_title_show_not_found),
+                        if (success) context.getString(R.string.qh_cmd_renamed_text, oldName, newName) else context.getString(R.string.qh_cmd_no_show_named, oldName),
                         context = context,
                         silent = false
                     )
                 } else {
                     showSimpleNotificationExtern(
-                        "ℹ️ showrename",
-                        "Syntax: showrename [alter-name] [neuer-name]",
+                        context.getString(R.string.qh_cmd_title_showrename),
+                        context.getString(R.string.qh_cmd_help_showrename),
                         20.seconds,
                         context
                     )
@@ -1571,8 +1566,8 @@ fun executeCommand(commandText: String, context: Context) {
 
             if (type == null || query == null) {
                 showSimpleNotificationExtern(
-                    "ℹ️ Stats",
-                    "Syntax: stats [song|podcast] [suche]\nBeispiel: stats song beatles",
+                    context.getString(R.string.qh_cmd_title_stats),
+                    context.getString(R.string.qh_cmd_help_stats),
                     20.seconds, context
                 )
                 return
@@ -1589,8 +1584,8 @@ fun executeCommand(commandText: String, context: Context) {
                     )
                     if (sessions.isEmpty()) {
                         showSimpleNotificationExtern(
-                            "❌ Nicht gefunden",
-                            "Kein Song mit \"$query\" in der Statistik",
+                            context.getString(R.string.qh_cmd_title_not_found),
+                            context.getString(R.string.qh_cmd_no_song_stats, query),
                             context = context,
                             silent = false
                         )
@@ -1608,10 +1603,10 @@ fun executeCommand(commandText: String, context: Context) {
                                     .format(Date(lastPlayedAt))
                             val maxRepeat = labelSessions.maxOf { it.repeatCount }
                             val repeatInfo =
-                                if (maxRepeat > 1) " · max ${maxRepeat}× wiederholt" else ""
+                                if (maxRepeat > 1) context.getString(R.string.qh_cmd_repeat_info, maxRepeat) else ""
                             showSimpleNotificationExtern(
                                 "📊 $label",
-                                "▶ $sessionCount Sessions · ⏱ ${formatMs(totalMs)} gehört\n🕐 Zuletzt: $lastPlayed$repeatInfo",
+                                context.getString(R.string.qh_cmd_stats_song_text, sessionCount, formatMs(totalMs), lastPlayed, repeatInfo),
                                 context = context
                             )
                         }
@@ -1625,8 +1620,8 @@ fun executeCommand(commandText: String, context: Context) {
 
                     if (matchedShows.isEmpty()) {
                         showSimpleNotificationExtern(
-                            "❌ Nicht gefunden",
-                            "Kein Podcast mit \"$query\" in der Statistik",
+                            context.getString(R.string.qh_cmd_title_not_found),
+                            context.getString(R.string.qh_cmd_no_podcast_stats, query),
                             context = context,
                             silent = false
                         )
@@ -1640,7 +1635,7 @@ fun executeCommand(commandText: String, context: Context) {
                                     .format(Date(lastPlayedAt))
                             showSimpleNotificationExtern(
                                 "📊 $showName",
-                                "▶ $sessionCount Sessions · ⏱ ${formatMs(totalMs)} gehört\n🕐 Zuletzt: $lastPlayed",
+                                context.getString(R.string.qh_cmd_stats_podcast_text, sessionCount, formatMs(totalMs), lastPlayed),
                                 context = context
                             )
                         }
@@ -1648,8 +1643,8 @@ fun executeCommand(commandText: String, context: Context) {
                 }
 
                 else -> showSimpleNotificationExtern(
-                    "❌ Ungültiger Typ",
-                    "Verwende 'song' oder 'podcast'",
+                    context.getString(R.string.qh_cmd_title_invalid_type),
+                    context.getString(R.string.qh_cmd_use_song_or_podcast),
                     context = context,
                     silent = false
                 )
@@ -1664,8 +1659,8 @@ fun executeCommand(commandText: String, context: Context) {
 
             if (type == null || query == null) {
                 showSimpleNotificationExtern(
-                    "ℹ️ statsreset",
-                    "Syntax: statsreset [song|podcast|all] [suche]\nstatsreset all → alles löschen",
+                    context.getString(R.string.qh_cmd_title_statsreset),
+                    context.getString(R.string.qh_cmd_help_statsreset),
                     20.seconds, context
                 )
                 return
@@ -1675,8 +1670,8 @@ fun executeCommand(commandText: String, context: Context) {
                 "all" -> {
                     MediaAnalyticsManager.clearAll()
                     showSimpleNotificationExtern(
-                        "✓ Reset",
-                        "Alle Analytics-Daten wurden gelöscht",
+                        context.getString(R.string.qh_cmd_title_reset),
+                        context.getString(R.string.qh_cmd_all_analytics_deleted),
                         context = context
                     )
                 }
@@ -1690,8 +1685,8 @@ fun executeCommand(commandText: String, context: Context) {
 
                     if (matchedLabels.isEmpty()) {
                         showSimpleNotificationExtern(
-                            "❌ Nicht gefunden",
-                            "Kein Song mit \"$query\" in der Statistik",
+                            context.getString(R.string.qh_cmd_title_not_found),
+                            context.getString(R.string.qh_cmd_no_song_stats, query),
                             context = context,
                             silent = false
                         )
@@ -1702,12 +1697,8 @@ fun executeCommand(commandText: String, context: Context) {
 
                         rebuildSessions(remaining)
                         showSimpleNotificationExtern(
-                            "✓ Reset",
-                            "${matchedLabels.size} Song(s) aus Analytics entfernt:\n${
-                                matchedLabels.joinToString(
-                                    ", "
-                                )
-                            }",
+                            context.getString(R.string.qh_cmd_title_reset),
+                            context.getString(R.string.qh_cmd_songs_removed, matchedLabels.size, matchedLabels.joinToString(", ")),
                             context = context
                         )
                     }
@@ -1722,8 +1713,8 @@ fun executeCommand(commandText: String, context: Context) {
 
                     if (matchedLabels.isEmpty()) {
                         showSimpleNotificationExtern(
-                            "❌ Nicht gefunden",
-                            "Kein Podcast mit \"$query\" in der Statistik",
+                            context.getString(R.string.qh_cmd_title_not_found),
+                            context.getString(R.string.qh_cmd_no_podcast_stats, query),
                             context = context,
                             silent = false
                         )
@@ -1733,20 +1724,16 @@ fun executeCommand(commandText: String, context: Context) {
                         }
                         rebuildSessions(remaining)
                         showSimpleNotificationExtern(
-                            "✓ Reset",
-                            "${matchedLabels.size} Show(s) aus Analytics entfernt:\n${
-                                matchedLabels.joinToString(
-                                    ", "
-                                )
-                            }",
+                            context.getString(R.string.qh_cmd_title_reset),
+                            context.getString(R.string.qh_cmd_shows_removed, matchedLabels.size, matchedLabels.joinToString(", ")),
                             context = context
                         )
                     }
                 }
 
                 else -> showSimpleNotificationExtern(
-                    "❌ Typ",
-                    "Verwende 'song', 'podcast' oder 'all'",
+                    context.getString(R.string.qh_cmd_title_type),
+                    context.getString(R.string.qh_cmd_use_song_podcast_all),
                     context = context,
                     silent = false
                 )
@@ -1768,8 +1755,8 @@ fun executeCommand(commandText: String, context: Context) {
                 MediaPlayerService.activatePlaylist(context, argument)
             } else {
                 showSimpleNotificationExtern(
-                    "ℹ️ plp",
-                    "Syntax: plp [playlist-id]\nVerwende 'playlists' um IDs zu sehen",
+                    context.getString(R.string.qh_cmd_title_plp),
+                    context.getString(R.string.qh_cmd_help_plp),
                     20.seconds,
                     context
                 )
@@ -1791,8 +1778,8 @@ fun executeCommand(commandText: String, context: Context) {
                     val list =
                         AlgorithmicPlaylistRegistry.all.joinToString("\n") { "${it.icon} ${it.id} – ${context.getString(it.nameRes)}" }
                     showSimpleNotificationExtern(
-                        "❌ Nicht gefunden",
-                        "Verfügbare Playlists:\n$list",
+                        context.getString(R.string.qh_cmd_title_not_found),
+                        context.getString(R.string.qh_cmd_available_playlists, list),
                         20.seconds, context,
                         silent = false
                     )
@@ -1825,8 +1812,8 @@ fun executeCommand(commandText: String, context: Context) {
             matchedCommand.action()
         } catch (_: Exception) {
             showSimpleNotificationExtern(
-                "❌ Fehler",
-                "Befehl '${matchedCommand.name}' konnte nicht ausgeführt werden",
+                context.getString(R.string.fehler_2),
+                context.getString(R.string.qh_cmd_command_failed, matchedCommand.name),
                 20.seconds,
                 context,
                 silent = false
@@ -1851,16 +1838,16 @@ fun executeCommand(commandText: String, context: Context) {
                 }
             }
             showSimpleNotificationExtern(
-                "❓ Unbekannter Befehl",
-                "Meintest du: $suggestionText?",
+                context.getString(R.string.qh_cmd_title_unknown_command_question),
+                context.getString(R.string.qh_cmd_did_you_mean, suggestionText),
                 20.seconds,
                 context,
                 silent = false
             )
         } else {
             showSimpleNotificationExtern(
-                "❌ Unbekannter Befehl",
-                "'$commandInput' nicht gefunden. Verwende 'help' für alle Befehle.",
+                context.getString(R.string.qh_cmd_title_unknown_command),
+                context.getString(R.string.qh_cmd_command_not_found, commandInput),
                 20.seconds,
                 context,
                 silent = false
@@ -1898,8 +1885,8 @@ private fun showAvailableCommands(context: Context) {
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_menu_help)
-            .setContentTitle("📋 Verfügbare Befehle (Seite ${index + 1}/${chunked.size})")
-            .setContentText("${chunk.size} Befehle")
+            .setContentTitle(context.getString(R.string.qh_cmd_available_commands_title, index + 1, chunked.size))
+            .setContentText(context.getString(R.string.qh_cmd_commands_count, chunk.size))
             .setStyle(NotificationCompat.BigTextStyle().bigText(commandList))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
@@ -1911,8 +1898,8 @@ private fun showAvailableCommands(context: Context) {
 
     val summary = NotificationCompat.Builder(context, CHANNEL_ID)
         .setSmallIcon(android.R.drawable.ic_menu_info_details)
-        .setContentTitle("Alle Commands")
-        .setContentText("${chunked.size} Commands")
+        .setContentTitle(context.getString(R.string.qh_cmd_all_commands))
+        .setContentText(context.getString(R.string.qh_cmd_commands_count_summary, chunked.size))
         .setPriority(NotificationCompat.PRIORITY_HIGH)
         .setGroup("commands")
         .setGroupSummary(true)
@@ -1978,9 +1965,9 @@ private fun checkBahnZuege(context: Context, daysAhead: Int = 1) {
             val date = "$year$month$day"
 
             val dayLabel = when (daysAhead) {
-                1 -> "morgen"
-                2 -> "übermorgen"
-                else -> "in $daysAhead Tagen"
+                1 -> appContext.getString(R.string.qh_cmd_day_tomorrow)
+                2 -> appContext.getString(R.string.qh_cmd_day_day_after_tomorrow)
+                else -> appContext.getString(R.string.qh_cmd_in_days, daysAhead)
             }
 
             val response = withContext(Dispatchers.IO) {
@@ -1999,14 +1986,14 @@ private fun checkBahnZuege(context: Context, daysAhead: Int = 1) {
             }
 
             val json = Json.parseToJsonElement(response.bodyAsText()).jsonObject
-            println(json)
+            Log.d("Commands", json.toString())
             val found = json["found"]?.jsonPrimitive?.content == "true"
 
             if (!found) {
                 val error = json["error"]?.jsonPrimitive?.content
                 if (error != null) {
                     showSimpleNotificationExtern(
-                        "❌ Bahn API Fehler",
+                        appContext.getString(R.string.qh_cmd_title_bahn_api_error),
                         error,
                         20.seconds,
                         appContext,
@@ -2014,8 +2001,8 @@ private fun checkBahnZuege(context: Context, daysAhead: Int = 1) {
                     )
                 } else {
                     showSimpleNotificationExtern(
-                        "ℹ️ Kein 07:05-Zug",
-                        "In den Plan-Daten wurde kein passender Zug um 07:05 Uhr nach $targetDestination in $stationName $dayLabel gefunden.",
+                        appContext.getString(R.string.qh_cmd_title_no_train),
+                        appContext.getString(R.string.qh_cmd_no_train_text, targetDestination, stationName, dayLabel),
                         20.seconds,
                         appContext,
                         silent = false
@@ -2024,30 +2011,30 @@ private fun checkBahnZuege(context: Context, daysAhead: Int = 1) {
                 return@launch
             }
 
-            val trainType = json["trainType"]?.jsonPrimitive?.content ?: "Zug"
+            val trainType = json["trainType"]?.jsonPrimitive?.content ?: appContext.getString(R.string.qh_cmd_train_default)
             val trainNumber = json["trainNumber"]?.jsonPrimitive?.content ?: ""
             val lineLabel = json["lineLabel"]?.jsonPrimitive?.content ?: ""
             val trainDisplay = "$trainType $trainNumber ($lineLabel)".trim()
             val platform = json["platform"]?.jsonPrimitive?.content ?: "?"
             val destination = json["destination"]?.jsonPrimitive?.content ?: targetDestination
             val departureTime = json["departureTime"]?.jsonPrimitive?.content ?: targetDepartureTime
-            val statusText = json["statusText"]?.jsonPrimitive?.content ?: "✅ Pünktlich"
+            val statusText = json["statusText"]?.jsonPrimitive?.content ?: appContext.getString(R.string.qh_cmd_status_on_time)
 
             showSimpleNotificationExtern(
-                "🚆 $trainDisplay ($dayLabel)",
-                "📍 $stationName → $destination\n⏰ Abfahrt: $departureTime Uhr (Plan $targetDepartureTime)\n🚪 Gleis: $platform\n$statusText",
+                appContext.getString(R.string.qh_cmd_train_title, trainDisplay, dayLabel),
+                appContext.getString(R.string.qh_cmd_train_text, stationName, destination, departureTime, targetDepartureTime, platform, statusText),
                 context = appContext,
                 silent = false
             )
         } catch (e: Exception) {
             showSimpleNotificationExtern(
-                "❌ Bahn-Fehler",
-                "Verbindungsfehler: ${e.message}",
+                appContext.getString(R.string.qh_cmd_title_bahn_error),
+                appContext.getString(R.string.qh_cmd_connection_error, e.message),
                 20.seconds,
                 appContext,
                 silent = false
             )
-            e.printStackTrace()
+            Log.e("Commands", context.getString(R.string.fehler), e)
         }
     }
 }
