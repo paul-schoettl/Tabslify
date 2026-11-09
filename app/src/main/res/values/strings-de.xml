@@ -171,6 +171,46 @@
     <string name="schliesen">Schließen</string> <!-- app/src/main/java/com/tabslify/core/ui/LandingPage.kt:1301 | Helpers.kt:219 | Batterychart.kt:302 | Commands.kt:789 -->
     <string name="erteilen">Erteilen</string> <!-- app/src/main/java/com/tabslify/core/ui/LandingPage.kt -->
     <string name="alle_berechtigungen_anfragen">Alle Berechtigungen anfragen</string> <!-- app/src/main/java/com/tabslify/core/ui/LandingPage.kt -->
+    <string name="permission_access_runtime">Vom Nutzer zu erteilen</string>
+    <string name="permission_access_special">Sonderzugriff – in den Android-Einstellungen freigeben</string>
+    <string name="permission_access_health">Health Connect – separat freigeben</string>
+    <string name="permission_access_automatic">Automatisch erteilt – keine Aktion nötig</string>
+    <string name="permission_access_unavailable">Nicht verfügbar – kann nicht erteilt werden</string>
+    <string name="permission_section_runtime">Vom Nutzer zu erteilen</string>
+    <string name="permission_section_special">Sonderzugriff / Systemfreigaben</string>
+    <string name="permission_section_health">Health Connect</string>
+    <string name="permission_section_automatic">Automatisch erteilt</string>
+    <string name="permission_section_unavailable">Nicht verfügbar</string>
+    <string name="permission_label_automatic">Automatisch</string>
+    <string name="permission_label_granted">Erteilt</string>
+    <string name="permission_label_granted_battery_exempt">Erteilt (Akku-Ausnahme)</string>
+    <string name="permission_label_not_granted">Nicht erteilt</string>
+    <string name="permission_label_unavailable">Nicht verfügbar</string>
+    <string name="permission_explanation_fallback">%1$s: Diese Berechtigung ist in der App deklariert. Eine ausführliche Beschreibung ist noch nicht hinterlegt.</string>
+    <string name="permission_exact_alarm_battery_exempt">Tabslify ist von der Akku-Optimierung ausgenommen. Android erlaubt exakte Alarme dadurch automatisch und zeigt „Alarme &amp; Erinnerungen“ nur gesperrt bzw. gar nicht an. Zum selbst Erteilen zuerst die Akku-Ausnahme entfernen.</string>
+    <string name="permission_internet">Internetzugriff für Supabase-Sync, Wetter, KI-Chat, Musik, Podcasts und App-Updates.</string>
+    <string name="permission_request_install_packages">Darf APK-, APKS- und XAPK-Dateien installieren, damit Tabslify Updates und eigene App-Pakete einspielen kann.</string>
+    <string name="permission_change_wifi_multicast">Empfängt Multicast-Pakete im WLAN, zum Beispiel für die Geräte-Erkennung im Heimnetz.</string>
+    <string name="permission_read_media_visual_user_selected">Zugriff nur auf die Bilder und Videos, die du in der Galerie ausdrücklich auswählst.</string>
+    <string name="permission_health_read_sleep">Liest Schlafdaten aus Health Connect für die Schlafanalyse in FocusGuard.</string>
+    <string name="permission_health_read_background">Liest Gesundheitsdaten auch im Hintergrund, damit FocusGuard den Schlaf zuverlässig erfasst.</string>
+    <string name="permission_foreground_service_location">Erlaubt den Standort-Vordergrunddienst für Explore: Standortverfolgung und Geofencing.</string>
+    <string name="permission_foreground_service_special_use">Erlaubt die dauerhaften Überwachungsdienste von Quiet Hours und FocusGuard.</string>
+    <string name="permission_foreground_service_media_playback">Erlaubt Medienwiedergabe als Vordergrunddienst, damit Musik und Podcasts weiterlaufen.</string>
+    <string name="permission_foreground_service_microphone">Erlaubt Audioaufnahme als Vordergrunddienst, auch wenn die App nicht im Vordergrund ist.</string>
+    <string name="permission_foreground_service_media_projection">Erlaubt Bildschirmaufnahme als Vordergrunddienst für den Audiorecorder.</string>
+    <string name="permission_foreground_service_data_sync">Erlaubt Datensynchronisation als Vordergrunddienst für längere Uploads und Downloads.</string>
+    <string name="permission_access_notification_policy">Darf Nicht-stören-Regeln und Benachrichtigungseinstellungen lesen und ändern (Quiet Hours).</string>
+    <string name="permission_manage_external_storage">Vollzugriff auf alle Dateien für den Dateimanager und den APK-Installer.</string>
+    <string name="permission_access_superuser">Root-Zugriff für Entwicklerfunktionen; funktioniert nur auf gerooteten Geräten mit Superuser-App.</string>
+    <string name="permission_notification_listener_label">Benachrichtigungszugriff (Notification Listener)</string>
+    <string name="permission_notification_listener_description">Liest Benachrichtigungen, um sie an den PC weiterzuleiten und den Tagesbericht zu erstellen.</string>
+    <string name="permission_location_background">Erlaubt Standortzugriff auch im Hintergrund, damit Explore Wege und Geofences weiter aufzeichnet.</string>
+    <string name="permission_wake_lock">Hält das Gerät bei Bedarf wach, damit Downloads, Synchronisation und Wiedergabe nicht abbrechen.</string>
+    <string name="permission_c2dm_receive">Erlaubt den Empfang von Firebase-Cloud-Nachrichten für Push-Benachrichtigungen.</string>
+    <string name="permission_use_biometric">Erlaubt Fingerabdruck- oder Gesichtserkennung zum Entsperren des Passworttresors.</string>
+    <string name="permission_use_fingerprint">Erlaubt den Fingerabdrucksensor zum Entsperren des Passworttresors.</string>
+    <string name="permission_dynamic_receiver">Interner Schutz für dynamisch registrierte App-Empfänger; wird automatisch verwaltet.</string>
     <!-- app/src/main/java/com/tabslify/core/ui/LandingPage.kt:1378 -->
     <!-- app/src/main/java/com/tabslify/core/ui/LandingPage.kt:1379 -->
     <!-- app/src/main/java/com/tabslify/core/ui/LandingPage.kt:1381 -->
@@ -3150,4 +3190,7 @@
     <string name="stream_datei_gespeichert">%1$s in Downloads gespeichert</string>
     <string name="stream_fehler">Fehler: %1$s</string>
     <string name="stream_daten">Daten</string>
+    <string name="permission_ride_tracking_location">Ride-Tracking zeichnet deinen GPS-Track während der Fahrt auf.</string>
+    <string name="permission_ride_tracking_fgs">Ride-Tracking läuft als Standortdienst im Hintergrund weiter.</string>
+    <string name="permission_ride_tracking_activity">Ride-Tracking erkennt Pausen über die Aktivitätserkennung.</string>
 </resources>
