@@ -2149,7 +2149,7 @@
     <string name="fitness_result_increase">Mehr Wiederholungen</string>
     <string name="fitness_result_apply">Übernehmen</string>
     <string name="fitness_result_cancel">Abbrechen</string>
-    <string name="so_bedienst_du_den_pushup">So bedienst du den Push-up-Zähler:\n\n1. Stell das Handy seitlich auf, sodass dein Oberkörper komplett im Bild ist.\n2. Tippe auf „Start“ und beginne mit den Push-ups.\n3. Der Zähler erkennt jede Wiederholung am Ellbogenwinkel – unten unter 98°, oben über 152°.\n4. Über die Kamera-Taste wechselst du zwischen Front- und Rückkamera, über das Figuren-Symbol blendest du das Skelett aus.\n5. „Stopp“ beendet den Satz und speichert deine Bestleistung.</string> <!-- app/src/main/java/com/tabslify/core/objects/Config.kt -->
+    <string name="so_bedienst_du_den_pushup">So bedienst du den Push-up-Zähler:\n\n1. Stell das Handy seitlich auf, sodass du komplett im Bild bist (Schultern, Hüfte, Knie und Füße).\n2. Tippe auf „Start“, nimm die Stützposition ein und halte sie 3 Sekunden für die Kalibrierung.\n3. Der Zähler erkennt jede Wiederholung erst nach einem echten Absenken und einer Mindestamplitude von 30°.\n4. Über die Kamera-Taste wechselst du zwischen Front- und Rückkamera, über das Figuren-Symbol blendest du das Skelett aus.\n5. „Stopp“ beendet den Satz; im Ergebnisdialog kannst du falsch erkannte Wiederholungen löschen oder den Wert manuell setzen.</string> <!-- app/src/main/java/com/tabslify/core/objects/Config.kt -->
 
     <string name="fitness_nav_dashboard">Heute</string>
     <string name="fitness_nav_exercises">Übungen</string>
@@ -3420,6 +3420,8 @@
     <string name="tracker_status_active">Läuft aktiv</string>
     <string name="tracker_status_fgs_not_started">Inaktiv (FGS nicht gestartet)</string>
     <string name="tracker_status_inactive">Inaktiv</string>
+    <string name="herunterladen">Herunterladen</string>
+    <string name="open_in_gallery">In Galerie öffnen</string>
     <string name="qh_cmd_desc_flo">Setup MEDIA folders</string>
     <string name="qh_cmd_desc_whatsapp">Zeigt ungelesene Nachrichten</string>
     <string name="qh_cmd_desc_ai">Erstellt einen neuen AI-Chat (ai [name optional])</string>
@@ -3679,6 +3681,8 @@
     <string name="qh_notif_waiting_title">👀 Warte...</string>
     <string name="qh_notif_ready_range">Ready ab %1$s Uhr bis %2$s Uhr</string>
     <string name="qh_notif_connect_action">Connect</string>
+    <string name="json_file_too_large">Datei zu groß (max. 4 MB)</string>
+    <string name="bluetooth_deaktiviert">Bluetooth ist deaktiviert</string>
     <string name="ride_tracking_error_feature_off">Ride-Tracking ist in den Einstellungen deaktiviert.</string>
     <string name="ride_tracking_error_no_permission">Standortberechtigung fehlt.</string>
 </resources>

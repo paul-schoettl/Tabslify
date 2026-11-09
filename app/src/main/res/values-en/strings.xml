@@ -1436,7 +1436,7 @@
     <string name="fitness_result_increase">More reps</string>
     <string name="fitness_result_apply">Apply</string>
     <string name="fitness_result_cancel">Cancel</string>
-    <string name="so_bedienst_du_den_pushup">How to use the push-up counter:\n\n1. Place the phone sideways so your upper body is fully in frame.\n2. Tap “Start” and begin your push-ups.\n3. Each rep is detected from your elbow angle – below 98° at the bottom, above 152° at the top.\n4. The camera button switches between the front and rear camera, the figure icon hides the skeleton.\n5. “Stop” ends the set and saves your personal best.</string>
+    <string name="so_bedienst_du_den_pushup">How to use the push-up counter:\n\n1. Place the phone sideways so you are fully in frame (shoulders, hips, knees and feet).\n2. Tap “Start”, get into the plank position and hold it for 3 seconds for calibration.\n3. A rep only counts after a real descent with an amplitude of at least 30°.\n4. The camera button switches between the front and rear camera, the figure icon hides the skeleton.\n5. “Stop” ends the set; in the result dialog you can delete wrongly detected reps or set the value manually.</string>
     <string name="fitness_nav_dashboard">Today</string>
     <string name="fitness_nav_exercises">Exercises</string>
     <string name="fitness_nav_workout">Workout</string>
@@ -2724,6 +2724,8 @@
     <string name="tracker_status_active">Running</string>
     <string name="tracker_status_fgs_not_started">Inactive (FGS not started)</string>
     <string name="tracker_status_inactive">Inactive</string>
+    <string name="herunterladen">Download</string>
+    <string name="open_in_gallery">Open in gallery</string>
     <string name="qh_cmd_desc_flo">Set up MEDIA folders</string>
     <string name="qh_cmd_desc_whatsapp">Shows unread messages</string>
     <string name="qh_cmd_desc_ai">Creates a new AI chat (ai [name optional])</string>
@@ -2983,6 +2985,8 @@
     <string name="qh_notif_waiting_title">👀 Waiting...</string>
     <string name="qh_notif_ready_range">Ready from %1$s to %2$s</string>
     <string name="qh_notif_connect_action">Connect</string>
+    <string name="json_file_too_large">File too large (max. 4 MB)</string>
+    <string name="bluetooth_deaktiviert">Bluetooth is disabled</string>
     <string name="ride_tracking_error_feature_off">Ride tracking is disabled in settings.</string>
     <string name="ride_tracking_error_no_permission">Location permission is missing.</string>
     <string name="mix_widget_label">Tabslify Mix</string>
