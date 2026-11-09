@@ -50,6 +50,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
@@ -217,7 +218,7 @@ fun FullscreenImageDialog(
             ) {
                 Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "Schließen",
+                    contentDescription = stringResource(R.string.schliesen),
                     tint = Color.White,
                     modifier = Modifier.size(32.dp)
                 )
@@ -233,7 +234,7 @@ fun FullscreenImageDialog(
                 ) {
                     Icon(
                         imageVector = Icons.Default.ArrowDropDown,
-                        contentDescription = "Herunterladen",
+                        contentDescription = stringResource(R.string.herunterladen),
                         tint = Color.Black
                     )
                 }
@@ -247,7 +248,7 @@ fun FullscreenImageDialog(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                        contentDescription = "In Galerie öffnen",
+                        contentDescription = stringResource(R.string.open_in_gallery),
                         tint = Color.White,
                         modifier = Modifier.size(24.dp)
                     )
