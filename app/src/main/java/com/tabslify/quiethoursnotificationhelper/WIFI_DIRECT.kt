@@ -37,7 +37,8 @@ import android.provider.ContactsContract
 import android.provider.MediaStore
 import android.provider.Settings
 import android.telephony.TelephonyManager
-import android.util.Log
+import com.tabslify.R
+import com.tabslify.core.logging.Log
 import android.view.Gravity
 import android.view.WindowManager
 import android.widget.Toast
@@ -64,6 +65,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.NotificationCompat
@@ -97,6 +99,8 @@ import com.tabslify.core.objects.Config.TODOS
 import com.tabslify.core.objects.Config.UPDATE_PORT
 import com.tabslify.core.objects.prvt
 import com.tabslify.core.ui.APP_COLOR
+import com.tabslify.core.ui.FeatureToggle
+import com.tabslify.core.ui.isFeatureEnabled
 import com.tabslify.services.MediaPlayerService
 import com.tabslify.services.MediaPlayerService.Companion.ACTION_TOGGLE_REPEAT
 import com.tabslify.services.OverlayLifecycleOwner
@@ -118,6 +122,7 @@ import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -197,6 +202,7 @@ val bluetoothIntentFilter: IntentFilter = IntentFilter().apply {
 val volumeChangeIntentFilter = IntentFilter("android.media.VOLUME_CHANGED_ACTION")
 
 fun handleBluetoothBroadcast(context: Context, intent: Intent) {
+    if (!isFeatureEnabled(context, FeatureToggle.BLUETOOTH)) return
     try {
         when (intent.action) {
             BluetoothDevice.ACTION_ACL_CONNECTED ->
@@ -234,6 +240,10 @@ fun connectBluetoothDevice(
     nameOrAddress: String,
     onResult: ((Boolean, String) -> Unit)? = null
 ) {
+    if (!isFeatureEnabled(context, FeatureToggle.BLUETOOTH)) {
+        onResult?.invoke(false, context.getString(R.string.bluetooth_deaktiviert))
+        return
+    }
     if (ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT)
         != PackageManager.PERMISSION_GRANTED
     ) {
@@ -322,6 +332,10 @@ fun disconnectBluetoothDevice(
     nameOrAddress: String,
     onResult: ((Boolean, String) -> Unit)? = null
 ) {
+    if (!isFeatureEnabled(context, FeatureToggle.BLUETOOTH)) {
+        onResult?.invoke(false, context.getString(R.string.bluetooth_deaktiviert))
+        return
+    }
     if (ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT)
         != PackageManager.PERMISSION_GRANTED
     ) {
@@ -425,6 +439,22 @@ private var laptopUnreachableNotified = false
 private var missingIpNotified = false
 private const val MAX_PC_CALL_FAILURES = 3
 
+private val logThrottle = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
+private fun logWarnThrottled(
+    key: String,
+    message: String,
+    windowMs: Long = 5 * 60_000L,
+    throwable: Throwable? = null
+) {
+    val now = System.currentTimeMillis()
+    val last = logThrottle[key] ?: 0L
+    if (now - last < windowMs) return
+    logThrottle[key] = now
+    if (throwable == null) Log.w("CLOUDSA", message)
+    else Log.w("CLOUDSA", message, throwable)
+}
+
 fun onPcCallSuccess() {
     pcCallFailures.set(0)
     reconnectAttempted = false
@@ -444,13 +474,17 @@ private fun registerReconnectFailure() {
     reconnectBackoff = (reconnectBackoff * 2).coerceAtMost(RECONNECT_BACKOFF_MAX)
     if (reconnectFailures >= MAX_RECONNECT_FAILURES) {
         reconnectSuspended = true
-        Log.w("CLOUDSA", "Reconnect nach $reconnectFailures Fehlversuchen ausgesetzt")
+        logWarnThrottled(
+            "reconnect-suspended",
+            "Reconnect nach $reconnectFailures Fehlversuchen ausgesetzt",
+            10 * 60_000L
+        )
     }
 }
 
 private fun notifyLaptopUnreachableOnce(context: Context, e: Exception) {
     if (laptopUnreachableNotified) {
-        Log.w("CLOUDSA", "Laptop nicht erreichbar: ${e.message}")
+        logWarnThrottled("laptop-unreachable", "Laptop nicht erreichbar: ${e.message}")
         return
     }
     laptopUnreachableNotified = true
@@ -459,7 +493,7 @@ private fun notifyLaptopUnreachableOnce(context: Context, e: Exception) {
 
 private fun notifyMissingIpOnce(context: Context, detail: String) {
     if (missingIpNotified) {
-        Log.w("CLOUDSA", "Keine IP gefunden: $detail")
+        logWarnThrottled("missing-ip", "Keine IP gefunden: $detail", 10 * 60_000L)
         return
     }
     missingIpNotified = true
@@ -525,6 +559,13 @@ private fun listenerNeedsRestart(job: Job?, port: Int): Boolean {
     if (System.currentTimeMillis() - since < LISTENER_UNBOUND_GRACE) return false
     listenerUnboundSince.remove(port)
     Log.w("CLOUDSA", "Listener auf Port $port ist aktiv, aber kein Socket gebunden - wird abgebrochen")
+    synchronized(activeServers) {
+        activeServers.removeAll { server ->
+            val match = runCatching { server.localPort }.getOrNull() == port
+            if (match) runCatching { server.close() }
+            match
+        }
+    }
     job.cancel()
     return true
 }
@@ -575,6 +616,7 @@ private fun logError(service: String, e: Exception) {
 }
 
 fun ensureReadyForConnect(context: Context) {
+    if (!isFeatureEnabled(context, FeatureToggle.LOCAL_NETWORK)) return
     syncInProgress.set(false)
     pendingSyncJob?.cancel()
     pendingSyncJob = null
@@ -671,6 +713,7 @@ private fun launchServer(
     mutex.withLock {
         while (isActive) {
             var server: ServerSocket? = null
+            var cancellationCloser: Job? = null
             try {
                 synchronized(activeServers) {
                     activeServers.find {
@@ -686,6 +729,14 @@ private fun launchServer(
                 server.bind(InetSocketAddress(port))
                 server.soTimeout = 5000
                 synchronized(activeServers) { activeServers.add(server) }
+                val boundServer = server
+                cancellationCloser = launch {
+                    try {
+                        awaitCancellation()
+                    } finally {
+                        runCatching { boundServer.close() }
+                    }
+                }
                 consecutiveFailures = 0
                 Log.d("CLOUDSA", "$errorTag: Server started on port $port")
 
@@ -712,7 +763,13 @@ private fun launchServer(
                     } catch (_: SocketTimeoutException) {
                         continue
                     } catch (e: SocketException) {
-                        Log.w("CLOUDSA", "$errorTag: Socket exception, restarting server", e)
+                        if (isActive) {
+                            logWarnThrottled(
+                                "$errorTag-socket",
+                                "$errorTag: Socket exception, restarting server",
+                                throwable = e
+                            )
+                        }
                         break
                     } catch (e: Exception) {
                         Log.e("CLOUDSA", "$errorTag: Unexpected error accepting client", e)
@@ -722,7 +779,10 @@ private fun launchServer(
                 }
             } catch (_: BindException) {
                 consecutiveFailures++
-                Log.w("CLOUDSA", "$errorTag: Port $port already bound, retrying... (failures: $consecutiveFailures)")
+                logWarnThrottled(
+                    "$errorTag-bind",
+                    "$errorTag: Port $port already bound, retrying... (failures: $consecutiveFailures)"
+                )
                 delay((2000L * consecutiveFailures.coerceAtMost(15)).milliseconds)
                 continue
             } catch (e: Exception) {
@@ -731,6 +791,7 @@ private fun launchServer(
                 logError(errorTag, e)
                 delay((2000L * consecutiveFailures.coerceAtMost(15)).milliseconds)
             } finally {
+                cancellationCloser?.cancel()
                 server?.let {
                     synchronized(activeServers) { activeServers.remove(it) }
                     runCatching { it.close() }
@@ -883,6 +944,7 @@ data class AiResponseEntry(
 )
 
 fun startTriggerListenerIfHomeWifi(context: Context) {
+    if (!isFeatureEnabled(context, FeatureToggle.LOCAL_NETWORK)) return
     startTriggerListener(context)
     registerWifiReconnectReceiver(context)
     startIpReportHeartbeat(context)
@@ -968,6 +1030,7 @@ fun registerWifiReconnectReceiver(context: Context) {
 @SuppressLint("Wakelock", "WakelockTimeout")
 fun startTriggerListener(context: Context) {
     val ctx = context.applicationContext
+    if (!isFeatureEnabled(ctx, FeatureToggle.LOCAL_NETWORK)) return
     startTriggerRepairWatch(ctx)
     if (triggerJob?.isActive == true) return
     appContext = ctx.applicationContext
@@ -1120,7 +1183,7 @@ private fun closeClientsForPort(port: Int) {
 private fun repairTriggerListener(context: Context) {
     synchronized(triggerRepairLock) {
         if (!triggerProbeRunning) return
-        Log.w("CLOUDSA", "Trigger-Listener antwortet nicht - Self-Repair")
+        logWarnThrottled("trigger-repair", "Trigger-Listener antwortet nicht - Self-Repair")
         triggerJob?.cancel()
         triggerJob = null
         closeClientsForPort(Config.TRIGGER_PORT)
@@ -1162,7 +1225,10 @@ private fun startTriggerRepairWatch(context: Context) {
                 continue
             }
             failures++
-            Log.w("CLOUDSA", "Trigger-Listener antwortet nicht ($failures/$TRIGGER_PROBE_FAILURES)")
+            logWarnThrottled(
+                "trigger-probe",
+                "Trigger-Listener antwortet nicht ($failures/$TRIGGER_PROBE_FAILURES)"
+            )
             if (failures >= TRIGGER_PROBE_FAILURES) {
                 failures = 0
                 try {
@@ -1196,7 +1262,7 @@ private fun startTriggerWatchdog(context: Context) {
 private suspend fun CoroutineScope.triggerConnectedHeartbeat(ctx: Context) {
     while (coroutineContext.isActive) {
         if (triggerJob == null || triggerJob?.isActive != true) {
-            Log.w("CLOUDSA", "Trigger listener not active, restarting...")
+            logWarnThrottled("restart-trigger", "Trigger listener not active, restarting...")
             showSimpleNotificationExtern(
                 "⚠️ Trigger Listener",
                 "Neustart des Trigger Listeners...",
@@ -1226,33 +1292,34 @@ private suspend fun CoroutineScope.triggerReconnectHeartbeat(ctx: Context) {
 private fun ensureSyncListenersAlive(context: Context) {
     val ctx = context.applicationContext
     if (listenerNeedsRestart(mediaCommandJob, Config.MEDIA_COMMAND_PORT)) {
-        Log.w("CLOUDSA", "Media command listener not active, restarting...")
+        logWarnThrottled("restart-media-command", "Media command listener not active, restarting...")
         startMediaCommandListener(ctx)
     }
     if (listenerNeedsRestart(mediaStateJob, Config.MEDIA_STATE_PORT)) {
-        Log.w("CLOUDSA", "Media state listener not active, restarting...")
+        logWarnThrottled("restart-media-state", "Media state listener not active, restarting...")
         startMediaStateServer(context)
     }
     if (listenerNeedsRestart(clipboardJob, Config.CLIPBOARD_PORT)) {
-        Log.w("CLOUDSA", "Clipboard listener not active, restarting...")
+        logWarnThrottled("restart-clipboard", "Clipboard listener not active, restarting...")
         startClipboardListener(context)
     }
     if (listenerNeedsRestart(executeJob, Config.EXECUTE_PORT)) {
-        Log.w("CLOUDSA", "Execute listener not active, restarting...")
+        logWarnThrottled("restart-execute", "Execute listener not active, restarting...")
         startExecuteListener(context)
     }
     if (listenerNeedsRestart(smsJob, Config.SMS_PORT)) {
-        Log.w("CLOUDSA", "SMS listener not active, restarting...")
+        logWarnThrottled("restart-sms", "SMS listener not active, restarting...")
         startSmsListener(context)
     }
     if (listenerNeedsRestart(spotifyHistoryJob, Config.SPOTIFY_HISTORY_PORT)) {
-        Log.w("CLOUDSA", "Spotify history listener not active, restarting...")
+        logWarnThrottled("restart-spotify-history", "Spotify history listener not active, restarting...")
         startSpotifyHistoryListener(context)
     }
 }
 
 fun restoreSyncIfNeeded(context: Context) {
     val ctx = context.applicationContext
+    if (!isFeatureEnabled(ctx, FeatureToggle.LOCAL_NETWORK)) return
     appContext = ctx.applicationContext
     val prefs = ctx.getSharedPreferences(PREFS_SYNC, MODE_PRIVATE)
     val syncActive = prefs.getBoolean(KEY_SYNC_ACTIVE, false)
@@ -1390,6 +1457,7 @@ fun getTriggerListenerStatus(): String {
 
 fun syncTodosWithLaptop(context: Context, connected: Boolean = false) {
     val ctx = context.applicationContext
+    if (!isFeatureEnabled(ctx, FeatureToggle.LOCAL_NETWORK)) return
     if (triggerJob?.isActive != true) {
         startTriggerListener(ctx)
     }
@@ -1565,6 +1633,7 @@ fun syncTodosWithLaptop(context: Context, connected: Boolean = false) {
 }
 
 fun startUpdateListener(context: Context) {
+    if (!isFeatureEnabled(context, FeatureToggle.LOCAL_NETWORK)) return
     stopUpdateListener(true)
     appContext = context.applicationContext
 
@@ -1785,6 +1854,7 @@ private fun parseTodosFromJson(jsonData: String): List<TodoItem> =
     }
 
 fun startAiResponseListener(context: Context) {
+    if (!isFeatureEnabled(context, FeatureToggle.LOCAL_NETWORK)) return
     if (aiResponseJob?.isActive == true) return
 
     syncScope.launch {
@@ -2600,6 +2670,10 @@ private fun handleExecuteCommand(context: Context, json: JSONObject) {
         }
 
         "get_contacts" -> {
+            if (!isFeatureEnabled(context, FeatureToggle.CONTACTS)) return
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS)
+                != PackageManager.PERMISSION_GRANTED
+            ) return
             val query = args.optString("query", "").lowercase()
             val results = JSONArray()
             context.contentResolver.query(
@@ -2941,7 +3015,7 @@ fun showCredentialsOverlay(context: Context, us: String, pw: String, totp: Strin
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Schließen",
+                        contentDescription = stringResource(R.string.schliesen),
                         tint = Color.White
                     )
                 }
@@ -3026,7 +3100,13 @@ private suspend fun fetchIpFromSupabase(mobile: Boolean = false): String? =
                     ?.takeIf { it.isNotEmpty() }
                     ?.let { return@withContext it }
             } catch (e: Exception) {
-                if (attempt == 2) logError("SupabaseFetch", e)
+                if (attempt == 2) {
+                    if (isNetworkFailure(e)) {
+                        Log.w("CLOUDSA", "Supabase-IP-Abruf fehlgeschlagen: ${e.message}")
+                    } else {
+                        logError("SupabaseFetch", e)
+                    }
+                }
             }
 
             if (attempt < 2) delay((1000L * (attempt + 1)).milliseconds)
@@ -3375,7 +3455,7 @@ private fun sendDeviceInformation(context: Context, intent: Intent? = null) {
                 socket.shutdownOutput()
             }
         } catch (e: Exception) {
-            println("Socket error: ${e.message}")
+            logWarnThrottled("info-socket", "Socket error: ${e.message}", 10 * 60_000L)
         }
     }
 }
