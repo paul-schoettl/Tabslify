@@ -28,6 +28,7 @@ import com.tabslify.tabs.fitnesstab.data.FitnessStats
 import com.tabslify.tabs.fitnesstab.data.FitnessStorage
 import com.tabslify.tabs.fitnesstab.data.WorkoutEntry
 import com.tabslify.tabs.fitnesstab.data.WorkoutSession
+import com.tabslify.tabs.ridetracking.data.RideSessionAdapter
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -509,24 +510,35 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
 
     fun refreshStats() {
         viewModelScope.launch {
+            val factor = storage.calorieFactor()
             val exploreSessions = runCatching {
                 ExploreActivityBridge.sessionsForLastDays(
                     getApplication(),
                     EXPLORE_HISTORY_DAYS,
-                    storage.calorieFactor()
+                    factor
                 )
             }.getOrDefault(emptyList())
+            val rideSessions = runCatching {
+                RideSessionAdapter.sessionsForLastDays(
+                    getApplication(),
+                    EXPLORE_HISTORY_DAYS,
+                    factor
+                )
+            }.getOrDefault(emptyList())
+            val passiveSessions =
+                RideSessionAdapter.withoutOverlappingPassiveSessions(exploreSessions, rideSessions)
+            val sessions = passiveSessions + rideSessions
 
-            _stats.value = storage.getFitnessStats(exploreSessions)
-            _recentDays.value = storage.loadLastNDays(7, exploreSessions)
-            _sessions.value = storage.mergeWithStored(exploreSessions)
+            _stats.value = storage.getFitnessStats(sessions)
+            _recentDays.value = storage.loadLastNDays(7, sessions)
+            _sessions.value = storage.mergeWithStored(sessions)
                 .sortedByDescending { it.dateStartMs }
                 .take(50)
         }
     }
 
-    fun saveSessionFromPushUps() {
-        if (reps <= 0 && elapsedMs < 10_000L) return
+    fun saveSessionFromPushUps(): WorkoutSession? {
+        if (reps <= 0 && elapsedMs < 10_000L) return null
         val now = System.currentTimeMillis()
         val startMs = sessionStartedAtMs.takeIf { it > 0L } ?: (now - elapsedMs)
         val factor = storage.calorieFactor()

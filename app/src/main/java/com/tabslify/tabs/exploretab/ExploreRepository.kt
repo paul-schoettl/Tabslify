@@ -36,6 +36,11 @@ class ExploreRepository(context: Context) {
         dao.insertTile(ExploredTile(tileX = x, tileY = y))
     }
 
+    suspend fun ingestTile(lat: Double, lon: Double) {
+        val (x, y) = locationToTile(lat, lon)
+        dao.insertTile(ExploredTile(tileX = x, tileY = y))
+    }
+
     suspend fun pointsForDay(dayStart: Long, dayEnd: Long): List<RawPoint> =
         rawPointDao.pointsBetween(dayStart, dayEnd)
 

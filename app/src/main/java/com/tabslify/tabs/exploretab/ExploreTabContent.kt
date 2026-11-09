@@ -108,12 +108,14 @@ fun ExploreTabContent(setGesturesEnabled: (Boolean) -> Unit) {
     val exploredPercent by vm.exploredPercent.collectAsStateWithLifecycle()
     val tiles by vm.allTiles.collectAsStateWithLifecycle()
     val trackerStatus by ExploreLocationTracker.trackerStatus.collectAsStateWithLifecycle()
+    val trackerStatusDetail by ExploreLocationTracker.trackerStatusDetail.collectAsStateWithLifecycle()
     val trackerInfo by ExploreLocationTracker.trackerInfo.collectAsStateWithLifecycle()
     val currentActivity by ExploreLocationTracker.currentActivity.collectAsStateWithLifecycle()
     val selectedDate by vm.selectedDate.collectAsStateWithLifecycle()
     val daySegments by vm.daySegments.collectAsStateWithLifecycle()
     val dayStays by vm.dayStays.collectAsStateWithLifecycle()
     val dayPoints by vm.dayPoints.collectAsStateWithLifecycle()
+    val dayRides by vm.dayRides.collectAsStateWithLifecycle()
     val dayExportEnabled by vm.dayExportEnabled.collectAsStateWithLifecycle()
     val weekExportEnabled by vm.weekExportEnabled.collectAsStateWithLifecycle()
     val totalDistanceKm by vm.totalDistanceKm.collectAsStateWithLifecycle()
@@ -124,6 +126,21 @@ fun ExploreTabContent(setGesturesEnabled: (Boolean) -> Unit) {
     var tileToDelete by remember { mutableStateOf<ExploredTile?>(null) }
     var showDebug by remember { mutableStateOf(false) }
     var initialCenterDone by remember { mutableStateOf(false) }
+    var rideStatsId by remember { mutableStateOf<String?>(null) }
+    var timelineFilter by remember { mutableStateOf(ExploreTimelineFilter.ALL) }
+    var ridePoints by remember { mutableStateOf<Map<String, List<RidePoint>>>(emptyMap()) }
+    val rideRepo = remember { RideRepository(ctx) }
+    val visibleDaySegments = remember(daySegments, dayRides) {
+        visibleSegments(daySegments, dayRides)
+    }
+
+    LaunchedEffect(dayRides) {
+        val loaded = mutableMapOf<String, List<RidePoint>>()
+        dayRides.forEach { ride ->
+            loaded[ride.id] = runCatching { rideRepo.pointsForRide(ride.id) }.getOrDefault(emptyList())
+        }
+        ridePoints = loaded
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -291,12 +308,36 @@ fun ExploreTabContent(setGesturesEnabled: (Boolean) -> Unit) {
 
             StatChip(
                 label = stringResource(R.string.tracker_status),
-                value = trackerStatus,
+                value = trackerStatusLabel(trackerStatus, trackerStatusDetail),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp)
                     .padding(bottom = 6.dp)
             )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp)
+                    .padding(bottom = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ExploreFilterChip(
+                    label = stringResource(R.string.ride_tracking_filter_all),
+                    selected = timelineFilter == ExploreTimelineFilter.ALL,
+                    modifier = Modifier.weight(1f)
+                ) { timelineFilter = ExploreTimelineFilter.ALL }
+                ExploreFilterChip(
+                    label = stringResource(R.string.ride_tracking_filter_rides),
+                    selected = timelineFilter == ExploreTimelineFilter.RIDES,
+                    modifier = Modifier.weight(1f)
+                ) { timelineFilter = ExploreTimelineFilter.RIDES }
+                ExploreFilterChip(
+                    label = stringResource(R.string.ride_tracking_filter_auto),
+                    selected = timelineFilter == ExploreTimelineFilter.AUTO,
+                    modifier = Modifier.weight(1f)
+                ) { timelineFilter = ExploreTimelineFilter.AUTO }
+            }
 
             exportStatus?.let { status ->
                 Text(
@@ -358,13 +399,32 @@ fun ExploreTabContent(setGesturesEnabled: (Boolean) -> Unit) {
                         mv.overlays.removeAll(
                             mv.overlays.filterIsInstance<Polyline>().toSet()
                         )
-                        daySegments.forEach { segment ->
+                        visibleDaySegments.forEach { segment ->
                             val segmentPoints = dayPoints.filter { it.timestamp in segment.startTime..segment.endTime }
                             if (segmentPoints.size >= 2) {
                                 mv.overlays.add(Polyline().apply {
                                     setPoints(segmentPoints.map { GeoPoint(it.lat, it.lon) })
                                     outlinePaint.color = colorForMode(segment.mode)
                                     outlinePaint.strokeWidth = 8f
+                                    outlinePaint.isAntiAlias = true
+                                })
+                            }
+                        }
+
+                        dayRides.forEach { ride ->
+                            val points = ridePoints[ride.id].orEmpty()
+                            if (points.size >= 2) {
+                                val geoPoints = points.map { GeoPoint(it.lat, it.lon) }
+                                mv.overlays.add(Polyline().apply {
+                                    setPoints(geoPoints)
+                                    outlinePaint.color = android.graphics.Color.WHITE
+                                    outlinePaint.strokeWidth = 14f
+                                    outlinePaint.isAntiAlias = true
+                                })
+                                mv.overlays.add(Polyline().apply {
+                                    setPoints(geoPoints)
+                                    outlinePaint.color = android.graphics.Color.rgb(74, 222, 128)
+                                    outlinePaint.strokeWidth = 9f
                                     outlinePaint.isAntiAlias = true
                                 })
                             }
@@ -384,8 +444,27 @@ fun ExploreTabContent(setGesturesEnabled: (Boolean) -> Unit) {
                 )
             }
 
-            val timeline = remember(daySegments, dayStays) {
-                (daySegments.map { TimelineItem.SegmentItem(it) } + dayStays.map { TimelineItem.StayItem(it) })
+            val timeline = remember(
+                visibleDaySegments,
+                dayStays,
+                dayRides,
+                timelineFilter
+            ) {
+                val segments = when (timelineFilter) {
+                    ExploreTimelineFilter.RIDES -> emptyList()
+                    else -> visibleDaySegments
+                }
+                val stays = when (timelineFilter) {
+                    ExploreTimelineFilter.RIDES -> emptyList()
+                    else -> dayStays
+                }
+                val rides = when (timelineFilter) {
+                    ExploreTimelineFilter.AUTO -> emptyList()
+                    else -> dayRides
+                }
+                (segments.map { TimelineItem.SegmentItem(it) } +
+                        stays.map { TimelineItem.StayItem(it) } +
+                        rides.map { TimelineItem.RideItem(it) })
                     .sortedBy { it.startTime }
             }
 
@@ -397,10 +476,14 @@ fun ExploreTabContent(setGesturesEnabled: (Boolean) -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(vertical = 8.dp)
             ) {
-                items(timeline, key = { it.startTime }) { item ->
+                items(timeline, key = { it.key }) { item ->
                     when (item) {
                         is TimelineItem.SegmentItem -> SegmentCard(item.segment)
                         is TimelineItem.StayItem -> StayCard(item.stay)
+                        is TimelineItem.RideItem -> RideCard(
+                            ride = item.ride,
+                            onClick = { rideStatsId = item.ride.id }
+                        )
                     }
                 }
             }
@@ -430,17 +513,34 @@ fun ExploreTabContent(setGesturesEnabled: (Boolean) -> Unit) {
                     )
                 },
                 title = stringResource(R.string.tracker_status),
-                text = trackerDebugText(trackerInfo, currentActivity, trackerStatus),
+                text = trackerDebugText(trackerInfo, currentActivity, trackerStatus, trackerStatusDetail),
                 confirmText = stringResource(R.string.verstanden),
                 oneButton = true
             )
         }
+        rideStatsId?.let { id ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(BgDeep)
+            ) {
+                RideStatsScreen(rideId = id, onClose = { rideStatsId = null })
+            }
+        }
     }
 }
 
-private sealed class TimelineItem(val startTime: Long) {
-    class SegmentItem(val segment: Segment) : TimelineItem(segment.startTime)
-    class StayItem(val stay: Stay) : TimelineItem(stay.startTime)
+private enum class ExploreTimelineFilter { ALL, RIDES, AUTO }
+
+private sealed class TimelineItem(val startTime: Long, val key: String) {
+    class SegmentItem(val segment: Segment) :
+        TimelineItem(segment.startTime, "seg_${segment.id}")
+
+    class StayItem(val stay: Stay) :
+        TimelineItem(stay.startTime, "stay_${stay.id}")
+
+    class RideItem(val ride: Ride) :
+        TimelineItem(ride.startTime, "ride_${ride.id}")
 }
 
 private fun formatDuration(ms: Long): String {
@@ -489,6 +589,94 @@ private fun timeRangeLabel(start: Long, end: Long): String {
     val startLabel = Instant.ofEpochMilli(start).atZone(ZoneId.systemDefault()).format(timeFormatter)
     val endLabel = Instant.ofEpochMilli(end).atZone(ZoneId.systemDefault()).format(timeFormatter)
     return "$startLabel – $endLabel"
+}
+
+@Composable
+private fun RideCard(ride: Ride, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    NeonBox(
+        modifier = modifier.fillMaxWidth(),
+        borderWidth = 2.dp,
+        neonColors = listOf(SuccessGreen, AccentDim),
+        backgroundAlpha = 0.18f,
+        onClick = onClick
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 10.dp, horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(text = modeIcon(ride.mode), fontSize = 22.sp)
+                Spacer(Modifier.width(10.dp))
+                Column {
+                    Text(
+                        text = ride.title?.takeIf { it.isNotBlank() }
+                            ?: stringResource(R.string.ride_tracking_explore_card_title),
+                        color = TextPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                    Text(
+                        text = timeRangeLabel(ride.startTime, ride.endTime ?: ride.startTime),
+                        color = TextSecondary,
+                        fontSize = 11.sp
+                    )
+                }
+            }
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = "%.1f km".format(ride.distanceMeters / 1000.0),
+                    color = TextPrimary,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = formatDuration(ride.movingTimeMs),
+                    color = TextSecondary,
+                    fontSize = 11.sp
+                )
+                Text(
+                    text = "Ø %.1f km/h".format(ride.avgSpeedMps * 3.6),
+                    color = SuccessGreen,
+                    fontSize = 11.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExploreFilterChip(
+    label: String,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    NeonBox(
+        modifier = modifier,
+        cornerRadius = RoundedCornerShape(12.dp),
+        borderWidth = 2.dp,
+        neonColors = if (selected) listOf(SuccessGreen, AccentDim) else listOf(TextTertiary, AccentDim),
+        backgroundAlpha = if (selected) 0.24f else 0.1f,
+        onClick = onClick
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 7.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = label,
+                color = if (selected) TextPrimary else TextSecondary,
+                fontSize = 11.sp,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                maxLines = 1
+            )
+        }
+    }
 }
 
 @Composable
@@ -627,12 +815,21 @@ private fun StatChip(label: String, value: String, modifier: Modifier = Modifier
 }
 
 @Composable
+private fun trackerStatusLabel(status: TrackerStatus, detail: String?): String =
+    if (status == TrackerStatus.ERROR) {
+        stringResource(status.labelRes, detail ?: "")
+    } else {
+        stringResource(status.labelRes)
+    }
+
+@Composable
 private fun trackerDebugText(
     info: ExploreTrackerInfo,
     activity: ExploreActivityInfo,
-    status: String
+    status: TrackerStatus,
+    statusDetail: String?
 ): String = listOf(
-    "${stringResource(R.string.tracker_status)}: $status",
+    "${stringResource(R.string.tracker_status)}: ${trackerStatusLabel(status, statusDetail)}",
     "${stringResource(R.string.zuhause)}: ${"%.6f, %.6f".format(info.homeLat, info.homeLng)}",
     "${stringResource(R.string.letzte_position)}: ${
         if (info.lastLat != null && info.lastLng != null)

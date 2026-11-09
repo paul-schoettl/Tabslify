@@ -28,7 +28,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -55,6 +57,9 @@ import com.tabslify.tabs.fitnesstab.FitnessViewModel
 import com.tabslify.tabs.fitnesstab.data.BIKE_MODE_AUTO
 import com.tabslify.tabs.fitnesstab.data.BikeRide
 import com.tabslify.tabs.fitnesstab.data.BikeStats
+import com.tabslify.tabs.ridetracking.ui.RideRecentSection
+import com.tabslify.tabs.ridetracking.ui.RideStatsScreen
+import com.tabslify.tabs.ridetracking.ui.RideTrackingCard
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -94,8 +99,18 @@ internal fun bikeDurationLabel(millis: Long): String {
 fun BikeScreen(vm: FitnessViewModel, modifier: Modifier = Modifier) {
     val rides by vm.bikeRides.collectAsState()
     val stats by vm.bikeStats.collectAsState()
+    var rideStatsId by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) { vm.loadBikeRides() }
+
+    rideStatsId?.let { id ->
+        RideStatsScreen(
+            rideId = id,
+            onClose = { rideStatsId = null },
+            modifier = modifier
+        )
+        return
+    }
 
     val selected = vm.selectedRideId?.let { id -> rides.firstOrNull { it.rideId == id } }
     if (selected != null) {
@@ -160,6 +175,10 @@ fun BikeScreen(vm: FitnessViewModel, modifier: Modifier = Modifier) {
         }
 
         item { BikeSummaryCard(stats = stats) }
+
+        item { RideTrackingCard(onOpenStats = { rideStatsId = it }) }
+
+        item { RideRecentSection(onOpenStats = { rideStatsId = it }) }
 
         item {
             BikeChipRow(
