@@ -278,7 +278,7 @@
     <string name="deaktivieren_daten_loschen">Deaktivieren &amp; Daten löschen</string> <!-- app/src/main/java/com/tabslify/core/ui/LandingPage.kt:2226 -->
     <string name="nur_deaktivieren">Nur deaktivieren</string> <!-- app/src/main/java/com/tabslify/core/ui/LandingPage.kt:2236 -->
     <string name="diese_koordinaten_gelten_als_zuhause">Diese Koordinaten gelten als \"Zuhause\" für den Explore-Tracker (Geofencing) und als Standard-Standort in der App.</string> <!-- app/src/main/java/com/tabslify/core/ui/LandingPage.kt:2319 -->
-    <string name="speichern">Speichern</string> <!-- app/src/main/java/com/tabslify/core/ui/LandingPage.kt:2376 | CalenderTab.kt:954 | ContactsTab.kt:310 | GmailTab.kt:586 -->
+    <string name="speichern">Speichern</string> <!-- app/src/main/java/com/tabslify/core/ui/LandingPage.kt:2376 | CalenderTab.kt:954 | GmailTab.kt:586 -->
     <string name="private_cloud">Private Cloud</string> <!-- app/src/main/java/com/tabslify/core/ui/PrivateTabslifyApp.kt:216 -->
     <string name="ai_tab">AI Tab</string> <!-- app/src/main/java/com/tabslify/core/ui/PrivateTabslifyApp.kt:221 -->
     <string name="browser">Browser</string> <!-- app/src/main/java/com/tabslify/core/ui/PrivateTabslifyApp.kt:226 -->
@@ -919,7 +919,7 @@
     <!-- app/src/main/java/com/tabslify/quiethoursnotificationhelper/WIFI_DIRECT.kt:963 -->
     <!-- app/src/main/java/com/tabslify/quiethoursnotificationhelper/WIFI_DIRECT.kt:964 -->
     <!-- app/src/main/java/com/tabslify/quiethoursnotificationhelper/WIFI_DIRECT.kt:965  ||  %1$s=response -->
-    <!-- app/src/main/java/com/tabslify/quiethoursnotificationhelper/WIFI_DIRECT.kt:968 | WIFI_DIRECT.kt:970 | ContactsTab.kt:620 -->
+    <!-- app/src/main/java/com/tabslify/quiethoursnotificationhelper/WIFI_DIRECT.kt:968 | WIFI_DIRECT.kt:970 -->
     <!-- app/src/main/java/com/tabslify/quiethoursnotificationhelper/WIFI_DIRECT.kt:973 -->
     <!-- app/src/main/java/com/tabslify/quiethoursnotificationhelper/WIFI_DIRECT.kt:977 -->
     <string name="unbekannter_fehler">Unbekannter Fehler</string> <!-- app/src/main/java/com/tabslify/quiethoursnotificationhelper/WIFI_DIRECT.kt:978 | ApkmInstallerTab.kt:152 | ApkmInstallerTab.kt:157 | ApkmInstallerTab.kt:905 -->
@@ -1196,21 +1196,11 @@
     <string name="erstellen">Erstellen</string> <!-- app/src/main/java/com/tabslify/tabs/CalenderTab.kt:954 | NotesTab.kt:477 -->
     <string name="eintrag_loschen">Eintrag löschen?</string> <!-- app/src/main/java/com/tabslify/tabs/CalenderTab.kt:967 | Passwordmanagerscreen.kt:761 | MediaPlayerTab.kt:3914 -->
     <string name="wird_unwiderruflich_geloscht">\"%1$s\" wird unwiderruflich gelöscht.</string> <!-- app/src/main/java/com/tabslify/tabs/CalenderTab.kt:970 | MediaPlayerTab.kt:1467  ||  %1$s=existingEntry?.title -->
-    <string name="neu_erstellen">Neu erstellen</string> <!-- app/src/main/java/com/tabslify/tabs/ContactsTab.kt:130 -->
-    <!-- app/src/main/java/com/tabslify/tabs/ContactsTab.kt:148  ||  %1$s=state.error -->
-    <string name="bearbeiten">Bearbeiten</string> <!-- app/src/main/java/com/tabslify/tabs/ContactsTab.kt:245 | AITab.kt:792 | Passwordmanagerscreen.kt:751 -->
-    <string name="name">Name</string> <!-- app/src/main/java/com/tabslify/tabs/ContactsTab.kt:281 | VocabTab.kt:1845 | VocabTab.kt:1913 -->
-    <string name="e_mail">E-Mail</string> <!-- app/src/main/java/com/tabslify/tabs/ContactsTab.kt:287 -->
-    <string name="telefon">Telefon</string> <!-- app/src/main/java/com/tabslify/tabs/ContactsTab.kt:293 -->
-    <!-- app/src/main/java/com/tabslify/tabs/ContactsTab.kt:335  ||  %1$s=e.message -->
-    <!-- app/src/main/java/com/tabslify/tabs/ContactsTab.kt:351 -->
-    <!-- app/src/main/java/com/tabslify/tabs/ContactsTab.kt:354 -->
-    <!-- app/src/main/java/com/tabslify/tabs/ContactsTab.kt:364  ||  %1$s=e.message -->
-    <!-- app/src/main/java/com/tabslify/tabs/ContactsTab.kt:380 -->
-    <!-- app/src/main/java/com/tabslify/tabs/ContactsTab.kt:383 -->
-    <!-- app/src/main/java/com/tabslify/tabs/ContactsTab.kt:393  ||  %1$s=e.message -->
-    <!-- app/src/main/java/com/tabslify/tabs/ContactsTab.kt:543  ||  %1$s=contact, %2$s=e.message -->
-    <!-- app/src/main/java/com/tabslify/tabs/ContactsTab.kt:618  ||  %1$s=e.message -->
+    <string name="neu_erstellen">Neu erstellen</string>
+    <string name="bearbeiten">Bearbeiten</string> <!-- app/src/main/java/com/tabslify/tabs/aitab/AITab.kt:792 | Passwordmanagerscreen.kt:751 -->
+    <string name="name">Name</string> <!-- app/src/main/java/com/tabslify/tabs/school/VocabTab.kt:1845 | VocabTab.kt:1913 -->
+    <string name="e_mail">E-Mail</string>
+    <string name="telefon">Telefon</string>
     <string name="tage_rechner">Tage-Rechner</string> <!-- app/src/main/java/com/tabslify/tabs/DateCalculatorTab.kt:51 -->
     <string name="startdatum">Startdatum</string> <!-- app/src/main/java/com/tabslify/tabs/DateCalculatorTab.kt:59 -->
     <string name="enddatum">Enddatum</string> <!-- app/src/main/java/com/tabslify/tabs/DateCalculatorTab.kt:72 -->
