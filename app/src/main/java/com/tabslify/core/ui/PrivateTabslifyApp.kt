@@ -225,6 +225,7 @@ import com.tabslify.tabs.mediaplayer.MediaTab
 import com.tabslify.tabs.mediaplayer.MediaViewModel
 import com.tabslify.tabs.pendingApkmUri
 import com.tabslify.tabs.school.VocabTab
+import com.tabslify.tabs.school.study.StudyNavigation
 import com.tabslify.tabs.virustotal.VirusTotalTabContent
 import io.github.jan.supabase.storage.Storage
 import kotlinx.coroutines.Dispatchers
@@ -466,6 +467,10 @@ fun PrivateTabslifyApp(
         }
         if (startTarget == "focusguard") {
             selectedMenuItem = MenuItem.FOCUSGUARD
+        }
+        if (startTarget == "study" && prvt()) {
+            StudyNavigation.openRequested = true
+            selectedMenuItem = MenuItem.Vocabs
         }
     }
 

@@ -63,6 +63,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -118,6 +119,18 @@ import com.tabslify.quiethoursnotificationhelper.flashcardVokabelnFlow
 import com.tabslify.quiethoursnotificationhelper.getPreferredAiProvider
 import com.tabslify.quiethoursnotificationhelper.sendAiRequest
 import com.tabslify.quiethoursnotificationhelper.trySendImageToLaptop
+import com.tabslify.tabs.school.study.StudyDayScreen
+import com.tabslify.tabs.school.study.StudyMaterialScreen
+import com.tabslify.tabs.school.study.StudyNavigation
+import com.tabslify.tabs.school.study.StudyPlanDayDto
+import com.tabslify.tabs.school.study.StudyPlanScreen
+import com.tabslify.tabs.school.study.StudyPlanViewModel
+import com.tabslify.tabs.school.study.StudyResultScreen
+import com.tabslify.tabs.school.study.StudyReviewScreen
+import com.tabslify.tabs.school.study.StudySessionScreen
+import com.tabslify.tabs.school.study.StudySessionViewModel
+import com.tabslify.tabs.school.study.StudyUploadScreen
+import com.tabslify.tabs.school.study.StudyUploadViewModel
 import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -193,7 +206,11 @@ data class SessionState(
 
 enum class LernModus { AUSWAHL, TIPPEN, AUFECKEN }
 
-enum class VokabelTabScreen { DASHBOARD, HOME, UPLOAD, REVIEW, LEARN, MATERIALIEN, NOTEN }
+enum class VokabelTabScreen {
+    DASHBOARD, HOME, UPLOAD, REVIEW, LEARN, MATERIALIEN, NOTEN,
+    STUDY_PLAN, STUDY_UPLOAD, STUDY_REVIEW, STUDY_DAY, STUDY_SESSION,
+    STUDY_RESULT, STUDY_MATERIAL
+}
 
 private val LEITNER_INTERVALLE = intArrayOf(0, 1, 2, 4, 8, 16, 32)
 
@@ -321,6 +338,14 @@ fun VocabTab(paddingValues: PaddingValues) {
     val materialPrefs =
         remember { context.getSharedPreferences("material_cache", Context.MODE_PRIVATE) }
     val scope = rememberCoroutineScope()
+
+    val studyPlanViewModel: StudyPlanViewModel = viewModel()
+    val studyUploadViewModel: StudyUploadViewModel = viewModel()
+    val studySessionViewModel: StudySessionViewModel = viewModel()
+    val studyState by studyPlanViewModel.state.collectAsState()
+    val studyUploadState by studyUploadViewModel.state.collectAsState()
+    val studySessionState by studySessionViewModel.state.collectAsState()
+    var studyDay by remember { mutableStateOf<StudyPlanDayDto?>(null) }
 
     var screen by remember { mutableStateOf(VokabelTabScreen.DASHBOARD) }
     var bitmap by remember { mutableStateOf<Bitmap?>(null) }
@@ -546,6 +571,39 @@ fun VocabTab(paddingValues: PaddingValues) {
         else errorMessage = keineVokabelnErkannt
     }
 
+    LaunchedEffect(Unit) {
+        if (prvt()) studyPlanViewModel.loadIfNeeded()
+    }
+    LaunchedEffect(StudyNavigation.openRequested) {
+        if (StudyNavigation.openRequested && prvt()) {
+            studyPlanViewModel.loadIfNeeded()
+            screen = VokabelTabScreen.STUDY_PLAN
+        }
+    }
+    LaunchedEffect(screen) {
+        if (!prvt() && screen.name.startsWith("STUDY_")) {
+            screen = VokabelTabScreen.DASHBOARD
+        }
+    }
+    LaunchedEffect(studyUploadState.done, studyUploadState.projectId) {
+        val projectId = studyUploadState.projectId
+        if (prvt() && studyUploadState.done && projectId != null) {
+            studyPlanViewModel.openProject(projectId)
+            screen = VokabelTabScreen.STUDY_REVIEW
+        }
+    }
+    LaunchedEffect(studyState.plan?.id) {
+        if (prvt() && studyState.plan != null && screen == VokabelTabScreen.STUDY_REVIEW) {
+            StudyNavigation.openRequested = false
+            screen = VokabelTabScreen.STUDY_PLAN
+        }
+    }
+    LaunchedEffect(studySessionState.finished) {
+        if (prvt() && studySessionState.finished && screen == VokabelTabScreen.STUDY_SESSION) {
+            screen = VokabelTabScreen.STUDY_RESULT
+        }
+    }
+
     Crossfade(
         targetState = screen,
         label = "tab_transition"
@@ -577,6 +635,14 @@ fun VocabTab(paddingValues: PaddingValues) {
                 onNotenClick = {
                     screen = VokabelTabScreen.NOTEN
                 },
+                onStudyClick = {
+                    StudyNavigation.openRequested = false
+                    studyPlanViewModel.loadIfNeeded()
+                    screen = VokabelTabScreen.STUDY_PLAN
+                },
+                studyPendingToday = studyState.pendingTodayCount,
+                studyDayIndex = studyState.todayDay()?.dayIndex,
+                studyPlanDays = studyState.days.size,
                 onOpenSet = { set -> openSetAndUpdateLastUsed(set) },
                 paddingValues = paddingValues,
                 recentMaterials = recentMaterialPreviews,
@@ -760,6 +826,144 @@ fun VocabTab(paddingValues: PaddingValues) {
                 },
                 paddingValues = paddingValues
             )
+
+            VokabelTabScreen.STUDY_PLAN -> StudyPlanScreen(
+                state = studyState,
+                onNewPlan = {
+                    studyUploadViewModel.reset()
+                    screen = VokabelTabScreen.STUDY_UPLOAD
+                },
+                onGeneratePlan = {
+                    val project = studyState.project
+                    if (project != null) {
+                        studyPlanViewModel.generatePlan(project.id, project.minutesPerDay)
+                    }
+                },
+                onOpenDay = { day ->
+                    studyDay = day
+                    screen = VokabelTabScreen.STUDY_DAY
+                },
+                onOpenMaterials = {
+                    screen = VokabelTabScreen.STUDY_MATERIAL
+                },
+                onRefresh = {
+                    studyPlanViewModel.loadLatest()
+                },
+                onBack = {
+                    StudyNavigation.openRequested = false
+                    screen = VokabelTabScreen.DASHBOARD
+                },
+                paddingValues = paddingValues,
+            )
+
+            VokabelTabScreen.STUDY_UPLOAD -> StudyUploadScreen(
+                state = studyUploadState,
+                onTitle = studyUploadViewModel::setTitle,
+                onSubject = studyUploadViewModel::setSubject,
+                onMinutes = studyUploadViewModel::setMinutes,
+                onLanguage = studyUploadViewModel::setLanguage,
+                onAddImages = studyUploadViewModel::addImages,
+                onRemoveImage = studyUploadViewModel::removeImage,
+                onMoveImage = studyUploadViewModel::moveImage,
+                onAnalyze = studyUploadViewModel::uploadAndExtract,
+                onBack = {
+                    screen = VokabelTabScreen.STUDY_PLAN
+                },
+                paddingValues = paddingValues,
+            )
+
+            VokabelTabScreen.STUDY_REVIEW -> StudyReviewScreen(
+                state = studyState,
+                onUpdateItem = studyPlanViewModel::updateItem,
+                onDeleteItem = studyPlanViewModel::deleteItem,
+                onAddItem = studyPlanViewModel::addManualItem,
+                onGenerate = {
+                    val projectId = studyState.project?.id ?: studyUploadState.projectId
+                    if (projectId != null) {
+                        studyPlanViewModel.generatePlan(
+                            projectId,
+                            studyState.project?.minutesPerDay ?: studyUploadState.minutesPerDay,
+                        )
+                    }
+                },
+                onBack = {
+                    screen = VokabelTabScreen.DASHBOARD
+                },
+                paddingValues = paddingValues,
+            )
+
+            VokabelTabScreen.STUDY_DAY -> {
+                val day = studyDay
+                if (day == null) {
+                    LaunchedEffect(Unit) {
+                        screen = VokabelTabScreen.STUDY_PLAN
+                    }
+                } else {
+                    StudyDayScreen(
+                        day = day,
+                        state = studyState,
+                        onStartSession = { tasks ->
+                            studySessionViewModel.start(tasks)
+                            screen = VokabelTabScreen.STUDY_SESSION
+                        },
+                        onMarkDone = studyPlanViewModel::markDone,
+                        onBack = {
+                            screen = VokabelTabScreen.STUDY_PLAN
+                        },
+                        paddingValues = paddingValues,
+                    )
+                }
+            }
+
+            VokabelTabScreen.STUDY_SESSION -> StudySessionScreen(
+                state = studySessionState,
+                onSubmit = studySessionViewModel::submit,
+                onDontKnow = studySessionViewModel::dontKnow,
+                onSelfGrade = studySessionViewModel::submitSelfGrade,
+                onNext = studySessionViewModel::advance,
+                onBack = {
+                    studySessionViewModel.reset()
+                    screen = VokabelTabScreen.STUDY_DAY
+                },
+                paddingValues = paddingValues,
+            )
+
+            VokabelTabScreen.STUDY_RESULT -> {
+                val nextDay = studyDay?.let { day ->
+                    studyState.days.firstOrNull { it.dayIndex == day.dayIndex + 1 }
+                }
+                StudyResultScreen(
+                    state = studySessionState,
+                    projectTitle = studyState.project?.title.orEmpty(),
+                    nextDay = nextDay,
+                    onNextDay = {
+                        nextDay?.let { day ->
+                            studyDay = day
+                            studySessionViewModel.reset()
+                            screen = VokabelTabScreen.STUDY_DAY
+                        }
+                    },
+                    onFinish = {
+                        StudyNavigation.openRequested = false
+                        studyPlanViewModel.loadLatest()
+                        screen = VokabelTabScreen.STUDY_PLAN
+                    },
+                    onBack = {
+                        StudyNavigation.openRequested = false
+                        studyPlanViewModel.loadLatest()
+                        screen = VokabelTabScreen.STUDY_PLAN
+                    },
+                    paddingValues = paddingValues,
+                )
+            }
+
+            VokabelTabScreen.STUDY_MATERIAL -> StudyMaterialScreen(
+                state = studyState,
+                onBack = {
+                    screen = VokabelTabScreen.STUDY_PLAN
+                },
+                paddingValues = paddingValues,
+            )
         }
     }
 }
@@ -771,6 +975,10 @@ fun SchoolDashboard(
     onDueClick: () -> Unit,
     onMaterialClick: () -> Unit,
     onNotenClick: () -> Unit,
+    onStudyClick: () -> Unit = {},
+    studyPendingToday: Int = 0,
+    studyDayIndex: Int? = null,
+    studyPlanDays: Int = 0,
     onOpenSet: (VokabelSet) -> Unit,
     paddingValues: PaddingValues,
     recentMaterials: List<RecentMaterial> = emptyList(),
@@ -866,12 +1074,52 @@ fun SchoolDashboard(
                     Text("📊", fontSize = 18.sp)
                     Text(
                         stringResource(R.string.noten),
-                        color = TextPrimary,
+                        color = OnAccentFill,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
             }}
+
+            if (prvt()) {
+                val subtitle = when {
+                    studyDayIndex == null -> stringResource(R.string.study_plan_new)
+                    studyPendingToday > 0 -> stringResource(
+                        R.string.study_plan_today_count,
+                        studyPendingToday
+                    )
+                    else -> stringResource(
+                        R.string.study_plan_progress,
+                        studyDayIndex ?: 1,
+                        studyPlanDays.coerceAtLeast(5)
+                    )
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(BgSurface)
+                        .clickable { onStudyClick() }
+                        .padding(horizontal = 20.dp, vertical = 16.dp)
+                ) {
+                    Text("📚", fontSize = 22.sp)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.study_plan),
+                            color = TextPrimary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            subtitle,
+                            color = TextSecondary,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+            }
         }
 
         if (savedSets.isNotEmpty()) {
