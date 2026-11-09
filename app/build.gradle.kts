@@ -142,7 +142,6 @@ dependencies {
     implementation(libs.androidx.camera.lifecycle)
     implementation(libs.androidx.camera.view)
     implementation(libs.mediapipe.tasks.vision)
-    implementation(libs.mediapipe.tasks.text)
     implementation(libs.core)
     implementation(libs.zxing.android.embedded)
     debugImplementation(libs.androidx.compose.ui.tooling)
