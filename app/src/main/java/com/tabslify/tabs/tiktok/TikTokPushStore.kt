@@ -11,7 +11,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import org.json.JSONObject
 
 object TikTokPushStore {
 
@@ -64,7 +63,7 @@ object TikTokPushStore {
             Config.safeCall {
                 Config.client.functions.invoke(
                     function = TIKTOK_PUSH_FUNCTION,
-                    body = JSONObject()
+                    body = buildJsonObject {}
                 )
             }
         }.onFailure {
