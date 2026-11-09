@@ -15,7 +15,6 @@ import com.google.firebase.appcheck.appCheck
 import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
 import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
 import com.google.firebase.messaging.FirebaseMessaging
-import com.tabslify.core.functions.BluetoothAppWatcher
 import com.tabslify.core.functions.errorInsert
 import com.tabslify.core.logging.AppLog
 import com.tabslify.core.logging.LogLevel
@@ -140,9 +139,6 @@ class Tabslify : Application() {
 
         BatteryDataRepository.init(this)
         com.tabslify.tabs.focusguard.data.FocusGuardRepository.init(this)
-        if (prvt()) {
-            BluetoothAppWatcher.start(this)
-        }
     }
 }
 
