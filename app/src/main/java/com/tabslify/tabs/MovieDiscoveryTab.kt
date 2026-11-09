@@ -61,6 +61,7 @@ import com.tabslify.core.ui.Border
 import com.tabslify.core.ui.TextPrimary
 import com.tabslify.core.ui.TextTertiary
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -114,13 +115,14 @@ fun MovieDiscoveryTabContent(
     var showSavedOnly by remember { mutableStateOf(false) }
 
     fun loadMovies() {
+        if (!scope.isActive) return
         scope.launch {
             isLoading = true
             try {
                 val result = fetchMoviesFromTMDB(context, selectedGenre)
                 movies = result.shuffled().take(20)
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("MovieDiscovery", "Fehler", e)
             } finally {
                 isLoading = false
             }
