@@ -297,6 +297,15 @@
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="location" />
+
+        <service
+            android:name=".tabs.ridetracking.service.RideTrackingService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="location" />
+        <receiver
+            android:name=".tabs.ridetracking.service.RideActivityReceiver"
+            android:exported="false" />
         <receiver
             android:name=".quiethoursnotificationhelper.FinishedPdDownload"
             android:exported="true">

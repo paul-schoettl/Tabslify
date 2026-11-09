@@ -5,6 +5,10 @@
         name="external_files"
         path="." />
 
+    <files-path
+        name="ride_photos"
+        path="rides/" />
+
     <!-- Cache directory for sharing -->
     <cache-path
         name="shared_audio"
