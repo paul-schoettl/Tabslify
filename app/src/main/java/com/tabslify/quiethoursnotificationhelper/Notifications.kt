@@ -25,13 +25,17 @@ import com.tabslify.services.QuietHoursNotificationService
 import com.tabslify.services.QuietHoursNotificationService.Companion.ACTION_CHANGE_END
 import com.tabslify.services.QuietHoursNotificationService.Companion.ACTION_CONTENT_INTENT
 import com.tabslify.services.QuietHoursNotificationService.Companion.ACTION_EXECUTE_COMMAND
+import com.tabslify.services.QuietHoursNotificationService.Companion.ACTION_HIDE_MONITOR_NOTIFICATION
+import com.tabslify.services.QuietHoursNotificationService.Companion.ACTION_MONITOR_NOTIFICATION_DISMISSED
 import com.tabslify.services.QuietHoursNotificationService.Companion.ACTION_SYNC_LAPTOP
 import com.tabslify.services.QuietHoursNotificationService.Companion.AI_NOTIFY_CHANNEL_ID
 import com.tabslify.services.QuietHoursNotificationService.Companion.ALARM_REQUEST_CODE
 import com.tabslify.services.QuietHoursNotificationService.Companion.CHANNEL_ID
+import com.tabslify.services.QuietHoursNotificationService.Companion.EXTRA_NOTIFICATION_ID
 import com.tabslify.services.QuietHoursNotificationService.Companion.GALLERY_CHANNEL_ID
 import com.tabslify.services.QuietHoursNotificationService.Companion.MAIL_CHANNEL_ID
 import com.tabslify.services.QuietHoursNotificationService.Companion.MONITOR_CHANNEL_ID
+import com.tabslify.services.QuietHoursNotificationService.Companion.NOTIFICATION_ID
 import com.tabslify.services.QuietHoursNotificationService.Companion.SSN_CHANNEL_ID
 import com.tabslify.services.QuietHoursNotificationService.Companion.THRESHOLD_MINUTES
 import com.tabslify.services.QuietHoursNotificationService.Companion.VIRUSTOTAL_CHANNEL_ID
@@ -351,24 +355,50 @@ fun createNotification(context: Context): Notification {
         .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_REPLY)
         .build()
 
+    val deleteBase = Intent(context, QuietHoursNotificationService::class.java)
+    deleteBase.action = ACTION_MONITOR_NOTIFICATION_DISMISSED
+    deleteBase.putExtra(EXTRA_NOTIFICATION_ID, NOTIFICATION_ID)
+    deleteBase.setPackage(context.packageName)
+    val deletePendingIntent = PendingIntent.getService(
+        context,
+        1200,
+        deleteBase,
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    )
+
+    val hideBase = Intent(context, QuietHoursNotificationService::class.java)
+    hideBase.action = ACTION_HIDE_MONITOR_NOTIFICATION
+    hideBase.setPackage(context.packageName)
+    val hidePendingIntent = PendingIntent.getService(
+        context,
+        1201,
+        hideBase,
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    )
+
     val builder = NotificationCompat.Builder(context, MONITOR_CHANNEL_ID)
         .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
         .setPriority(NotificationCompat.PRIORITY_LOW)
-        .setOngoing(true)
+        .setOngoing(false)
         .setSilent(true)
         .setOnlyAlertOnce(true)
         .setVisibility(NotificationCompat.VISIBILITY_SECRET)
         .setContentIntent(contentPendingIntent)
-        .setOngoing(true)
+        .setDeleteIntent(deletePendingIntent)
         .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
         .addAction(commandAction)
+        .addAction(
+            android.R.drawable.ic_menu_close_clear_cancel,
+            context.getString(R.string.explore_tracking_ausblenden),
+            hidePendingIntent
+        )
         .setAllowSystemGeneratedContextualActions(true)
         .setGroup("quiet_hours_main_group")
         .setShowWhen(false)
 
     if (effectiveQuietHours) {
         builder
-            .setContentTitle("🔥 Ready")
+            .setContentTitle(context.getString(R.string.qh_notif_ready_title))
 
         val settingsTarget = context.packageManager.resolveActivity(
             Intent(Settings.ACTION_SETTINGS),
