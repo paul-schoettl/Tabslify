@@ -205,8 +205,19 @@ class QuietHoursNotificationService : Service() {
         const val CHANNEL_ID = "quiet_hours_channel"
         const val MONITOR_CHANNEL_ID = "quiet_hours_monitor_channel"
         const val NOTIFICATION_ID = 999999
-        const val WIDGET_REFRESH_MS = 3 * 60 * 1000L
+        const val WIDGET_REFRESH_MS = 15 * 60 * 1000L
+        private const val WIDGET_REFRESH_SCREEN_OFF_MS = 60 * 60 * 1000L
         const val SUMMARY_WINDOW_MS = 15 * 60 * 1000L
+
+        const val ACTION_MONITOR_NOTIFICATION_DISMISSED =
+            "com.tabslify.ACTION_MONITOR_NOTIFICATION_DISMISSED"
+        const val ACTION_HIDE_MONITOR_NOTIFICATION =
+            "com.tabslify.ACTION_HIDE_MONITOR_NOTIFICATION"
+        const val EXTRA_NOTIFICATION_ID = "notification_id"
+        const val MONITOR_MAX_REPROMPTS = 3
+        private const val KEY_MONITOR_REPROMPT_PERIOD = "monitor_reprompt_period"
+        private const val KEY_MONITOR_REPROMPT_COUNT = "monitor_reprompt_count"
+        private const val KEY_MONITOR_HIDDEN_UNTIL = "monitor_hidden_until"
 
         private val WHATSAPP_PACKAGES = setOf("com.whatsapp", "com.whatsapp.w4b")
         private val TELEGRAM_PACKAGES =
@@ -352,13 +363,7 @@ class QuietHoursNotificationService : Service() {
             val context = widgetRefreshContext ?: return WIDGET_REFRESH_MS
             val power = context.getSystemService(POWER_SERVICE) as? PowerManager
             if (power == null || power.isInteractive) return WIDGET_REFRESH_MS
-            val since = screenOffSince ?: return WIDGET_REFRESH_MS
-            val offMs = System.currentTimeMillis() - since
-            return when {
-                offMs < 5 * 60 * 1000L -> WIDGET_REFRESH_MS
-                offMs < 4 * 60 * 60 * 1000L -> 15 * 60 * 1000L
-                else -> 60 * 60 * 1000L
-            }
+            return WIDGET_REFRESH_SCREEN_OFF_MS
         }
 
         private fun registerWidgetReceivers(context: Context) {
@@ -406,6 +411,7 @@ class QuietHoursNotificationService : Service() {
         }
 
         fun startWidgetRefresh(context: Context) {
+            if (!prvt()) return
             val app = context.applicationContext
             widgetRefreshContext = app
             runCatching { registerWidgetReceivers(app) }
