@@ -10,6 +10,7 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.tabslify.core.functions.errorInsert
 import com.tabslify.core.functions.isNetworkFailure
+import com.tabslify.core.objects.prvt
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
@@ -20,9 +21,10 @@ class CommandCodeWidgetRefreshWorker(
 ) : CoroutineWorker(ctx, params) {
 
     override suspend fun doWork(): Result {
+        if (!prvt()) return Result.success()
         val app = applicationContext
         val started = SystemClock.elapsedRealtime()
-        Log.i(TAG, "Refresh-Worker start")
+        Log.d(TAG, "Refresh-Worker start")
 
         var state = CommandCodeWidgetRenderer.PaceState.DATA
         try {

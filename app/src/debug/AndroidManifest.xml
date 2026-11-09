@@ -17,13 +17,41 @@
     <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" /> <!--Für reportDeviceInformation-->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" /> <!--""-->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" /> <!--""-->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
 
     <uses-permission android:name="android.permission.READ_PHONE_STATE" />
     <uses-permission android:name="android.permission.READ_BASIC_PHONE_STATE" />
+    <uses-permission android:name="android.permission.health.READ_SLEEP"
+        tools:ignore="HealthConnectPolicy" />
+    <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND"
+        tools:ignore="HealthConnectPolicy" />
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <package android:name="com.google.android.apps.healthdata" />
+    </queries>
     <application
         android:label="@string/app_name_debug"
         tools:ignore="MissingApplicationIcon"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:usesCleartextTraffic="true"
         tools:replace="android:label">
 
         <activity
@@ -99,5 +127,83 @@
                 <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
             </intent-filter>
         </receiver>
+
+        <activity
+            android:name=".core.activities.HealthConnectRationaleActivity"
+            android:exported="true"
+            android:label="@string/health_connect_rationale_title"
+            android:theme="@style/Theme.Tabslify">
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+        </activity>
+
+        <receiver
+            android:name=".widget.CommandCodeUsageWidget"
+            android:exported="false"
+            android:label="@string/home_bar_widget_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/home_bar_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.TabslifyMixWidget"
+            android:exported="false"
+            android:label="@string/mix_widget_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/tabslify_mix_widget_info" />
+        </receiver>
+
+        <activity
+            android:name=".core.activities.ShareActivity"
+            android:enabled="false"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+
+                <data android:mimeType="image/*" />
+                <data android:mimeType="video/*" />
+                <data android:mimeType="application/*" />
+                <data android:mimeType="text/*" />
+                <data android:mimeType="audio/*" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+
+                <data android:mimeType="image/*" />
+                <data android:mimeType="video/*" />
+                <data android:mimeType="application/*" />
+                <data android:mimeType="text/*" />
+                <data android:mimeType="audio/*" />
+            </intent-filter>
+        </activity>
+
+        <activity-alias
+            android:name=".core.activities.HealthConnectViewPermissionUsageActivity"
+            android:exported="true"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE"
+            android:targetActivity=".core.activities.HealthConnectRationaleActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
     </application>
 </manifest>

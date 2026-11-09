@@ -13,6 +13,7 @@ class CommandCodeUsageWidget : AppWidgetProvider() {
 
     override fun onEnabled(context: Context) {
         super.onEnabled(context)
+        if (!prvt()) return
         val app = context.applicationContext
         runCatching { LampWidgetSync.start(app) }
         CommandCodeWidgetRenderer.pushCurrent(app)
@@ -25,13 +26,18 @@ class CommandCodeUsageWidget : AppWidgetProvider() {
     }
 
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) {
+        if (!prvt()) return
         val app = context.applicationContext
-        Log.i(TAG, "Broadcast APPWIDGET_UPDATE fuer ${ids.size} Instanzen")
+        Log.d(TAG, "Broadcast APPWIDGET_UPDATE fuer ${ids.size} Instanzen")
         CommandCodeWidgetRenderer.pushCurrent(app)
         CommandCodeWidgetRefreshWorker.enqueueUnique(app)
     }
 
     override fun onReceive(context: Context, intent: Intent) {
+        if (!prvt()) {
+            super.onReceive(context, intent)
+            return
+        }
         val app = context.applicationContext
         when (intent.action) {
             ACTION_REFRESH -> {
@@ -63,12 +69,14 @@ class CommandCodeUsageWidget : AppWidgetProvider() {
         const val ACTION_HOSE_TOGGLE = "com.tabslify.widget.HOSE_TOGGLE"
 
         fun updateAll(context: Context) {
+            if (!prvt()) return
             val app = context.applicationContext
             CommandCodeWidgetRenderer.pushCurrent(app)
             CommandCodeWidgetRefreshWorker.enqueueUnique(app)
         }
 
         fun updateChargeFooter(context: Context) {
+            if (!prvt()) return
             CommandCodeWidgetRenderer.pushCurrent(context.applicationContext)
         }
     }

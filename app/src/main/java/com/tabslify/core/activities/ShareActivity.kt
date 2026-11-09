@@ -60,6 +60,11 @@ class ShareActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        if (!prvt()) {
+            finish()
+            return
+        }
+
         val prefs = getSharedPreferences("sync_prefs", MODE_PRIVATE)
         val syncActive = prefs.getBoolean("sync_active", false)
         val syncUntil = prefs.getLong("sync_until", 0L)
@@ -98,6 +103,10 @@ class ShareActivity : ComponentActivity() {
     }
 
     private fun showConfirmationDialog(uris: List<Uri>) {
+        if (!prvt()) {
+            finish()
+            return
+        }
         setContent {
             MaterialTheme {
                 val laptopConnected by isLaptopConnectedFlow.collectAsState()
@@ -198,6 +207,10 @@ class ShareActivity : ComponentActivity() {
     }
 
     private fun saveFilesToPrivateStorage(uris: List<Uri>) {
+        if (!prvt()) {
+            finish()
+            return
+        }
         setContent {
             MaterialTheme {
                 ProcessingScreen(fileCount = uris.size)
@@ -299,6 +312,7 @@ fun SaveToPrivateStorageScreen(
     onSendToLaptop: () -> Unit,
     onCancel: () -> Unit
 ) {
+    if (!prvt()) return
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -388,6 +402,7 @@ fun SaveToPrivateStorageScreen(
 
 @Composable
 fun ProcessingScreen(fileCount: Int) {
+    if (!prvt()) return
     Box(
         modifier = Modifier
             .fillMaxSize()

@@ -1,7 +1,11 @@
 package com.tabslify.core.activities
 
 import android.app.Application
+import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.content.pm.ShortcutManager
 import android.os.Build
 import android.widget.Toast
 import coil.Coil
@@ -63,6 +67,9 @@ class Tabslify : Application() {
         }
 
         super.onCreate()
+
+        getSystemService(ShortcutManager::class.java)
+            ?.removeDynamicShortcuts(listOf("com.squareup.leakcanary.dynamic_shortcut"))
 
         Config.init(this)
         Config.realDevice = !getDeviceName().trim().contains("sdk_gphone", ignoreCase = true)
