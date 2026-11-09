@@ -302,7 +302,7 @@ suspend fun runPodcastCheck(context: Context): List<JSONObject> {
                         "podcastCheck",
                         "Feed-Abruf fehlgeschlagen: ${e.message}",
                         Instant.now().toString(),
-                        "ERROR"
+                        if (isNetworkFailure(e)) "WARN" else "ERROR"
                     )
                 }
                 feedFound
