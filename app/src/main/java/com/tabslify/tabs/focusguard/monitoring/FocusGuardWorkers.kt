@@ -39,7 +39,15 @@ class FocusGuardUsageLogWorker(context: Context, params: WorkerParameters) :
 
     private suspend fun warnAboutSleep(ctx: Context, today: LocalDate) {
         if (!FocusGuardConfig.notificationsEnabled) return
-        val sleep = SleepTracker.computeSleep(ctx, today.minusDays(1)) ?: return
+        val sleep = when (val result = SleepTracker.lookup(ctx, today.minusDays(1))) {
+            is SleepTracker.SleepResult.Found -> result.record
+            SleepTracker.SleepResult.NoData -> {
+                FocusGuardRepository.clearSleep(today.toString())
+                return
+            }
+
+            SleepTracker.SleepResult.Unavailable -> return
+        }
         FocusGuardRepository.upsertSleep(sleep)
         val warnedKey = "sleep_warned_${sleep.date}"
         val prefs = ctx.getSharedPreferences("focusguard_prefs", Context.MODE_PRIVATE)
@@ -104,8 +112,10 @@ class FocusGuardDailyResetWorker(context: Context, params: WorkerParameters) :
                     .forEach { (type, pts) -> FocusGuardRepository.recordAchievement(type, pts) }
             }
 
-            SleepTracker.computeSleep(ctx, yesterday.minusDays(1))?.let {
-                FocusGuardRepository.upsertSleep(it)
+            when (val result = SleepTracker.lookup(ctx, yesterday.minusDays(1))) {
+                is SleepTracker.SleepResult.Found -> FocusGuardRepository.upsertSleep(result.record)
+                SleepTracker.SleepResult.NoData -> FocusGuardRepository.clearSleep(yesterday.toString())
+                SleepTracker.SleepResult.Unavailable -> Unit
             }
 
             db.appUsageLogDao().deleteSyncedBefore(System.currentTimeMillis() - RETENTION_MS)
@@ -171,7 +181,16 @@ object FocusGuardSummaryRunner {
         val usageText = buildUsageText(context, totals)
         val goal = db.studyGoalDao().forDate(todayYmd)
         val goalText = buildGoalText(context, goal?.completedCount ?: 0, goal?.targetCount ?: 0)
-        val sleep = SleepTracker.computeSleep(context, LocalDate.now().minusDays(1))
+        val today = LocalDate.now()
+        val sleep = when (val result = SleepTracker.lookup(context, today.minusDays(1))) {
+            is SleepTracker.SleepResult.Found -> result.record
+            SleepTracker.SleepResult.NoData -> {
+                FocusGuardRepository.clearSleep(today.toString())
+                null
+            }
+
+            SleepTracker.SleepResult.Unavailable -> null
+        }
         sleep?.let { FocusGuardRepository.upsertSleep(it) }
         val sleepText = if (sleep != null) {
             "${context.getString(com.tabslify.R.string.focusguard_summary_sleep)} ${formatDurationMs(sleep.durationMs)}"

@@ -2,6 +2,7 @@ package com.tabslify.tabs.focusguard.ui
 
 import android.content.Intent
 import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -27,7 +28,10 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -36,6 +40,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.health.connect.client.PermissionController
+import androidx.health.connect.client.permission.HealthPermission
+import androidx.health.connect.client.records.SleepSessionRecord
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -252,6 +264,57 @@ fun FocusGuardConfigScreen(vm: FocusGuardViewModel, modifier: Modifier = Modifie
         items(vm.allApps, key = { it.packageName }) { app ->
             AppRow(vm, app)
         }
+    }
+}
+
+@Composable
+private fun HealthConnectPermissionSection() {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var granted by remember { mutableStateOf(false) }
+    var available by remember { mutableStateOf(true) }
+    var refreshKey by remember { mutableIntStateOf(0) }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) refreshKey++
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    LaunchedEffect(refreshKey) {
+        available = withContext(Dispatchers.IO) {
+            SleepTracker.isHealthConnectAvailable(context)
+        }
+        granted = available && withContext(Dispatchers.IO) {
+            SleepTracker.hasSleepPermission(context)
+        }
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        PermissionController.createRequestPermissionResultContract()
+    ) { result ->
+        granted = HealthPermission.getReadPermission(SleepSessionRecord::class) in result
+    }
+
+    FgSectionCard(stringResource(R.string.focusguard_permission_health)) {
+        PermissionRow(
+            granted = granted,
+            hint = if (available) stringResource(R.string.focusguard_permission_health_hint)
+            else stringResource(R.string.focusguard_permission_health_unavailable),
+            buttonText = stringResource(R.string.focusguard_permission_health),
+            onClick = {
+                if (available) {
+                    permissionLauncher.launch(
+                        setOf(
+                            HealthPermission.getReadPermission(SleepSessionRecord::class),
+                            HealthPermission.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND
+                        )
+                    )
+                }
+            }
+        )
     }
 }
 

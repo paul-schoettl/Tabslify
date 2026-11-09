@@ -15,6 +15,9 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 
 object FocusGuardRepository {
     private lateinit var db: FocusGuardDatabase
@@ -99,9 +102,43 @@ object FocusGuardRepository {
                         synced = false
                     ))
                 }
+                removeLegacyNight(record.date)
             }
         }
         refresh()
+    }
+
+    suspend fun clearSleep(date: String) {
+        withContext(Dispatchers.IO) {
+            val existing = runCatching { db.sleepRecordDao().forDate(date) }.getOrNull()
+            if (existing != null) deleteSleepRecord(date)
+            removeLegacyNight(date)
+            refresh()
+        }
+    }
+
+    private suspend fun removeLegacyNight(wakeDate: String) {
+        val previousKey = runCatching {
+            LocalDate.parse(wakeDate).minusDays(1).toString()
+        }.getOrNull() ?: return
+        val legacy = runCatching { db.sleepRecordDao().forDate(previousKey) }.getOrNull()
+            ?: return
+        val legacyWakeDate = Instant.ofEpochMilli(legacy.wakeMs)
+            .atZone(ZoneId.systemDefault())
+            .toLocalDate()
+            .toString()
+        if (legacyWakeDate == wakeDate) deleteSleepRecord(previousKey)
+    }
+
+    private suspend fun deleteSleepRecord(date: String) {
+        runCatching { db.sleepRecordDao().deleteForDate(date) }
+        if (prvt()) {
+            runCatching {
+                Config.client.from("sleep_records").delete {
+                    filter { eq("date", date) }
+                }
+            }
+        }
     }
 
     suspend fun ensureTodayGoal(targetCount: Int = FocusGuardConfig.studyDailyTarget, deadlineMs: Long? = null): StudyGoal {
