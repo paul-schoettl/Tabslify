@@ -8,17 +8,12 @@ import androidx.core.content.edit
 import com.tabslify.R
 import com.tabslify.core.activities.Tabslify
 import com.tabslify.tabs.aitab.isAppInForeground
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.okhttp.OkHttp
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
-import kotlinx.serialization.json.Json
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
@@ -41,16 +36,6 @@ object VirusTotalScanManager {
     private const val PREFS_NAME = "virustotal_reports"
     private const val HISTORY_LIMIT = 50
     private const val SCAN_TIMEOUT_MS = 300_000L
-    private const val MISSING_API_KEY_MESSAGE = "Kein VirusTotal API-Key konfiguriert. Bitte VIRUSTOTAL_API_KEY in local.properties eintragen."
-
-    private val httpClient by lazy {
-        HttpClient(OkHttp) {
-            install(ContentNegotiation) {
-                json(Json { ignoreUnknownKeys = true })
-            }
-        }
-    }
-    private val repository by lazy { VirusTotalRepository(httpClient) }
 
     private val _jobs = MutableStateFlow<List<VirusTotalScanJob>>(emptyList())
     val jobs: StateFlow<List<VirusTotalScanJob>> = _jobs.asStateFlow()
@@ -69,15 +54,18 @@ object VirusTotalScanManager {
 
     fun startUrl(context: Context, url: String) {
         if (url.isBlank()) return
+        val repository = VirusTotalRepository(context.applicationContext)
         startScan(context, VirusTotalMode.URL, url, url.take(30)) { repository.scanUrl(url.trim()) }
     }
 
     fun startHash(context: Context, hash: String) {
         if (hash.isBlank()) return
+        val repository = VirusTotalRepository(context.applicationContext)
         startScan(context, VirusTotalMode.HASH, hash, hash.take(20)) { repository.lookupHash(hash.trim()) }
     }
 
     fun startFile(context: Context, fileName: String, bytes: ByteArray) {
+        val repository = VirusTotalRepository(context.applicationContext)
         startScan(context, VirusTotalMode.FILE, fileName, fileName.take(30)) { repository.scanFile(fileName, bytes) }
     }
 
@@ -98,21 +86,6 @@ object VirusTotalScanManager {
         val appContext = context.applicationContext
         val id = UUID.randomUUID().toString()
         val now = System.currentTimeMillis()
-        if (!repository.hasApiKey) {
-            val job = VirusTotalScanJob(
-                id = id,
-                mode = mode,
-                label = label,
-                target = rawInput,
-                state = VirusTotalState.Error(MISSING_API_KEY_MESSAGE),
-                startedAt = now,
-                finishedAt = now
-            )
-            _jobs.value += job
-            persistJobs(appContext)
-            return
-        }
-
         val initialJob = VirusTotalScanJob(
             id = id,
             mode = mode,

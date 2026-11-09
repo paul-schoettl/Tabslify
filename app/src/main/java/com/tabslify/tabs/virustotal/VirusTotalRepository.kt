@@ -1,18 +1,8 @@
 package com.tabslify.tabs.virustotal
 
+import android.content.Context
 import android.util.Base64
-import com.tabslify.BuildConfig
-import io.ktor.client.HttpClient
-import io.ktor.client.request.forms.formData
-import io.ktor.client.request.forms.submitForm
-import io.ktor.client.request.forms.submitFormWithBinaryData
-import io.ktor.client.request.get
-import io.ktor.client.request.headers
-import io.ktor.client.statement.HttpResponse
-import io.ktor.client.statement.bodyAsText
-import io.ktor.http.HttpHeaders
-import io.ktor.http.Parameters
-import io.ktor.http.isSuccess
+import com.tabslify.core.objects.Config
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -21,23 +11,37 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import org.json.JSONObject
 import kotlin.time.Duration.Companion.milliseconds
 
-private const val BASE_URL = "https://www.virustotal.com/api/v3"
+class VirusTotalRepository(private val context: Context) {
 
-class VirusTotalRepository(private val httpClient: HttpClient) {
-
-    val hasApiKey: Boolean get() = BuildConfig.VIRUSTOTAL_API_KEY.isNotBlank()
+    private suspend fun proxy(payload: JSONObject, timeoutMs: Int = 30_000): Pair<Int, String?> =
+        withContext(Dispatchers.IO) {
+            val connection = Config.openApiProxyConnection(context, timeoutMs)
+                ?: return@withContext 0 to null
+            try {
+                val body = JSONObject()
+                    .put("action", "virustotal")
+                    .put("payload", payload)
+                connection.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
+                val code = connection.responseCode
+                val stream = if (code == 200) connection.inputStream else connection.errorStream
+                code to stream?.bufferedReader()?.use { it.readText() }
+            } finally {
+                connection.disconnect()
+            }
+        }
 
     suspend fun lookupHash(hash: String): VirusTotalState = withContext(Dispatchers.IO) {
         try {
-            val response = httpClient.get("$BASE_URL/files/$hash") {
-                headers { append("x-apikey", BuildConfig.VIRUSTOTAL_API_KEY) }
+            val (code, text) = proxy(
+                JSONObject().put("op", "file_report").put("id", hash)
+            )
+            if (code != 200 || text == null) {
+                return@withContext VirusTotalState.Error("VirusTotal Fehler: HTTP $code")
             }
-            if (!response.status.isSuccess()) {
-                return@withContext VirusTotalState.Error("VirusTotal Fehler: ${response.status}")
-            }
-            val data = Json.parseToJsonElement(response.bodyAsText()).jsonObject["data"]?.jsonObject
+            val data = Json.parseToJsonElement(text).jsonObject["data"]?.jsonObject
             val stats = data?.get("attributes")?.jsonObject?.get("last_analysis_stats")?.jsonObject
             val id = data?.get("id")?.jsonPrimitive?.content ?: hash
             VirusTotalState.Result(parseStats(stats), "https://www.virustotal.com/gui/file/$id")
@@ -53,11 +57,12 @@ class VirusTotalRepository(private val httpClient: HttpClient) {
                 Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP
             )
 
-            val existing = httpClient.get("$BASE_URL/urls/$urlId") {
-                headers { append("x-apikey", BuildConfig.VIRUSTOTAL_API_KEY) }
-            }
-            if (existing.status.isSuccess()) {
-                val stats = Json.parseToJsonElement(existing.bodyAsText())
+            val existing = proxy(
+                JSONObject().put("op", "url_report").put("id", urlId)
+            )
+            val existingText = existing.second
+            if (existing.first == 200 && existingText != null) {
+                val stats = Json.parseToJsonElement(existingText)
                     .jsonObject["data"]?.jsonObject
                     ?.get("attributes")?.jsonObject
                     ?.get("last_analysis_stats")?.jsonObject
@@ -69,16 +74,16 @@ class VirusTotalRepository(private val httpClient: HttpClient) {
                 }
             }
 
-            val submit = httpClient.submitForm(
-                url = "$BASE_URL/urls",
-                formParameters = Parameters.build { append("url", url) }
-            ) {
-                headers { append("x-apikey", BuildConfig.VIRUSTOTAL_API_KEY) }
+            val submit = proxy(
+                JSONObject().put("op", "url_scan").put("url", url)
+            )
+            val submitText = submit.second
+            if (submit.first != 200 || submitText == null) {
+                return@withContext VirusTotalState.Error(
+                    "Einreichen fehlgeschlagen: HTTP ${submit.first}"
+                )
             }
-            if (!submit.status.isSuccess()) {
-                return@withContext VirusTotalState.Error("Einreichen fehlgeschlagen: ${submit.status}")
-            }
-            val analysisId = Json.parseToJsonElement(submit.bodyAsText())
+            val analysisId = Json.parseToJsonElement(submitText)
                 .jsonObject["data"]?.jsonObject?.get("id")?.jsonPrimitive?.content
                 ?: return@withContext VirusTotalState.Error("Keine Analyse-ID erhalten")
 
@@ -90,24 +95,20 @@ class VirusTotalRepository(private val httpClient: HttpClient) {
 
     suspend fun scanFile(fileName: String, bytes: ByteArray): VirusTotalState = withContext(Dispatchers.IO) {
         try {
-            val response = httpClient.submitFormWithBinaryData(
-                url = "$BASE_URL/files",
-                formData = formData {
-                    append(
-                        "file",
-                        bytes,
-                        io.ktor.http.Headers.build {
-                            append(HttpHeaders.ContentDisposition, "filename=\"$fileName\"")
-                        }
-                    )
-                }
-            ) {
-                headers { append("x-apikey", BuildConfig.VIRUSTOTAL_API_KEY) }
+            val response = proxy(
+                JSONObject()
+                    .put("op", "file_scan")
+                    .put("filename", fileName)
+                    .put("content", Base64.encodeToString(bytes, Base64.NO_WRAP)),
+                120_000
+            )
+            val responseText = response.second
+            if (response.first != 200 || responseText == null) {
+                return@withContext VirusTotalState.Error(
+                    "Upload fehlgeschlagen: HTTP ${response.first}"
+                )
             }
-            if (!response.status.isSuccess()) {
-                return@withContext VirusTotalState.Error("Upload fehlgeschlagen: ${response.status}")
-            }
-            val analysisId = Json.parseToJsonElement(response.bodyAsText())
+            val analysisId = Json.parseToJsonElement(responseText)
                 .jsonObject["data"]?.jsonObject?.get("id")?.jsonPrimitive?.content
                 ?: return@withContext VirusTotalState.Error("Keine Analyse-ID erhalten")
 
@@ -120,15 +121,17 @@ class VirusTotalRepository(private val httpClient: HttpClient) {
     private suspend fun pollAnalysis(analysisId: String, permalinkFallback: String?): VirusTotalState {
         var delayMs = 2000L
         repeat(15) {
-            val response: HttpResponse = httpClient.get("$BASE_URL/analyses/$analysisId") {
-                headers { append("x-apikey", BuildConfig.VIRUSTOTAL_API_KEY) }
-            }
-            if (response.status.isSuccess()) {
-                val attributes = Json.parseToJsonElement(response.bodyAsText())
+            val response = proxy(
+                JSONObject().put("op", "analysis").put("id", analysisId)
+            )
+            val responseText = response.second
+            if (response.first == 200 && responseText != null) {
+                val attributes = Json.parseToJsonElement(responseText)
                     .jsonObject["data"]?.jsonObject?.get("attributes")?.jsonObject
                 if (attributes?.get("status")?.jsonPrimitive?.content == "completed") {
                     val stats = attributes["stats"]?.jsonObject
-                    val permalink = permalinkFallback ?: "https://www.virustotal.com/gui/analyses/$analysisId"
+                    val permalink = permalinkFallback
+                        ?: "https://www.virustotal.com/gui/analyses/$analysisId"
                     return parseStats(stats).let { VirusTotalState.Result(it, permalink) }
                 }
             }
