@@ -687,8 +687,9 @@
     <string name="keine_emails">No emails</string>
     <string name="laden">Load</string>
     <string name="email_loschen_titel">Delete email?</string>
-    <string name="email_loschen_text">This email will be permanently removed.</string>
+    <string name="email_loschen_text">This email will be moved to the Gmail trash.</string>
     <string name="email_geloscht">Email deleted</string>
+    <string name="email_nicht_mehr_im_postfach">Email was no longer in the mailbox</string>
     <string name="email_loschen_fehlgeschlagen">Delete failed</string>
     <string name="artikeltext_konnte_nicht_geladen_werden">Article text could not be loaded</string>
     <string name="keine_zusammenfassung_erhalten">No summary received.</string>

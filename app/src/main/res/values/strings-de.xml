@@ -1254,8 +1254,9 @@
     <string name="keine_emails">Keine Emails</string> <!-- app/src/main/java/com/tabslify/tabs/GmailTab.kt:653 -->
     <string name="laden">Laden</string> <!-- app/src/main/java/com/tabslify/tabs/GmailTab.kt:666 -->
     <string name="email_loschen_titel">E-Mail löschen?</string> <!-- app/src/main/java/com/tabslify/tabs/GmailTab.kt -->
-    <string name="email_loschen_text">Diese E-Mail wird endgültig entfernt.</string> <!-- app/src/main/java/com/tabslify/tabs/GmailTab.kt -->
+    <string name="email_loschen_text">Diese E-Mail wird in den Gmail-Papierkorb verschoben.</string> <!-- app/src/main/java/com/tabslify/tabs/GmailTab.kt -->
     <string name="email_geloscht">E-Mail gelöscht</string> <!-- app/src/main/java/com/tabslify/tabs/GmailTab.kt -->
+    <string name="email_nicht_mehr_im_postfach">E-Mail war im Postfach nicht mehr vorhanden</string> <!-- app/src/main/java/com/tabslify/tabs/GmailTab.kt -->
     <string name="email_loschen_fehlgeschlagen">Löschen fehlgeschlagen</string> <!-- app/src/main/java/com/tabslify/tabs/GmailTab.kt -->
     <string name="artikeltext_konnte_nicht_geladen_werden">Artikeltext konnte nicht geladen werden</string> <!-- app/src/main/java/com/tabslify/tabs/HeiseNewsTab.kt:495 -->
     <!-- app/src/main/java/com/tabslify/tabs/HeiseNewsTab.kt:510 -->
