@@ -70,6 +70,8 @@ import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.m3.markdownColor
 import com.mikepenz.markdown.m3.markdownTypography
 import com.tabslify.R
+import com.tabslify.core.functions.errorInsert
+import com.tabslify.core.functions.isNetworkFailure
 import com.tabslify.core.objects.Config
 import com.tabslify.core.objects.cancelOrphanedEmailNotifications
 import com.tabslify.core.objects.emailNotificationId
@@ -87,16 +89,27 @@ import com.tabslify.core.ui.SharedViewModel
 import com.tabslify.core.ui.TextPrimary
 import com.tabslify.core.ui.TextSecondary
 import com.tabslify.core.ui.TextTertiary
+import io.github.jan.supabase.exceptions.RestException
+import io.github.jan.supabase.functions.functions
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.Headers
+import io.ktor.http.HttpHeaders
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import java.text.SimpleDateFormat
+import java.time.Instant
 import java.util.Date
 import java.util.Locale
 
@@ -157,13 +170,76 @@ private suspend fun loadEmailRows(): List<EmailRow> = Config.safeCall {
         .decodeList<EmailRow>()
 }
 
-private suspend fun deleteEmailRow(account: String, uid: String) = Config.safeCall {
-    Config.client.from("emails").delete {
-        filter {
-            eq("account", account)
-            eq("uid", uid)
+private data class GmailDeleteResult(
+    val found: Boolean,
+    val dbDeleted: Int,
+)
+
+private suspend fun requestGmailDelete(account: String, uid: String): GmailDeleteResult {
+    val payload = buildJsonObject {
+        put("account", account)
+        put("uid", uid)
+    }
+    var lastError: Exception? = null
+    for (attempt in 0 until 3) {
+        try {
+            val response = Config.client.functions.invoke(
+                function = "gmail-delete",
+                body = payload,
+                headers = Headers.build {
+                    append(HttpHeaders.ContentType, "application/json")
+                }
+            )
+            val root = JSONObject(response.bodyAsText())
+            val item = root.optJSONArray("results")?.optJSONObject(0)
+                ?: throw IllegalStateException("Leere Antwort von gmail-delete")
+            if (!item.optBoolean("ok", false)) {
+                throw IllegalStateException(
+                    item.optString("error").ifBlank { "Löschen im Gmail-Postfach fehlgeschlagen" }
+                )
+            }
+            return GmailDeleteResult(
+                found = item.optBoolean("found", true),
+                dbDeleted = item.optInt("dbDeleted", 0),
+            )
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            lastError = e
+            val retryable = when (e) {
+                is RestException -> e.statusCode == 429 || e.statusCode >= 500
+                else -> isNetworkFailure(e)
+            }
+            if (!retryable || attempt == 2) throw e
+            delay(700L * (attempt + 1))
         }
     }
+    throw lastError ?: IllegalStateException("Löschen im Gmail-Postfach fehlgeschlagen")
+}
+
+private suspend fun deleteEmailRow(account: String, uid: String): GmailDeleteResult {
+    val result = requestGmailDelete(account, uid)
+    try {
+        Config.safeCall {
+            Config.client.from("emails").delete {
+                filter {
+                    eq("account", account)
+                    eq("uid", uid)
+                }
+            }
+        }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        if (result.dbDeleted == 0) throw e
+        errorInsert(
+            "GmailTab.deleteEmailRow",
+            "WARN: lokale E-Mail-Zeile blieb erhalten, Server hat sie entfernt: ${e.message}",
+            Instant.now().toString(),
+            "WARN"
+        )
+    }
+    return result
 }
 
 private suspend fun triggerGmailSync() = withContext(Dispatchers.IO) {
@@ -221,6 +297,7 @@ fun GmailTabContent(
     }
     val verbindungsfehler = stringResource(R.string.verbindungsfehler)
     val geloeschtMsg = stringResource(R.string.email_geloscht)
+    val bereitsWegMsg = stringResource(R.string.email_nicht_mehr_im_postfach)
     val loeschFehlerMsg = stringResource(R.string.email_loschen_fehlgeschlagen)
 
     suspend fun reload() {
@@ -281,13 +358,33 @@ fun GmailTabContent(
         }
         scope.launch {
             try {
-                deleteEmailRow(email.account, email.id)
+                val result = deleteEmailRow(email.account, email.id)
                 val manager = context.getSystemService(NotificationManager::class.java)
                 manager?.cancel(Config.EMAIL_NOTIF_TAG, emailNotificationId(email.account, email.id))
-                Toast.makeText(context, geloeschtMsg, Toast.LENGTH_SHORT).show()
-            } catch (_: Exception) {
+                Toast.makeText(
+                    context,
+                    if (result.found) geloeschtMsg else bereitsWegMsg,
+                    Toast.LENGTH_SHORT
+                ).show()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                errorInsert(
+                    "GmailTab.performDelete",
+                    "ERROR: Löschen von ${email.account}/${email.id} fehlgeschlagen: ${e.message}",
+                    Instant.now().toString(),
+                    "ERROR"
+                )
                 allEmails = before
-                Toast.makeText(context, loeschFehlerMsg, Toast.LENGTH_SHORT).show()
+                reload()
+                val stillThere = allEmails.any { it.account == email.account && it.id == email.id }
+                if (stillThere) {
+                    Toast.makeText(context, loeschFehlerMsg, Toast.LENGTH_SHORT).show()
+                } else {
+                    val manager = context.getSystemService(NotificationManager::class.java)
+                    manager?.cancel(Config.EMAIL_NOTIF_TAG, emailNotificationId(email.account, email.id))
+                    Toast.makeText(context, geloeschtMsg, Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
