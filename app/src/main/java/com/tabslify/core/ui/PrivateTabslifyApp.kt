@@ -233,6 +233,8 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
 import java.io.File
 import java.io.FileOutputStream
 import java.time.Instant
@@ -1118,9 +1120,7 @@ fun MainTabslifyScreen(storage: Storage) {
                 .map { (baseName, chunks) ->
                     if (chunks.size > 1 || chunks.first().name.contains(".part")) {
                         val totalSize = chunks.sumOf { chunk ->
-                            when (chunk.metadata?.get("size")) {
-                                else -> 0L
-                            }
+                            chunk.metadata?.get("size")?.jsonPrimitive?.longOrNull ?: 0L
                         }
                         val latestDate = chunks.mapNotNull { it.updatedAt }.maxOrNull()
                         val updatedAtString = latestDate?.toString() ?: ""
@@ -1142,7 +1142,7 @@ fun MainTabslifyScreen(storage: Storage) {
                         TabslifyFileMeta(
                             name = file.name,
                             updatedAt = localDate,
-                            size = 0L,
+                            size = file.metadata?.get("size")?.jsonPrimitive?.longOrNull ?: 0L,
                         )
                     }
                 }
