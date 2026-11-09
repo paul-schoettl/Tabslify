@@ -1,12 +1,15 @@
 package com.tabslify.tabs.exploretab
 
 import android.content.Context
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import androidx.core.app.NotificationCompat
 import com.tabslify.R
 import com.tabslify.core.functions.errorInsert
 import com.tabslify.core.objects.tNotify
+import com.tabslify.core.ui.FeatureToggle
+import com.tabslify.core.ui.isFeatureEnabled
 import java.time.Instant
 import java.time.LocalDate
 
@@ -17,6 +20,7 @@ const val EXPLORE_STALE_WARN_GAP_MS = 6 * 60 * 60_000L
 const val RAW_POINT_RETENTION_DAYS = 30L
 
 suspend fun runExploreMaintenance(context: Context, repo: ExploreRepository) {
+    if (!isFeatureEnabled(context, FeatureToggle.EXPLORE)) return
     ExploreConfig.init(context)
     val yesterday = LocalDate.now().minusDays(1)
     if (!ExploreConfig.needsRebuild(yesterday)) return
@@ -41,7 +45,12 @@ fun notifyTrackingStalled(context: Context, staleMs: Long) {
                 EXPLORE_TRACKING_CHANNEL_ID,
                 appCtx.getString(R.string.explore_tracking_kanal),
                 NotificationManager.IMPORTANCE_LOW
-            )
+            ).apply {
+                setShowBadge(false)
+                setSound(null, null)
+                enableVibration(false)
+                lockscreenVisibility = Notification.VISIBILITY_SECRET
+            }
         )
     }
 

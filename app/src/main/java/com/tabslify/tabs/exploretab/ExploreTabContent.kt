@@ -66,12 +66,19 @@ import com.tabslify.core.objects.Config
 import com.tabslify.core.ui.Accent
 import com.tabslify.core.ui.AccentDim
 import com.tabslify.core.ui.AlertDialogTabslify
+import com.tabslify.core.ui.BgDeep
 import com.tabslify.core.ui.DialogTabslify
+import com.tabslify.core.ui.FeatureToggle
+import com.tabslify.core.ui.isFeatureEnabled
 import com.tabslify.core.ui.NeonBox
 import com.tabslify.core.ui.SuccessGreen
 import com.tabslify.core.ui.TextPrimary
 import com.tabslify.core.ui.TextSecondary
 import com.tabslify.core.ui.TextTertiary
+import com.tabslify.tabs.ridetracking.data.Ride
+import com.tabslify.tabs.ridetracking.data.RidePoint
+import com.tabslify.tabs.ridetracking.data.RideRepository
+import com.tabslify.tabs.ridetracking.ui.RideStatsScreen
 import kotlinx.coroutines.launch
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
@@ -90,6 +97,10 @@ import kotlin.math.floor
 @Composable
 fun ExploreTabContent(setGesturesEnabled: (Boolean) -> Unit) {
     val ctx = LocalContext.current
+    if (!isFeatureEnabled(ctx, FeatureToggle.EXPLORE)) {
+        LaunchedEffect(Unit) { ExploreLocationTracker.stop(ctx) }
+        return
+    }
     val lifecycleOwner = LocalLifecycleOwner.current
     val vm: ExploreViewModel = viewModel()
 
