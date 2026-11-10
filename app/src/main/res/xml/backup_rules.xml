@@ -23,4 +23,19 @@
     <exclude domain="database" path="twofa_database-wal" />
     <exclude domain="database" path="twofa_database-shm" />
     <exclude domain="database" path="twofa_database-journal" />
+    <exclude domain="database" path="explore_db" />
+    <exclude domain="database" path="explore_db-wal" />
+    <exclude domain="database" path="explore_db-shm" />
+    <exclude domain="database" path="explore_db-journal" />
+    <exclude domain="database" path="ride_db" />
+    <exclude domain="database" path="ride_db-wal" />
+    <exclude domain="database" path="ride_db-shm" />
+    <exclude domain="database" path="ride_db-journal" />
+    <exclude domain="database" path="focusguard_db" />
+    <exclude domain="database" path="focusguard_db-wal" />
+    <exclude domain="database" path="focusguard_db-shm" />
+    <exclude domain="database" path="focusguard_db-journal" />
+
+    <exclude domain="sharedpref" path="focusguard_prefs.xml" />
+    <exclude domain="sharedpref" path="noten.xml" />
 </full-backup-content>
