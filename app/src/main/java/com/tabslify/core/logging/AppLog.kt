@@ -48,8 +48,6 @@ object AppLog {
             store = AppLogStore(context.applicationContext)
             initialized = true
         }
-        runCatching { AppLogUploadWorker.schedule(context.applicationContext) }
-        runCatching { AppLogUploadWorker.enqueueNow(context.applicationContext) }
     }
 
     fun v(tag: String, message: String) = write(LogLevel.DEBUG, tag, message, null)
