@@ -1,5 +1,6 @@
 *.iml
 .gradle
+.kotlin/
 /build
 app/build/
 extern_accessibily/build/
