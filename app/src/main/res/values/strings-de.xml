@@ -3416,7 +3416,7 @@
     <string name="tracker_status_inactive">Inaktiv</string>
     <string name="herunterladen">Herunterladen</string>
     <string name="open_in_gallery">In Galerie öffnen</string>
-    <string name="qh_cmd_desc_flo">Setup MEDIA folders</string>
+    <string name="qh_cmd_desc_flo">MEDIA-Ordner einrichten</string>
     <string name="qh_cmd_desc_whatsapp">Zeigt ungelesene Nachrichten</string>
     <string name="qh_cmd_desc_ai">Erstellt einen neuen AI-Chat (ai [name optional])</string>
     <string name="qh_cmd_desc_music">Startet Musik Player</string>
@@ -3659,7 +3659,7 @@
     <string name="qh_notif_channel_tiktok_dm">TikTok Direktnachrichten</string>
     <string name="qh_notif_channel_tiktok_dm_desc">Neue TikTok-Nachrichten, die ein anderes Geraet gemeldet hat</string>
     <string name="qh_notif_channel_ai_tab">AITab Answers</string>
-    <string name="qh_notif_channel_ai_tab_desc">Notification if AITab is not opened and receives an AI answer</string>
+    <string name="qh_notif_channel_ai_tab_desc">Benachrichtigung bei einer AI-Antwort, wenn der AI-Tab nicht geöffnet ist</string>
     <string name="qh_notif_channel_virustotal">VirusTotal Scans</string>
     <string name="qh_notif_channel_virustotal_desc">Zusammenfassung abgeschlossener VirusTotal-Scans</string>
     <string name="qh_notif_quiet_started_title">🌙 Ruhezeit aktiviert</string>
