@@ -3,11 +3,6 @@
 > **One app to replace them all.**
 > Media player, browser, password & 2FA manager, notes, weather, movies, gallery, recorder, virus scanning, vocab trainer, AI chat — bundled into a single, privacy-first Android app.
 
-> [!IMPORTANT]
-> Englisch BETA in Progress...
->
-> <sub><sub>0:49 AM ET · Sep 1, 26</sub></sub>
-
 Tabslify is a powerful, multi-functional Android application with **ONE** goal: **replacing** and **improving** third-party apps with a **single** app — **no ad or behavioral tracking** (optional local analysis such as the music player is opt-in and off by default), **optional server binding**, and **enhanced privacy**.
 
 ## Why Tabslify?
@@ -69,14 +64,13 @@ Tabslify is a powerful, multi-functional Android application with **ONE** goal: 
 ### VirusTotal
 - **File & URL scans:** Check files and links against VirusTotal.
 
-## Not in the public beta (dev-only)
+## Not in the public release (dev-only)
 
-The following features exist in the codebase but are gated to the developer build and are not part of the public beta:
+The following features exist in the codebase but are gated to the developer build and are not part of the public release:
 
 - Gmail, Private Cloud, PC Manager and Remote Desktop
 - FocusGuard, Heise News, Date Calculator, Calendar and TikTok
 - Pushups / Ride Tracking and Suggestion
-- Semantic search / local embeddings
 - WhatsApp forwarding, voice notes, LAN/PC sync and cloud backup
 
 ## Pictures
