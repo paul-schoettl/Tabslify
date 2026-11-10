@@ -273,6 +273,7 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun applyVoiceDeepLink(intent: Intent) {
+        if (!prvt()) return
         if (!intent.getBooleanExtra(EXTRA_VOICE_START, false)) return
         intent.removeExtra(EXTRA_VOICE_START)
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
