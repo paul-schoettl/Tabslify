@@ -414,7 +414,10 @@ fun LandingPageOrApp(
                 "suggestion" -> MenuItem.SUGGESTION
                 else -> null
             }
-            if (selectedMenuItem != null && !menuItemVisible(selectedMenuItem!!, context)) {
+            if (selectedMenuItem != null &&
+                selectedMenuItem != MenuItem.APKM_INSTALLER &&
+                !menuItemVisible(selectedMenuItem!!, context)
+            ) {
                 selectedMenuItem = null
             }
             if (selectedMenuItem != null && selectedMenuItem != MenuItem.APKM_INSTALLER) {
@@ -546,7 +549,7 @@ fun LandingPageOrApp(
                     "suggestion" -> MenuItem.SUGGESTION
                     else -> null
                 }
-            }?.takeIf { menuItemVisible(it, context) }
+            }?.takeIf { it == MenuItem.APKM_INSTALLER || menuItemVisible(it, context) }
 
             key(selectedMenuItem, reloadKey) {
                 Box(Modifier.fillMaxSize()) {
