@@ -7,15 +7,12 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.tabslify.R
-import com.tabslify.tabs.ridetracking.data.Ride
-import com.tabslify.tabs.ridetracking.data.RideRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -30,7 +27,6 @@ private const val TILE_AREA_KM2 = (TILE_SIZE * 111.32) * (TILE_SIZE * 111.32)
 @OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 class ExploreViewModel(app: Application) : AndroidViewModel(app) {
     val repo = ExploreRepository(app)
-    val rideRepo = RideRepository(app)
 
     val tileCount: StateFlow<Long> = repo.countFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
@@ -68,11 +64,6 @@ class ExploreViewModel(app: Application) : AndroidViewModel(app) {
         repo.pointsForDayFlow(start, end)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val dayRides: StateFlow<List<Ride>> = _selectedDate.flatMapLatest { day ->
-        val (start, end) = dayBounds(day)
-        rideRepo.finishedBetweenFlow(start, end)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
     val dayExportEnabled: StateFlow<Boolean> = _selectedDate.flatMapLatest { day ->
         val (start, end) = dayBounds(day)
         repo.hasDataFlow(start, end)
@@ -83,16 +74,12 @@ class ExploreViewModel(app: Application) : AndroidViewModel(app) {
         repo.hasDataFlow(start, end)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
-    val totalDistanceKm: StateFlow<Double> = combine(daySegments, dayRides) { segments, rides ->
-        val passive = visibleSegments(segments, rides).sumOf { it.distanceMeters.toDouble() }
-        val recorded = rides.sumOf { it.distanceMeters }
-        (passive + recorded) / 1000.0
+    val totalDistanceKm: StateFlow<Double> = daySegments.map { segments ->
+        segments.sumOf { it.distanceMeters.toDouble() } / 1000.0
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
-    val timeMovingMs: StateFlow<Long> = combine(daySegments, dayRides) { segments, rides ->
-        val passive = visibleSegments(segments, rides).sumOf { it.endTime - it.startTime }
-        val recorded = rides.sumOf { it.movingTimeMs }
-        passive + recorded
+    val timeMovingMs: StateFlow<Long> = daySegments.map { segments ->
+        segments.sumOf { it.endTime - it.startTime }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0L)
 
     init {
