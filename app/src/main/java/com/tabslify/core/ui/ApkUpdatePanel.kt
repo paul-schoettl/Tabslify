@@ -29,7 +29,9 @@ import com.tabslify.R
 import com.tabslify.core.objects.toast
 import com.tabslify.core.update.ApkUpdateInfo
 import com.tabslify.core.update.ApkUpdater
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 private data class UpdateProgress(
@@ -60,11 +62,13 @@ fun ApkUpdatePanel(visible: Boolean, modifier: Modifier = Modifier) {
         progress = null
         upToDate = false
         scope.launch {
+            withContext(Dispatchers.IO) { ApkUpdater.deleteLocalIfInstalled(context) }
             ApkUpdater.fetchUpdateInfo()
                 .onSuccess { meta ->
-                    if (meta == null) {
-                        info = null
-                        downloaded = null
+                    info = null
+                    downloaded = null
+                    if (meta == null || meta.versionCode <= BuildConfig.VERSION_CODE.toLong()) {
+                        withContext(Dispatchers.IO) { ApkUpdater.deleteDownloadedUpdate(context) }
                         upToDate = true
                     } else {
                         info = meta
@@ -80,18 +84,9 @@ fun ApkUpdatePanel(visible: Boolean, modifier: Modifier = Modifier) {
         }
     }
 
-    fun install(meta: ApkUpdateInfo, file: File) {
+    fun install(file: File) {
         if (ApkUpdater.installApk(context, file)) {
             toast(context, context.getString(R.string.update_install_started))
-            scope.launch {
-                val deleted = ApkUpdater.deleteRemote(meta)
-                toast(
-                    context,
-                    context.getString(
-                        if (deleted) R.string.update_deleted else R.string.update_delete_failed
-                    )
-                )
-            }
         } else {
             toast(context, context.getString(R.string.update_install_permission))
         }
@@ -219,7 +214,7 @@ fun ApkUpdatePanel(visible: Boolean, modifier: Modifier = Modifier) {
                                     .onSuccess { file ->
                                         downloaded = file
                                         progress = null
-                                        install(meta, file)
+                                        install(file)
                                     }
                                     .onFailure { error ->
                                         errorMessage =
@@ -237,9 +232,8 @@ fun ApkUpdatePanel(visible: Boolean, modifier: Modifier = Modifier) {
                 if (downloaded != null && info != null) {
                     Button(
                         onClick = {
-                            val meta = info ?: return@Button
                             val file = downloaded ?: return@Button
-                            install(meta, file)
+                            install(file)
                         },
                         enabled = !busy
                     ) {

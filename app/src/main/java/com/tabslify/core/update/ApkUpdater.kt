@@ -292,9 +292,31 @@ object ApkUpdater {
         }
     }
 
-    fun deleteLocalFile(context: Context) {
-        val file = updateFile(context)
-        if (file.exists() && file.delete()) Log.i(TAG, "Lokale APK geloescht")
+    fun deleteDownloadedUpdate(context: Context) {
+        File(context.cacheDir, "tabslify_updates").listFiles()?.forEach { file ->
+            if (file.isFile && file.delete()) Log.i(TAG, "Lokale Update-Datei geloescht: ${file.name}")
+        }
+        prefs(context).edit {
+            remove(KEY_VERSION_CODE)
+            remove(KEY_SHA256)
+        }
+    }
+
+    fun deleteLocalIfInstalled(context: Context): Boolean {
+        val file = File(context.cacheDir, "tabslify_updates/update_tabslify.apk")
+        if (!file.exists() || file.length() == 0L) return false
+        val pm = context.packageManager
+        val archive = pm.getPackageArchiveInfo(file.absolutePath, 0) ?: return false
+        if (archive.packageName != context.packageName) {
+            deleteDownloadedUpdate(context)
+            return true
+        }
+        val installed = runCatching { pm.getPackageInfo(archive.packageName, 0) }.getOrNull()
+            ?: return false
+        if (installed.longVersionCode < archive.longVersionCode) return false
+        Log.i(TAG, "Update installiert (${installed.longVersionCode}), loesche lokale APK")
+        deleteDownloadedUpdate(context)
+        return true
     }
 
     fun canInstall(context: Context): Boolean =
@@ -312,6 +334,11 @@ object ApkUpdater {
     fun installApk(context: Context, file: File): Boolean {
         if (!file.exists() || file.length() == 0L) {
             Log.e(TAG, "Installation abgebrochen: APK fehlt oder ist leer")
+            return false
+        }
+        val archive = context.packageManager.getPackageArchiveInfo(file.absolutePath, 0)
+        if (archive?.packageName != context.packageName) {
+            Log.e(TAG, "Installation abgebrochen: APK gehoert nicht zu ${context.packageName}")
             return false
         }
         if (!canInstall(context)) {

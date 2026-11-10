@@ -3232,7 +3232,7 @@
     <string name="update_check">Nach Update suchen</string>
     <string name="update_download">Herunterladen</string>
     <string name="update_install">Installieren</string>
-    <string name="update_install_started">Installer geöffnet. Nach erfolgreichem Start werden die Cloud-Parts gelöscht.</string>
+    <string name="update_install_started">Installer geöffnet. Bitte die Installation abschließen.</string>
     <string name="update_install_permission">Bitte die Installation aus dieser Quelle erlauben und erneut tippen.</string>
     <string name="update_deleted">Cloud-Parts und Metadaten gelöscht.</string>
     <string name="update_delete_failed">Cloud-Parts konnten nicht gelöscht werden (siehe Log).</string>

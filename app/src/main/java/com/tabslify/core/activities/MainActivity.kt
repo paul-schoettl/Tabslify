@@ -30,6 +30,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
 import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.lifecycleScope
 import com.tabslify.R
 import com.tabslify.core.objects.Config
 import com.tabslify.core.objects.prvt
@@ -40,6 +41,7 @@ import com.tabslify.core.ui.LandingPageOrApp
 import com.tabslify.core.ui.SharedViewModel
 import com.tabslify.core.ui.TextPrimary
 import com.tabslify.core.ui.Typography
+import com.tabslify.core.update.ApkUpdater
 import com.tabslify.inactive.ChatService
 import com.tabslify.quicksettingsfunctions.BatteryFeature
 import com.tabslify.quicksettingsfunctions.startBatteryWorker
@@ -49,6 +51,8 @@ import com.tabslify.tabs.pendingApkmUri
 import com.tabslify.tabs.virustotal.pendingVirusTotalReport
 import com.tabslify.widget.TabslifyMixWidget
 import io.github.jan.supabase.storage.storage
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.io.File
 
 class MyDeviceAdminReceiver : DeviceAdminReceiver()
@@ -188,6 +192,7 @@ class MainActivity : FragmentActivity() {
 
     override fun onResume() {
         super.onResume()
+        lifecycleScope.launch(Dispatchers.IO) { ApkUpdater.deleteLocalIfInstalled(this@MainActivity) }
         if (QuietHoursNotificationService.isEnabled(this)) {
             runCatching { QuietHoursNotificationService.ensureRunning(this) }
         }

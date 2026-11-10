@@ -2546,7 +2546,7 @@
     <string name="update_check">Check for update</string>
     <string name="update_download">Download</string>
     <string name="update_install">Install</string>
-    <string name="update_install_started">Installer opened. Cloud parts are deleted after a successful launch.</string>
+    <string name="update_install_started">Installer opened. Please complete the installation.</string>
     <string name="update_install_permission">Please allow installs from this source and tap again.</string>
     <string name="update_deleted">Cloud parts and metadata deleted.</string>
     <string name="update_delete_failed">Cloud parts could not be deleted (see log).</string>
