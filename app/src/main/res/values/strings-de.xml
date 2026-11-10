@@ -3238,6 +3238,10 @@
     <string name="update_delete_failed">Cloud-Parts konnten nicht gelöscht werden (siehe Log).</string>
     <string name="update_failed">Update fehlgeschlagen: %1$s</string>
     <string name="update_current">Kein Update verfügbar – die App ist aktuell.</string>
+    <string name="update_subtitle_release">Neue Versionen erscheinen auf GitHub Releases</string>
+    <string name="update_available_release">Verfügbar: %1$s</string>
+    <string name="update_open_release">Release-Seite öffnen</string>
+    <string name="update_open_release_failed">Release-Seite konnte nicht geöffnet werden.</string>
     <string name="study_plan">Lernplan</string>
     <string name="study_plan_today">Heute fällig</string>
     <string name="study_plan_day">Tag %1$d</string>

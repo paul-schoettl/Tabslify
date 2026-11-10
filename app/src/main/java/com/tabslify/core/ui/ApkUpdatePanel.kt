@@ -1,5 +1,6 @@
 package com.tabslify.core.ui
 
+import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,11 +25,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.net.toUri
 import com.tabslify.BuildConfig
 import com.tabslify.R
+import com.tabslify.core.logging.Log
 import com.tabslify.core.objects.toast
 import com.tabslify.core.update.ApkUpdateInfo
 import com.tabslify.core.update.ApkUpdater
+import com.tabslify.core.update.GitHubRelease
+import com.tabslify.core.update.GitHubReleaseChecker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -54,6 +59,7 @@ fun ApkUpdatePanel(visible: Boolean, modifier: Modifier = Modifier) {
     var progress by remember { mutableStateOf<UpdateProgress?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var upToDate by remember { mutableStateOf(false) }
+    var githubRelease by remember { mutableStateOf<GitHubRelease?>(null) }
 
     fun loadInfo() {
         if (busy) return
@@ -61,25 +67,43 @@ fun ApkUpdatePanel(visible: Boolean, modifier: Modifier = Modifier) {
         errorMessage = null
         progress = null
         upToDate = false
+        info = null
+        downloaded = null
+        githubRelease = null
         scope.launch {
             withContext(Dispatchers.IO) { ApkUpdater.deleteLocalIfInstalled(context) }
-            ApkUpdater.fetchUpdateInfo()
-                .onSuccess { meta ->
-                    info = null
-                    downloaded = null
-                    if (meta == null || meta.versionCode <= BuildConfig.VERSION_CODE.toLong()) {
-                        withContext(Dispatchers.IO) { ApkUpdater.deleteDownloadedUpdate(context) }
-                        upToDate = true
-                    } else {
-                        info = meta
-                        downloaded = ApkUpdater.findDownloadedFile(context, meta)
+            if (BuildConfig.IS_DEV) {
+                ApkUpdater.fetchUpdateInfo()
+                    .onSuccess { meta ->
+                        if (meta == null || meta.versionCode <= BuildConfig.VERSION_CODE.toLong()) {
+                            withContext(Dispatchers.IO) { ApkUpdater.deleteDownloadedUpdate(context) }
+                            upToDate = true
+                        } else {
+                            info = meta
+                            downloaded = ApkUpdater.findDownloadedFile(context, meta)
+                        }
                     }
-                }
-                .onFailure { error ->
-                    info = null
-                    downloaded = null
-                    errorMessage = error.message ?: error.javaClass.simpleName
-                }
+                    .onFailure { error ->
+                        errorMessage = error.message ?: error.javaClass.simpleName
+                    }
+            } else {
+                GitHubReleaseChecker.fetchLatest()
+                    .onSuccess { release ->
+                        if (release == null ||
+                            !GitHubReleaseChecker.isNewer(
+                                release.versionName,
+                                BuildConfig.VERSION_NAME
+                            )
+                        ) {
+                            upToDate = true
+                        } else {
+                            githubRelease = release
+                        }
+                    }
+                    .onFailure { error ->
+                        errorMessage = error.message ?: error.javaClass.simpleName
+                    }
+            }
             busy = false
         }
     }
@@ -89,6 +113,18 @@ fun ApkUpdatePanel(visible: Boolean, modifier: Modifier = Modifier) {
             toast(context, context.getString(R.string.update_install_started))
         } else {
             toast(context, context.getString(R.string.update_install_permission))
+        }
+    }
+
+    fun openRelease(url: String) {
+        try {
+            context.startActivity(
+                Intent(Intent.ACTION_VIEW, url.toUri())
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            )
+        } catch (error: Exception) {
+            Log.w("ApkUpdatePanel", "Release-Seite konnte nicht geoeffnet werden", error)
+            toast(context, context.getString(R.string.update_open_release_failed))
         }
     }
 
@@ -110,7 +146,10 @@ fun ApkUpdatePanel(visible: Boolean, modifier: Modifier = Modifier) {
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = stringResource(R.string.update_subtitle),
+                text = stringResource(
+                    if (BuildConfig.IS_DEV) R.string.update_subtitle
+                    else R.string.update_subtitle_release
+                ),
                 color = Color.White.copy(alpha = 0.6f),
                 fontSize = 12.sp
             )
@@ -146,6 +185,18 @@ fun ApkUpdatePanel(visible: Boolean, modifier: Modifier = Modifier) {
                         fontWeight = FontWeight.Medium
                     )
                 }
+            }
+
+            githubRelease?.let { release ->
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = stringResource(
+                        R.string.update_available_release,
+                        release.versionName
+                    ),
+                    color = Color.White,
+                    fontSize = 13.sp
+                )
             }
 
             if (upToDate) {
@@ -199,7 +250,7 @@ fun ApkUpdatePanel(visible: Boolean, modifier: Modifier = Modifier) {
                 ) {
                     Text(stringResource(R.string.update_check))
                 }
-                if (info != null && downloaded == null) {
+                if (BuildConfig.IS_DEV && info != null && downloaded == null) {
                     Button(
                         onClick = {
                             val meta = info ?: return@Button
@@ -229,7 +280,7 @@ fun ApkUpdatePanel(visible: Boolean, modifier: Modifier = Modifier) {
                         Text(stringResource(R.string.update_download))
                     }
                 }
-                if (downloaded != null && info != null) {
+                if (BuildConfig.IS_DEV && downloaded != null && info != null) {
                     Button(
                         onClick = {
                             val file = downloaded ?: return@Button
@@ -238,6 +289,14 @@ fun ApkUpdatePanel(visible: Boolean, modifier: Modifier = Modifier) {
                         enabled = !busy
                     ) {
                         Text(stringResource(R.string.update_install))
+                    }
+                }
+                githubRelease?.let { release ->
+                    Button(
+                        onClick = { openRelease(release.htmlUrl) },
+                        enabled = !busy
+                    ) {
+                        Text(stringResource(R.string.update_open_release))
                     }
                 }
             }

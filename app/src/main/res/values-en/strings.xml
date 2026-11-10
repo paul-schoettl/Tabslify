@@ -2552,6 +2552,10 @@
     <string name="update_delete_failed">Cloud parts could not be deleted (see log).</string>
     <string name="update_failed">Update failed: %1$s</string>
     <string name="update_current">No update available – the app is up to date.</string>
+    <string name="update_subtitle_release">New versions are published on GitHub Releases</string>
+    <string name="update_available_release">Available: %1$s</string>
+    <string name="update_open_release">Open release page</string>
+    <string name="update_open_release_failed">Could not open the release page.</string>
     <string name="study_plan">Study plan</string>
     <string name="study_plan_today">Due today</string>
     <string name="study_plan_day">Day %1$d</string>
