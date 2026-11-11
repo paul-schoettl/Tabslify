@@ -14,10 +14,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -55,6 +58,8 @@ import java.net.InetSocketAddress
 import java.net.Socket
 import kotlin.coroutines.cancellation.CancellationException
 
+private const val CLIPBOARD_TEXT_MIME = "text/x-tabslify-clipboard"
+
 class ShareActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -86,10 +91,18 @@ class ShareActivity : ComponentActivity() {
         val uri = intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
         if (uri != null) {
             showConfirmationDialog(listOf(uri))
-        } else {
-            Toast.makeText(this, getString(R.string.keine_datei_gefunden), Toast.LENGTH_SHORT).show()
-            finish()
+            return
         }
+        val text = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()?.trim().orEmpty()
+        if (text.isNotEmpty()) {
+            showTextConfirmationDialog(text)
+            return
+        }
+        val messageRes =
+            if (intent.type?.startsWith("text/") == true) R.string.kein_text_gefunden
+            else R.string.keine_datei_gefunden
+        Toast.makeText(this, getString(messageRes), Toast.LENGTH_SHORT).show()
+        finish()
     }
 
     private fun handleMultipleShare(intent: Intent) {
@@ -121,6 +134,51 @@ class ShareActivity : ComponentActivity() {
         }
     }
 
+    private fun showTextConfirmationDialog(text: String) {
+        if (!prvt()) {
+            finish()
+            return
+        }
+        setContent {
+            MaterialTheme {
+                val laptopConnected by isLaptopConnectedFlow.collectAsState()
+                SendTextToLaptopScreen(
+                    text = text,
+                    isLaptopConnected = laptopConnected,
+                    onSendToLaptop = { sendTextToLaptop(text) },
+                    onCancel = { finish() }
+                )
+            }
+        }
+    }
+
+    private fun sendTextToLaptop(text: String) {
+        if (!prvt()) return
+        setContent {
+            MaterialTheme {
+                ProcessingScreen(fileCount = 1, textMode = true)
+            }
+        }
+
+        lifecycleScope.launch {
+            val sent = withContext(Dispatchers.IO) {
+                trySendToLaptop(
+                    text.toByteArray(Charsets.UTF_8),
+                    "text_${System.currentTimeMillis()}.txt",
+                    CLIPBOARD_TEXT_MIME
+                )
+            }
+
+            withContext(Dispatchers.Main) {
+                val message =
+                    if (sent) getString(R.string.text_an_laptop_gesendet)
+                    else getString(R.string.senden_fehlgeschlagen)
+                Toast.makeText(this@ShareActivity, message, Toast.LENGTH_LONG).show()
+                finish()
+            }
+        }
+    }
+
     private fun sendImagesToLaptop(uris: List<Uri>) {
         if (!prvt()) return
         setContent {
@@ -143,7 +201,7 @@ class ShareActivity : ComponentActivity() {
                     val mimeType = contentResolver.getType(uri) ?: "image/jpeg"
 
                     val sent = withContext(Dispatchers.IO) {
-                        trySendImageToLaptop(bytes, fileName, mimeType)
+                        trySendToLaptop(bytes, fileName, mimeType)
                     }
 
                     if (sent) successCount++
@@ -164,7 +222,7 @@ class ShareActivity : ComponentActivity() {
         }
     }
 
-    private fun trySendImageToLaptop(
+    private fun trySendToLaptop(
         bytes: ByteArray,
         fileName: String,
         mimeType: String
@@ -401,7 +459,93 @@ fun SaveToPrivateStorageScreen(
 }
 
 @Composable
-fun ProcessingScreen(fileCount: Int) {
+fun SendTextToLaptopScreen(
+    text: String,
+    isLaptopConnected: Boolean,
+    onSendToLaptop: () -> Unit,
+    onCancel: () -> Unit
+) {
+    if (!prvt()) return
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0x88000000)),
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth(0.9f)
+                .wrapContentHeight(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFF2A2A2A))
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.text_senden),
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+
+                Text(
+                    text = text,
+                    fontSize = 14.sp,
+                    color = Color.LightGray,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 220.dp)
+                        .verticalScroll(rememberScrollState())
+                )
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 8.dp),
+                    color = Color.Gray
+                )
+
+                if (isLaptopConnected) {
+                    Button(
+                        onClick = onSendToLaptop,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3)),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            stringResource(R.string.an_laptop_senden),
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                } else {
+                    Button(
+                        onClick = {},
+                        enabled = false,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(stringResource(R.string.laptop_nicht_verbunden), fontSize = 16.sp, color = Color.White)
+                    }
+                }
+
+                TextButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.abbrechen), color = Color.Red, fontSize = 16.sp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ProcessingScreen(fileCount: Int, textMode: Boolean = false) {
     if (!prvt()) return
     Box(
         modifier = Modifier
@@ -438,7 +582,8 @@ fun ProcessingScreen(fileCount: Int) {
                 )
 
                 Text(
-                    text = pluralStringResource(R.plurals.dateien_werden_gespeichert, fileCount, fileCount),
+                    text = if (textMode) stringResource(R.string.text_wird_gesendet)
+                    else pluralStringResource(R.plurals.dateien_werden_gespeichert, fileCount, fileCount),
                     fontSize = 14.sp,
                     color = Color.LightGray
                 )
