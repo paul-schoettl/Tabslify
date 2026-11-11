@@ -115,7 +115,7 @@ enum class FeatureToggle(
         "feature_ride_tracking",
         R.string.feature_ride_tracking_title,
         R.string.feature_ride_tracking_desc,
-        false,
+        true,
         FeatureGroup.TRACKING,
         requiresPrvt = true
     ),
