@@ -70,6 +70,12 @@ class QhnsWatchdogReceiver : BroadcastReceiver() {
 
 class QhnsNotificationStateReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
+        when (intent.action) {
+            NotificationManager.ACTION_APP_BLOCK_STATE_CHANGED,
+            NotificationManager.ACTION_NOTIFICATION_CHANNEL_BLOCK_STATE_CHANGED -> Unit
+
+            else -> return
+        }
         val notificationManager = context.getSystemService(NotificationManager::class.java)
         if (notificationManager == null || !notificationManager.areNotificationsEnabled()) return
         QuietHoursNotificationService.scheduleWatchdog(context)
