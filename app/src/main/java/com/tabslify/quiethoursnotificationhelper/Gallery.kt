@@ -3,15 +3,18 @@ package com.tabslify.quiethoursnotificationhelper
 import android.Manifest
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
+import android.util.Size
 import com.tabslify.core.logging.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
@@ -34,6 +37,9 @@ import com.tabslify.services.QuietHoursNotificationService.Companion.currentGall
 import com.tabslify.services.QuietHoursNotificationService.Companion.galleryImages
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.ByteArrayOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.text.SimpleDateFormat
@@ -609,4 +615,124 @@ fun showPreviousGalleryImage(context: Context) {
         currentGalleryIndex - 1
     }
     showGalleryImage(currentGalleryIndex, context)
+}
+
+fun buildRemoteGalleryListJson(context: Context): String {
+    val hasFullAccess = ContextCompat.checkSelfPermission(
+        context,
+        Manifest.permission.READ_MEDIA_IMAGES
+    ) == PackageManager.PERMISSION_GRANTED
+    val hasPartialAccess = ContextCompat.checkSelfPermission(
+        context,
+        Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED
+    ) == PackageManager.PERMISSION_GRANTED
+    if (!hasFullAccess && !hasPartialAccess) {
+        return JSONObject()
+            .put("status", "error")
+            .put("message", "Zugriff auf Galerie fehlt")
+            .toString()
+    }
+
+    return try {
+        val images = JSONArray()
+        val projection = arrayOf(
+            MediaStore.Images.Media._ID,
+            MediaStore.Images.Media.DISPLAY_NAME,
+            MediaStore.Images.Media.DATE_MODIFIED,
+            MediaStore.Images.Media.MIME_TYPE
+        )
+        context.contentResolver.query(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            projection,
+            null,
+            null,
+            "${MediaStore.Images.Media.DATE_MODIFIED} DESC"
+        )?.use { cursor ->
+            val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+            val nameColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME)
+            val dateColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_MODIFIED)
+            val mimeColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.MIME_TYPE)
+            while (images.length() < 5000 && cursor.moveToNext()) {
+                images.put(JSONObject().apply {
+                    put("id", cursor.getLong(idColumn).toString())
+                    put("name", cursor.getString(nameColumn) ?: "")
+                    put("date", cursor.getLong(dateColumn) * 1000L)
+                    put("mime", cursor.getString(mimeColumn) ?: "image/jpeg")
+                })
+            }
+        }
+        JSONObject()
+            .put("status", "ok")
+            .put("images", images)
+            .put("count", images.length())
+            .toString()
+    } catch (e: Exception) {
+        Log.e("QuietHoursService", "Remote gallery list failed", e)
+        JSONObject()
+            .put("status", "error")
+            .put("message", "Galerie konnte nicht geladen werden")
+            .toString()
+    }
+}
+
+fun remoteGalleryThumbBytes(context: Context, imageId: Long): ByteArray? {
+    return try {
+        val uri = ContentUris.withAppendedId(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            imageId
+        )
+        val bitmap = context.contentResolver.loadThumbnail(uri, Size(360, 360), null)
+        val output = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 82, output)
+        bitmap.recycle()
+        output.toByteArray()
+    } catch (e: Exception) {
+        Log.e("QuietHoursService", "Remote gallery thumbnail failed", e)
+        null
+    }
+}
+
+fun remoteGalleryFullPayload(context: Context, imageId: Long): Pair<String, ByteArray>? {
+    return try {
+        val uri = ContentUris.withAppendedId(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            imageId
+        )
+        val mime = context.contentResolver.getType(uri) ?: "image/jpeg"
+        val passthrough = mime == "image/jpeg" || mime == "image/png" ||
+            mime == "image/webp" || mime == "image/gif" || mime == "image/bmp"
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        context.contentResolver.openInputStream(uri)?.use {
+            BitmapFactory.decodeStream(it, null, bounds)
+        }
+        val largestSide = maxOf(bounds.outWidth, bounds.outHeight)
+        if (passthrough && (largestSide in 1..4096 || mime == "image/gif" || mime == "image/bmp")) {
+            val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                ?: return null
+            return mime to bytes
+        }
+        val bitmap = ImageDecoder.decodeBitmap(
+            ImageDecoder.createSource(context.contentResolver, uri)
+        ) { decoder, info, _ ->
+            val maxSize = 4096
+            if (info.size.width > maxSize || info.size.height > maxSize) {
+                val scale = maxOf(
+                    info.size.width.toFloat() / maxSize,
+                    info.size.height.toFloat() / maxSize
+                )
+                decoder.setTargetSize(
+                    (info.size.width / scale).toInt(),
+                    (info.size.height / scale).toInt()
+                )
+            }
+            decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+        }
+        val output = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 92, output)
+        bitmap.recycle()
+        "image/jpeg" to output.toByteArray()
+    } catch (e: Exception) {
+        Log.e("QuietHoursService", "Remote gallery full image failed", e)
+        return null
+    }
 }
