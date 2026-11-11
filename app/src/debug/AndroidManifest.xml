@@ -54,48 +54,6 @@
         android:usesCleartextTraffic="true"
         tools:replace="android:label">
 
-        <activity
-            android:name=".core.activities.MainActivity"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <action android:name="android.intent.action.EDIT" />
-
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="application/json" />
-            </intent-filter>
-
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <action android:name="android.intent.action.EDIT" />
-
-                <category android:name="android.intent.category.DEFAULT" />
-
-                <data
-                    android:host="*"
-                    android:pathPattern=".*\\.json"
-                    android:scheme="file" />
-            </intent-filter>
-
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <action android:name="android.intent.action.EDIT" />
-
-                <category android:name="android.intent.category.DEFAULT" />
-
-                <data
-                    android:host="*"
-                    android:pathPattern=".*\\.json"
-                    android:scheme="content" />
-            </intent-filter>
-
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <data android:mimeType="text/json" />
-            </intent-filter>
-        </activity>
-
         <service
             android:name=".services.WhatsAppNotificationListener"
             android:exported="true"
@@ -191,6 +149,7 @@
                 <data android:mimeType="image/*" />
                 <data android:mimeType="video/*" />
                 <data android:mimeType="application/*" />
+                <data android:mimeType="text/plain" />
                 <data android:mimeType="text/*" />
                 <data android:mimeType="audio/*" />
             </intent-filter>
