@@ -135,6 +135,7 @@ object Config {
     const val EXECUTE_RESPONSE_PORT = 8907
     const val INFO_PORT = 8909
     const val SMS_PORT = 8910
+    const val GALLERY_PORT = 8911
 
     private const val ITERATIONS = 200_000
     private const val KEY_LENGTH = 256
@@ -262,7 +263,7 @@ object Config {
                 permissions.add(Manifest.permission.READ_MEDIA_IMAGES)
                 permissions.add(Manifest.permission.READ_MEDIA_VIDEO)
                 permissions.add(Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED)
-                if (prvt() && Build.VERSION.SDK_INT >= 36) {
+                if (prvt() && Build.VERSION.SDK_INT >= 37) {
                     permissions.add(Manifest.permission.ACCESS_LOCAL_NETWORK)
                 }
                 launcher.launch(permissions.toTypedArray())
