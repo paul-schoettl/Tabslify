@@ -534,6 +534,7 @@ private var clipboardJob: Job? = null
 private var executeJob: Job? = null
 private var smsJob: Job? = null
 private var spotifyHistoryJob: Job? = null
+private var galleryJob: Job? = null
 private var ipReportJob: Job? = null
 
 private val activeServers = mutableListOf<ServerSocket>()
@@ -675,6 +676,7 @@ fun shutdownAllWifiDirectServices(context: Context) {
     clipboardJob?.cancel(); clipboardJob = null
     executeJob?.cancel(); executeJob = null
     smsJob?.cancel(); smsJob = null
+    galleryJob?.cancel(); galleryJob = null
 
     updateServerSocket?.let { runCatching { it.close() } }
     updateServerSocket = null
@@ -1315,6 +1317,10 @@ private fun ensureSyncListenersAlive(context: Context) {
         logWarnThrottled("restart-spotify-history", "Spotify history listener not active, restarting...")
         startSpotifyHistoryListener(context)
     }
+    if (listenerNeedsRestart(galleryJob, Config.GALLERY_PORT)) {
+        logWarnThrottled("restart-gallery", "Gallery listener not active, restarting...")
+        startGalleryServer(context)
+    }
 }
 
 fun restoreSyncIfNeeded(context: Context) {
@@ -1337,6 +1343,7 @@ fun restoreSyncIfNeeded(context: Context) {
         startClipboardListener(ctx)
         startSmsListener(ctx)
         startSpotifyHistoryListener(ctx)
+        startGalleryServer(ctx)
         ctx.registerReceiver(
             akkuReceiver,
             IntentFilter(Intent.ACTION_BATTERY_CHANGED),
@@ -1378,11 +1385,12 @@ fun stopAllSyncServices(context: Context) {
 
     listOf(
         mediaCommandJob, mediaStateJob, aiResponseJob, flashcardResponseJob,
-        clipboardJob, executeJob, smsJob
+        clipboardJob, executeJob, smsJob, galleryJob
     ).forEach { it?.cancel() }
 
     mediaCommandJob = null; mediaStateJob = null; aiResponseJob = null
     flashcardResponseJob = null; clipboardJob = null; executeJob = null
+    galleryJob = null
 
     val nm = ctx.getSystemService(NotificationManager::class.java)
     nm.cancel(99999)
@@ -1568,6 +1576,7 @@ fun syncTodosWithLaptop(context: Context, connected: Boolean = false) {
                     startClipboardListener(context)
                     startSmsListener(context)
                     startSpotifyHistoryListener(context)
+                    startGalleryServer(context)
                     if (listenerJob == null || listenerJob?.isActive == false) {
                         startUpdateListener(context)
                     }
@@ -2213,6 +2222,71 @@ fun startMediaStateServer(context: Context) {
             }
             client.close()
         }
+}
+
+fun startGalleryServer(context: Context) {
+    if (!Config.realDevice || !prvt()) return
+    if (galleryJob?.isActive == true) return
+    galleryJob =
+        launchServer(mediaScope, Config.GALLERY_PORT, "startGalleryServer") { client ->
+            client.soTimeout = 10_000
+            val line = BufferedReader(InputStreamReader(client.getInputStream()))
+                .readLine()?.trim().orEmpty()
+            val parts = line.split("|")
+            val command = parts.firstOrNull()?.uppercase().orEmpty()
+            val totp = parts.lastOrNull().orEmpty()
+            val secret = resolveSyncSecret(context, currentGalleryPcName(context))
+            val now = System.currentTimeMillis()
+            val authorized = secret != null && listOf(
+                generateTOTP(secret, now - 30_000),
+                generateTOTP(secret, now),
+                generateTOTP(secret, now + 30_000)
+            ).contains(totp)
+            val output = client.getOutputStream()
+            if (!authorized) {
+                output.write("ERROR|UNAUTHORIZED\n".toByteArray(Charsets.UTF_8))
+            } else {
+                val imageId = parts.getOrNull(1)?.toLongOrNull()
+                when (command) {
+                    "LIST" -> {
+                        val json = buildRemoteGalleryListJson(context)
+                        output.write("OK|application/json|gallery\n".toByteArray(Charsets.UTF_8))
+                        output.write(json.toByteArray(Charsets.UTF_8))
+                    }
+
+                    "THUMB" -> {
+                        val bytes = imageId?.let { remoteGalleryThumbBytes(context, it) }
+                        if (bytes == null) {
+                            output.write("ERROR|IMAGE\n".toByteArray(Charsets.UTF_8))
+                        } else {
+                            output.write("OK|image/jpeg|thumb.jpg\n".toByteArray(Charsets.UTF_8))
+                            output.write(bytes)
+                        }
+                    }
+
+                    "FULL" -> {
+                        val payload = imageId?.let { remoteGalleryFullPayload(context, it) }
+                        if (payload == null) {
+                            output.write("ERROR|IMAGE\n".toByteArray(Charsets.UTF_8))
+                        } else {
+                            output.write("OK|${payload.first}|image\n".toByteArray(Charsets.UTF_8))
+                            output.write(payload.second)
+                        }
+                    }
+
+                    else -> output.write("ERROR|UNKNOWN\n".toByteArray(Charsets.UTF_8))
+                }
+            }
+            output.flush()
+        }
+}
+
+private fun currentGalleryPcName(context: Context): String {
+    if (laptopName.isNotEmpty()) return laptopName
+    val prefs = context.getSharedPreferences(PREFS_SYNC, MODE_PRIVATE)
+    return prefs.getString(KEY_LAST_LAPTOP, "").orEmpty().ifEmpty {
+        context.getSharedPreferences("pc_uuids", MODE_PRIVATE).all.keys.firstOrNull().orEmpty()
+    }
 }
 
 fun startSpotifyHistoryListener(context: Context) {
@@ -3175,6 +3249,7 @@ private fun vpnIpv4(context: Context): String? {
     return privateIpv4(cm.getLinkProperties(network))
 }
 
+@Suppress("DEPRECATION")
 private fun wifiClientIpv4(context: Context): String? {
     val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
     return cm.allNetworks.firstNotNullOfOrNull { network ->
