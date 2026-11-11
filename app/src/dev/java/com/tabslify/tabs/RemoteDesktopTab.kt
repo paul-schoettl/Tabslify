@@ -40,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -54,15 +55,16 @@ import com.tabslify.core.ui.TextSecondary
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RemoteDesktopTabContent() {
-    val kontext = LocalContext.current
+    val context = LocalContext.current
+    val resources = LocalResources.current
     val verboten = stringResource(R.string.forbidden)
     if (!prvt()) {
-        Toast.makeText(kontext, verboten, Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, verboten, Toast.LENGTH_SHORT).show()
         return
     }
 
-    var liste by remember { mutableStateOf(StreamdProfile.laden(kontext)) }
-    var auswahl by remember { mutableIntStateOf(StreamdProfile.auswahl(kontext)) }
+    var liste by remember { mutableStateOf(StreamdProfile.laden(context)) }
+    var auswahl by remember { mutableIntStateOf(StreamdProfile.auswahl(context)) }
     var profil by remember { mutableStateOf(liste.getOrNull(auswahl) ?: StreamProfil()) }
     var portText by remember { mutableStateOf((liste.getOrNull(auswahl) ?: StreamProfil()).port.toString()) }
     var erweitert by remember { mutableStateOf(false) }
@@ -80,7 +82,7 @@ fun RemoteDesktopTabContent() {
         profil = gewaehlt
         portText = gewaehlt.port.toString()
         hinweis = null
-        StreamdProfile.speichern(kontext, liste, index)
+        StreamdProfile.speichern(context, liste, index)
     }
 
     fun aktuell(): StreamProfil {
@@ -109,7 +111,7 @@ fun RemoteDesktopTabContent() {
         liste = neue
         profil = eintrag
         portText = eintrag.port.toString()
-        StreamdProfile.speichern(kontext, neue, auswahl)
+        StreamdProfile.speichern(context, neue, auswahl)
     }
 
     fun loeschen() {
@@ -121,7 +123,7 @@ fun RemoteDesktopTabContent() {
         auswahl = 0
         profil = rest[0]
         portText = rest[0].port.toString()
-        StreamdProfile.speichern(kontext, rest, 0)
+        StreamdProfile.speichern(context, rest, 0)
     }
 
     val portGueltig = portText.toIntOrNull()?.let { it in 1..65535 } == true
@@ -303,7 +305,7 @@ fun RemoteDesktopTabContent() {
                     onClick = {
                         val eintrag = aktuell()
                         if (!eintrag.gueltig) {
-                            hinweis = kontext.getString(R.string.stream_ungueltig)
+                            hinweis = resources.getString(R.string.stream_ungueltig)
                             return@Button
                         }
                         profil = eintrag.copy(name = eintrag.name.ifBlank { eintrag.host })
