@@ -13,18 +13,23 @@ import com.google.firebase.ai.type.content
 import com.tabslify.core.objects.Config
 import com.tabslify.core.objects.Config.DEF_GEMINI
 import com.tabslify.tabs.aitab.ChatMessage
+import io.github.jan.supabase.auth.auth
+import java.net.HttpURLConnection
 import java.net.SocketException
 import java.net.SocketTimeoutException
+import java.net.URL
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
 enum class AiProvider {
-    GEMINI, NVIDIA, OPENROUTER
+    GEMINI, NVIDIA, OPENROUTER, COMMANDCODE
 }
 
 const val OPENROUTER_DEFAULT_MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free"
+const val COMMANDCODE_DEFAULT_MODEL = "deepseek/deepseek-v4.1-flash"
+private const val COMMANDCODE_PROXY_FUNCTION = "commandcode-proxy"
 
 enum class AiTarget {
     AITab,
@@ -279,7 +284,11 @@ private suspend fun sendChatCompletionsMessage(
     logTag: String,
     systemPrompt: String,
     pic: String? = null,
-    onToken: ((String) -> Unit)? = null
+    onToken: ((String) -> Unit)? = null,
+    directUrl: String? = null,
+    directApiKey: String? = null,
+    directHeaders: Map<String, String> = emptyMap(),
+    directTimeoutMs: Int = 60_000
 ): String? {
     val messages = buildChatCompletionsMessages(history, userMessage, pic, systemPrompt)
 
@@ -298,17 +307,31 @@ private suspend fun sendChatCompletionsMessage(
     }.toString()
 
     return withContext(Dispatchers.IO) {
-        val connection = Config.openApiProxyConnection(ctx, 60_000)
-            ?: return@withContext "[!ERROR] Proxy Connection Setup Failed (Signature NULL)"
+        val connection = if (directUrl != null) {
+            (URL(directUrl).openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                setRequestProperty("Authorization", "Bearer ${directApiKey.orEmpty()}")
+                setRequestProperty("Content-Type", "application/json")
+                directHeaders.forEach { (name, value) -> setRequestProperty(name, value) }
+                if (onToken != null) setRequestProperty("Accept", "text/event-stream")
+                connectTimeout = 15_000
+                readTimeout = directTimeoutMs
+                doOutput = true
+            }
+        } else {
+            Config.openApiProxyConnection(ctx, 60_000)
+                ?: return@withContext "[!ERROR] Proxy Connection Setup Failed (Signature NULL)"
+        }
         try {
-            connection.outputStream.use { it.write(requestBody.toByteArray(Charsets.UTF_8)) }
+            val body = if (directUrl != null) payload.toString() else requestBody
+            connection.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
 
             if (connection.responseCode != 200) {
                 val errorText =
                     connection.errorStream?.bufferedReader()?.readText() ?: "No error body"
                 Log.e(
                     logTag,
-                    "$logTag proxy failed with code ${connection.responseCode}: $errorText"
+                    "$logTag request failed with code ${connection.responseCode}: $errorText"
                 )
                 
                 val message = proxyErrorMessage(errorText)
@@ -397,6 +420,34 @@ suspend fun sendOpenrouterMessage(
     onToken = onToken
 )
 
+suspend fun sendCommandCodeMessage(
+    context: Context,
+    userMessage: String,
+    history: List<ChatMessage> = emptyList(),
+    systemPrompt: String,
+    model: String = COMMANDCODE_DEFAULT_MODEL,
+    onToken: ((String) -> Unit)? = null
+): String? {
+    if (!Config.ensureAuthSession()) return "[!ERROR] Supabase login missing"
+    val accessToken = Config.client.auth.currentSessionOrNull()?.accessToken
+        ?: return "[!ERROR] Supabase login missing"
+    val commandCodeKey = Config.userApiKey(context, "commandcode")
+    return sendChatCompletionsMessage(
+        ctx = context,
+        history = history,
+        userMessage = userMessage,
+        model = model,
+        action = "commandcode",
+        apiKeyName = "commandcode",
+        logTag = "CommandCode",
+        systemPrompt = systemPrompt,
+        onToken = onToken,
+        directUrl = "${Config.SUPABASE_URL}/functions/v1/$COMMANDCODE_PROXY_FUNCTION",
+        directApiKey = accessToken,
+        directHeaders = if (commandCodeKey.isEmpty()) emptyMap() else mapOf("x-api-key" to commandCodeKey)
+    )
+}
+
 suspend fun sendAiRequest(
     context: Context,
     userMessage: String,
@@ -413,6 +464,7 @@ suspend fun sendAiRequest(
     val resolvedProvider = provider ?: when (getPreferredAiProvider(context, serviceKey)) {
         "nvidia" -> AiProvider.NVIDIA
         "openrouter" -> AiProvider.OPENROUTER
+        "commandcode" -> AiProvider.COMMANDCODE
         else -> AiProvider.GEMINI
     }
     val resolvedSystemPrompt = systemPrompt ?: aiSystemPrompt(target)
@@ -441,6 +493,15 @@ suspend fun sendAiRequest(
             systemPrompt = resolvedSystemPrompt,
             pic = pic,
             model = model,
+            onToken = onToken
+        )
+
+        AiProvider.COMMANDCODE -> sendCommandCodeMessage(
+            context = context,
+            userMessage = userMessage,
+            history = history,
+            systemPrompt = resolvedSystemPrompt,
+            model = model ?: COMMANDCODE_DEFAULT_MODEL,
             onToken = onToken
         )
 
