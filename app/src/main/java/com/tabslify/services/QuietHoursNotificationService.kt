@@ -3,6 +3,7 @@ package com.tabslify.services
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.app.Application
 import android.app.AlarmManager
 import android.app.DownloadManager
 import android.app.NotificationManager
@@ -332,7 +333,7 @@ class QuietHoursNotificationService : Service() {
             }
         }
 
-        private var widgetRefreshContext: Context? = null
+        private var widgetRefreshContext: Application? = null
         private var screenOffSince: Long? = null
         private var widgetScreenReceiver: BroadcastReceiver? = null
         private var widgetPowerReceiver: BroadcastReceiver? = null
@@ -412,7 +413,7 @@ class QuietHoursNotificationService : Service() {
 
         fun startWidgetRefresh(context: Context) {
             if (!prvt()) return
-            val app = context.applicationContext
+            val app = context.applicationContext as Application
             widgetRefreshContext = app
             runCatching { registerWidgetReceivers(app) }
             runCatching { com.tabslify.widget.LampWidgetSync.start(app) }
