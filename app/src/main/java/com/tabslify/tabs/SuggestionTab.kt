@@ -49,6 +49,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -138,6 +139,7 @@ private suspend fun fetchSuggestion(): DailySuggestion? {
 @Composable
 fun SuggestionTabContent() {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     var suggestion by remember { mutableStateOf<DailySuggestion?>(null) }
     var isLoading by remember { mutableStateOf(true) }
@@ -182,7 +184,7 @@ fun SuggestionTabContent() {
                     if (!root.optBoolean("ok", false)) {
                         throw IllegalStateException(
                             root.optString("error").ifBlank {
-                                context.getString(R.string.suggestion_feedback_error)
+                                resources.getString(R.string.suggestion_feedback_error)
                             }
                         )
                     }
@@ -206,12 +208,12 @@ fun SuggestionTabContent() {
                         suggestion = updated
                         reason = ""
                     } else {
-                        feedbackError = context.getString(R.string.suggestion_feedback_timeout)
+                        feedbackError = resources.getString(R.string.suggestion_feedback_timeout)
                     }
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    feedbackError = e.message ?: context.getString(R.string.suggestion_feedback_error)
+                    feedbackError = e.message ?: resources.getString(R.string.suggestion_feedback_error)
                 } finally {
                     feedbackInFlight = null
                 }
