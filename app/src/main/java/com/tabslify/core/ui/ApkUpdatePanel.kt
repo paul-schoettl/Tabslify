@@ -21,6 +21,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -32,6 +33,7 @@ import com.tabslify.core.logging.Log
 import com.tabslify.core.objects.toast
 import com.tabslify.core.update.ApkUpdateInfo
 import com.tabslify.core.update.ApkUpdater
+import kotlinx.coroutines.isActive
 import com.tabslify.core.update.GitHubRelease
 import com.tabslify.core.update.GitHubReleaseChecker
 import kotlinx.coroutines.Dispatchers
@@ -52,6 +54,7 @@ private data class UpdateProgress(
 @Composable
 fun ApkUpdatePanel(visible: Boolean, modifier: Modifier = Modifier) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     var info by remember { mutableStateOf<ApkUpdateInfo?>(null) }
     var downloaded by remember { mutableStateOf<File?>(null) }
@@ -63,6 +66,7 @@ fun ApkUpdatePanel(visible: Boolean, modifier: Modifier = Modifier) {
 
     fun loadInfo() {
         if (busy) return
+        if (!scope.isActive) return
         busy = true
         errorMessage = null
         progress = null
@@ -108,11 +112,21 @@ fun ApkUpdatePanel(visible: Boolean, modifier: Modifier = Modifier) {
         }
     }
 
-    fun install(file: File) {
+    fun install(meta: ApkUpdateInfo, file: File) {
         if (ApkUpdater.installApk(context, file)) {
-            toast(context, context.getString(R.string.update_install_started))
+            toast(context, resources.getString(R.string.update_install_started))
+            if (!scope.isActive) return
+            scope.launch {
+                val deleted = ApkUpdater.deleteRemote(meta)
+                toast(
+                    context,
+                    resources.getString(
+                        if (deleted) R.string.update_deleted else R.string.update_delete_failed
+                    )
+                )
+            }
         } else {
-            toast(context, context.getString(R.string.update_install_permission))
+            toast(context, resources.getString(R.string.update_install_permission))
         }
     }
 
@@ -124,7 +138,7 @@ fun ApkUpdatePanel(visible: Boolean, modifier: Modifier = Modifier) {
             )
         } catch (error: Exception) {
             Log.w("ApkUpdatePanel", "Release-Seite konnte nicht geoeffnet werden", error)
-            toast(context, context.getString(R.string.update_open_release_failed))
+            toast(context, resources.getString(R.string.update_open_release_failed))
         }
     }
 
@@ -250,11 +264,12 @@ fun ApkUpdatePanel(visible: Boolean, modifier: Modifier = Modifier) {
                 ) {
                     Text(stringResource(R.string.update_check))
                 }
-                if (BuildConfig.IS_DEV && info != null && downloaded == null) {
+                if (info != null && downloaded == null) {
                     Button(
                         onClick = {
                             val meta = info ?: return@Button
                             if (busy) return@Button
+                            if (!scope.isActive) return@Button
                             busy = true
                             errorMessage = null
                             progress = UpdateProgress(0L, meta.totalSize, 0, meta.partCount)
@@ -265,7 +280,7 @@ fun ApkUpdatePanel(visible: Boolean, modifier: Modifier = Modifier) {
                                     .onSuccess { file ->
                                         downloaded = file
                                         progress = null
-                                        install(file)
+                                        install(meta, file)
                                     }
                                     .onFailure { error ->
                                         errorMessage =
@@ -280,11 +295,12 @@ fun ApkUpdatePanel(visible: Boolean, modifier: Modifier = Modifier) {
                         Text(stringResource(R.string.update_download))
                     }
                 }
-                if (BuildConfig.IS_DEV && downloaded != null && info != null) {
+                if (downloaded != null && info != null) {
                     Button(
                         onClick = {
                             val file = downloaded ?: return@Button
-                            install(file)
+                            val meta = info ?: return@Button
+                            install(meta, file)
                         },
                         enabled = !busy
                     ) {
