@@ -1,7 +1,5 @@
 package com.tabslify.core.activities
 
-import com.tabslify.core.logging.Log
-
 import android.Manifest
 import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
@@ -10,7 +8,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
-import android.provider.OpenableColumns
 import android.view.View
 import android.view.animation.AnticipateInterpolator
 import android.widget.Toast
@@ -31,7 +28,6 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.lifecycleScope
-import com.tabslify.R
 import com.tabslify.core.objects.Config
 import com.tabslify.core.objects.prvt
 import com.tabslify.core.functions.EXTRA_VOICE_START
@@ -46,14 +42,12 @@ import com.tabslify.inactive.ChatService
 import com.tabslify.quicksettingsfunctions.BatteryFeature
 import com.tabslify.quicksettingsfunctions.startBatteryWorker
 import com.tabslify.services.QuietHoursNotificationService
-import com.tabslify.tabs.JsonEditorContent
 import com.tabslify.tabs.pendingApkmUri
 import com.tabslify.tabs.virustotal.pendingVirusTotalReport
 import com.tabslify.widget.TabslifyMixWidget
 import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java.io.File
 
 class MyDeviceAdminReceiver : DeviceAdminReceiver()
 
@@ -63,8 +57,6 @@ class MainActivity : FragmentActivity() {
     private var startTarget by mutableStateOf<String?>(null)
     private var appliedAiPromptToken: String? = null
 
-    private var jsonFilePath by mutableStateOf<String?>(null)
-    private var jsonFileUri by mutableStateOf<Uri?>(null)
     private val voicePermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { results ->
@@ -76,7 +68,6 @@ class MainActivity : FragmentActivity() {
             Toast.makeText(this, "Mikrofon-Berechtigung fehlt", Toast.LENGTH_LONG).show()
         }
     }
-    private var showJsonEditor by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
@@ -170,18 +161,7 @@ class MainActivity : FragmentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = AppColorScheme.background
                 ) {
-                    if (showJsonEditor && jsonFilePath != null && prvt()) {
-                        JsonEditorContent(
-                            filePath = jsonFilePath!!,
-                            fileUri = jsonFileUri,
-                            context = this,
-                            onClose = {
-                                showJsonEditor = false
-                                jsonFilePath = null
-                                jsonFileUri = null
-                            }
-                        )
-                    } else if (startTarget == "files") {
+                    if (startTarget == "files") {
                         //FilesTabContent()
                     } else {
                         LandingPageOrApp(sbclient.storage, startTarget)
@@ -207,13 +187,6 @@ class MainActivity : FragmentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-
-        if (showJsonEditor) {
-            showJsonEditor = false
-            jsonFilePath = null
-            jsonFileUri = null
-        }
-        checkPermissionsAndHandleIntent(intent)
 
         val apkmUri = resolveApkmUri(intent)
         if (apkmUri != null) {
@@ -273,7 +246,7 @@ class MainActivity : FragmentActivity() {
         intent.removeExtra("ai_prompt_token")
         if (token != null && token == appliedAiPromptToken) return
         appliedAiPromptToken = token
-            sharedViewModel.setPendingAiPrompt(prompt)
+        sharedViewModel.setPendingAiPrompt(prompt)
     }
 
     private fun applyAiChatDeepLink(intent: Intent) {
@@ -297,13 +270,6 @@ class MainActivity : FragmentActivity() {
         }
     }
 
-    private fun checkPermissionsAndHandleIntent(intent: Intent) {
-        if (resolveApkmUri(intent) != null) return
-        if (intent.action == Intent.ACTION_VIEW || intent.action == Intent.ACTION_EDIT) {
-            handleIncomingIntent(intent)
-        }
-    }
-
     private fun resolveApkmUri(intent: Intent): Uri? {
         val hasApkmMimeType = intent.type in APKM_MIME_TYPES
         val hasApkmSuffix = intent.data?.lastPathSegment
@@ -314,68 +280,6 @@ class MainActivity : FragmentActivity() {
             Intent.ACTION_SEND -> intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
             else -> intent.data
         }
-    }
-
-    private fun handleIncomingIntent(intent: Intent) {
-        when (intent.action) {
-            Intent.ACTION_VIEW, Intent.ACTION_EDIT -> {
-                intent.data?.let { uri ->
-                    loadFileFromUri(uri)
-                }
-            }
-        }
-    }
-
-    private fun loadFileFromUri(uri: Uri) {
-        try {
-            val filePath = when (uri.scheme) {
-                "file" -> {
-                    uri.path ?: throw Exception(getString(R.string.ungultiger_dateipfad))
-                }
-
-                "content" -> {
-                    copyContentToTempFile(uri)
-                }
-
-                else -> throw Exception(getString(R.string.nicht_unterstutztes_uri_schema, uri.scheme))
-            }
-
-            jsonFilePath = filePath
-            jsonFileUri = uri
-            showJsonEditor = true
-
-        } catch (e: Exception) {
-            Toast.makeText(
-                this,
-                getString(R.string.fehler_beim_laden_der_json, e.message),
-                Toast.LENGTH_LONG
-            ).show()
-            Log.e("MainActivity", "Fehler", e)
-        }
-    }
-
-    private fun copyContentToTempFile(uri: Uri): String {
-        val inputStream = contentResolver.openInputStream(uri)
-            ?: throw Exception(getString(R.string.datei_konnte_nicht_geoffnet_werden_2))
-
-        val fileName = try {
-            contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-                cursor.moveToFirst()
-                cursor.getString(nameIndex)
-            } ?: "temp_${System.currentTimeMillis()}.json"
-        } catch (_: Exception) {
-            "temp_${System.currentTimeMillis()}.json"
-        }
-
-        val tempFile = File(cacheDir, fileName)
-        tempFile.outputStream().use { output ->
-            inputStream.use { input ->
-                input.copyTo(output)
-            }
-        }
-
-        return tempFile.absolutePath
     }
 
     companion object {
