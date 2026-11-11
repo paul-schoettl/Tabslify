@@ -286,7 +286,7 @@ class ChargingTrackerService : Service() {
         ChargeSessionRepository.init(this)
         registerReceiver(batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
         batteryRegistered = true
-        registerReceiver(allowReceiver, IntentFilter(ACTION_ALLOW))
+        registerReceiver(allowReceiver, IntentFilter(ACTION_ALLOW), RECEIVER_NOT_EXPORTED)
         allowRegistered = true
 
         val nm = getSystemService(NotificationManager::class.java)
