@@ -469,6 +469,8 @@ fun LandingPageOrApp(
         val ziel = pendingAiPrompt ?: return@LaunchedEffect
         if (appliedAiPrompt == ziel) return@LaunchedEffect
         aiVm.startNewChatWithPrompt(ziel)
+        showSettings = false
+        isHelpOpen = false
         hasLoadedApp = true
         selectedMenuItem = MenuItem.AITAB
         saveRecentTab(context, MenuItem.AITAB)
@@ -1032,8 +1034,8 @@ private fun SharedTopBar(
     onHelpClick: () -> Unit,
     onSettingsClick: () -> Unit,
     onHeightChanged: (Dp) -> Unit,
-    interactive: Boolean = true,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    interactive: Boolean = true
 ) {
     val density = LocalDensity.current
     val closeLabel = stringResource(R.string.close)
@@ -1939,7 +1941,7 @@ fun PermissionInfoScreen(onboarding: Boolean = false, onClose: (() -> Unit)? = n
             Manifest.permission.ACCESS_NETWORK_STATE to listOf(
                 networkState1
             ),
-            Manifest.permission.ACCESS_LOCAL_NETWORK to listOf(
+            "android.permission.ACCESS_LOCAL_NETWORK" to listOf(
                 localNetwork1
             ),
             Manifest.permission.WAKE_LOCK to listOf(
@@ -1951,7 +1953,7 @@ fun PermissionInfoScreen(onboarding: Boolean = false, onClose: (() -> Unit)? = n
             Manifest.permission.USE_BIOMETRIC to listOf(
                 useBiometric1
             ),
-            Manifest.permission.USE_FINGERPRINT to listOf(
+            "android.permission.USE_FINGERPRINT" to listOf(
                 useFingerprint1
             ),
             "${context.packageName}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" to listOf(
@@ -2494,18 +2496,20 @@ fun SettingsFrame(
     }
     var aiSettingsExpanded by remember { mutableStateOf(false) }
 
+    val commandCodeApiKeyLabel = stringResource(R.string.commandcode_api_key)
     val apiKeyDefs = remember {
-        listOf(
-            "NVIDIA API-Key" to "api_key_nvidia",
-            "OpenRouter API-Key" to "api_key_openrouter",
-            "TMDB API-Key" to "api_key_tmdb",
-            "WeatherAPI-Key" to "api_key_weatherapi",
-            "RapidAPI-Key (Spotify)" to "api_key_rapidapi",
-            "PodcastIndex-Key" to "api_key_podcastindex",
-            "PodcastIndex-Secret" to "api_key_podcastindex_secret",
-            "DB Client-ID (Bahn)" to "api_key_db_client_id",
-            "DB API-Key (Bahn)" to "api_key_db_api_key"
-        )
+        buildList {
+            add("NVIDIA API-Key" to "api_key_nvidia")
+            add("OpenRouter API-Key" to "api_key_openrouter")
+            add("TMDB API-Key" to "api_key_tmdb")
+            add("WeatherAPI-Key" to "api_key_weatherapi")
+            add("RapidAPI-Key (Spotify)" to "api_key_rapidapi")
+            add("PodcastIndex-Key" to "api_key_podcastindex")
+            add("PodcastIndex-Secret" to "api_key_podcastindex_secret")
+            add("DB Client-ID (Bahn)" to "api_key_db_client_id")
+            add("DB API-Key (Bahn)" to "api_key_db_api_key")
+            if (prvt()) add(commandCodeApiKeyLabel to "api_key_commandcode")
+        }
     }
     val apiKeyValues = remember {
         mutableStateMapOf<String, String>().apply {

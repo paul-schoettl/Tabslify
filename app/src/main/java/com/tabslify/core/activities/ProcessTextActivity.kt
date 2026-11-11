@@ -68,6 +68,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.UUID
 
 private const val TEXT_LAENGE_LIMIT = 18_000
 private const val AKTION_GEWICHT = 1
@@ -112,6 +113,7 @@ class ProcessTextActivity : ComponentActivity() {
                 )
                 putExtra("target", "text_aktionen")
                 putExtra("ai_prompt", text)
+                putExtra("ai_prompt_token", UUID.randomUUID().toString())
             }
         )
         finish()

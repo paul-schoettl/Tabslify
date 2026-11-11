@@ -61,6 +61,7 @@ class MainActivity : FragmentActivity() {
     val sbclient = Config.client
     private val sharedViewModel: SharedViewModel by viewModels()
     private var startTarget by mutableStateOf<String?>(null)
+    private var appliedAiPromptToken: String? = null
 
     private var jsonFilePath by mutableStateOf<String?>(null)
     private var jsonFileUri by mutableStateOf<Uri?>(null)
@@ -145,7 +146,7 @@ class MainActivity : FragmentActivity() {
             }
         }
 
-        checkPermissionsAndHandleIntent(intent)
+        appliedAiPromptToken = savedInstanceState?.getString(KEY_AI_PROMPT_TOKEN)
 
         val apkmUri = resolveApkmUri(intent)
         if (apkmUri != null) pendingApkmUri = apkmUri
@@ -188,6 +189,11 @@ class MainActivity : FragmentActivity() {
                 }
             }
         }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        appliedAiPromptToken?.let { outState.putString(KEY_AI_PROMPT_TOKEN, it) }
     }
 
     override fun onResume() {
@@ -261,9 +267,13 @@ class MainActivity : FragmentActivity() {
 
     private fun applyTextActionDeepLink(intent: Intent) {
         val prompt = intent.getStringExtra("ai_prompt")?.trim()
-        if (!prompt.isNullOrEmpty()) {
+        if (prompt.isNullOrEmpty()) return
+        val token = intent.getStringExtra("ai_prompt_token")
+        intent.removeExtra("ai_prompt")
+        intent.removeExtra("ai_prompt_token")
+        if (token != null && token == appliedAiPromptToken) return
+        appliedAiPromptToken = token
             sharedViewModel.setPendingAiPrompt(prompt)
-        }
     }
 
     private fun applyAiChatDeepLink(intent: Intent) {
@@ -369,6 +379,7 @@ class MainActivity : FragmentActivity() {
     }
 
     companion object {
+        private const val KEY_AI_PROMPT_TOKEN = "ai_prompt_token_applied"
         private val APKM_MIME_TYPES = setOf(
             "application/vnd.apkm", "application/vnd.apks", "application/vnd.xapk"
         )
