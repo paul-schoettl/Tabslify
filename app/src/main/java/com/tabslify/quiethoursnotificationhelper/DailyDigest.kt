@@ -43,15 +43,33 @@ suspend fun runDailyMusicSummary(context: Context) {
         if (sessions.isEmpty()) return
 
         val stats = buildSessionStatsText(sessions)
-        val result = sendAiRequest(
+        val useCommandCode = prvt()
+        var result = sendAiRequest(
             context,
             userMessage = stats,
             target = AiTarget.MusicSummary,
             serviceKey = "music_summary",
-            provider = AiProvider.NVIDIA,
-            model = "openai/gpt-oss-20b",
+            provider = if (useCommandCode) AiProvider.COMMANDCODE else AiProvider.NVIDIA,
+            model = if (useCommandCode) COMMANDCODE_DEFAULT_MODEL else "openai/gpt-oss-20b",
             onToken = {}
         )
+        if (useCommandCode && (result == null || result.startsWith("[!ERROR]"))) {
+            errorInsert(
+                "DailyDigest:musicSummaryCommandCodeFallback",
+                "CommandCode-Antwort fehlgeschlagen, Fallback auf NVIDIA: ${result?.take(500) ?: "leer"}",
+                Instant.now().toString(),
+                "WARN"
+            )
+            result = sendAiRequest(
+                context,
+                userMessage = stats,
+                target = AiTarget.MusicSummary,
+                serviceKey = "music_summary",
+                provider = AiProvider.NVIDIA,
+                model = "openai/gpt-oss-20b",
+                onToken = {}
+            )
+        }
         if (result == null) {
             errorInsert(
                 "DailyDigest:musicSummaryOhneAntwort",
