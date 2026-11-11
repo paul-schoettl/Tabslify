@@ -59,6 +59,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -76,6 +77,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -249,7 +251,7 @@ fun WelcomeOnboardingScreen(
         visiblePages.indexOfFirst { it.kind == PageKind.NOTIFICATION_PERMISSION }.let { if (it >= 0) it else visiblePages.lastIndex }
     }
 
-    var confettiToken by remember { mutableStateOf(0) }
+    var confettiToken by remember { mutableIntStateOf(0) }
     var wasLast by remember { mutableStateOf(isLast) }
     LaunchedEffect(isLast) {
         if (isLast && !wasLast) confettiToken += 1
@@ -927,6 +929,7 @@ private fun GradientButton(
     onClick: () -> Unit
 ) {
     val context = LocalContext.current
+    val density = LocalDensity.current.density
     val progress = remember { Animatable(0f) }
     var particles by remember { mutableStateOf<List<ConfettiParticle>>(emptyList()) }
 
@@ -935,7 +938,7 @@ private fun GradientButton(
         particles = emptyList()
         progress.snapTo(0f)
         if (!animationsEnabled(context)) return@LaunchedEffect
-        particles = createConfettiParticles(context.resources.displayMetrics.density)
+        particles = createConfettiParticles(density)
         progress.animateTo(1f, tween(550, easing = LinearEasing))
         particles = emptyList()
     }
