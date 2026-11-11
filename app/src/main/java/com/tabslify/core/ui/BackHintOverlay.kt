@@ -1,6 +1,7 @@
 package com.tabslify.core.ui
 
 import android.content.Context
+import androidx.core.content.edit
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -52,9 +53,7 @@ fun hasSeenBackHint(context: Context): Boolean =
 
 fun markBackHintSeen(context: Context) {
     context.getSharedPreferences(UI_PREFS, Context.MODE_PRIVATE)
-        .edit()
-        .putBoolean(BACK_HINT_SEEN, true)
-        .apply()
+        .edit { putBoolean(BACK_HINT_SEEN, true) }
 }
 
 @Composable
