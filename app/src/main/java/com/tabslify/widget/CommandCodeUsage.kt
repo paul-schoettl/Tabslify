@@ -21,6 +21,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.Locale
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -114,6 +115,7 @@ object CommandCodeUsageRepository {
         val data: JSONObject? = when (val value = subscriptionsRoot.opt("data")) {
             is JSONObject -> value
             is org.json.JSONArray -> if (value.length() > 0) value.optJSONObject(0) else null
+            null -> null
             else -> null
         }
         val planId = data?.optString("planId", "").orEmpty()
@@ -139,7 +141,7 @@ object CommandCodeUsageRepository {
             0
         }
 
-        Log.d(TAG, "Direkt von CommandCode: ${String.format("%.2f", pct)}% / Pace ${String.format("%.2f", pacePct)}%")
+        Log.d(TAG, "Direkt von CommandCode: ${String.format(Locale.US, "%.2f", pct)}% / Pace ${String.format(Locale.US, "%.2f", pacePct)}%")
         CommandCodeUsage(planId, used, cap, pct, pacePct, offlineDays)
     }
 
