@@ -377,6 +377,7 @@ object HandyLampClient {
         return null
     }
 
+    @Suppress("DEPRECATION")
     private fun lanNetwork(context: Context, waitMs: Long = LAN_WAIT_MS): Network? {
         return try {
             val manager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
