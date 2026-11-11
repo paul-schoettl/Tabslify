@@ -1090,7 +1090,7 @@ fun SchoolDashboard(
                     )
                     else -> stringResource(
                         R.string.study_plan_progress,
-                        studyDayIndex ?: 1,
+                        studyDayIndex,
                         studyPlanDays.coerceAtLeast(5)
                     )
                 }
