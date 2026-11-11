@@ -147,9 +147,7 @@ class Tabslify : Application() {
             }
             .respectCacheHeaders(false)
             .components {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                     add(ImageDecoderDecoder.Factory())
-                }
             }
             .build()
         Coil.setImageLoader(imageLoader)
