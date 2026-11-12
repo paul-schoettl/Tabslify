@@ -191,9 +191,7 @@ class StreamdClient(
                 cfg.hoehe
             )
             format.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, 1 shl 20)
-            if (android.os.Build.VERSION.SDK_INT >= 30) {
-                format.setInteger(MediaFormat.KEY_LOW_LATENCY, 1)
-            }
+            format.setInteger(MediaFormat.KEY_LOW_LATENCY, 1)
             val decoder = try {
                 MediaCodec.createDecoderByType(
                     if (cfg.codec == 2) MediaFormat.MIMETYPE_VIDEO_HEVC else MediaFormat.MIMETYPE_VIDEO_AVC
