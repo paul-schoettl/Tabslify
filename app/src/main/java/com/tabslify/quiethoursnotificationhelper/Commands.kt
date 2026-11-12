@@ -1606,7 +1606,7 @@ fun executeCommand(commandText: String, context: Context) {
                                 if (maxRepeat > 1) context.getString(R.string.qh_cmd_repeat_info, maxRepeat) else ""
                             showSimpleNotificationExtern(
                                 "📊 $label",
-                                context.getString(R.string.qh_cmd_stats_song_text, sessionCount, formatMs(totalMs), lastPlayed, repeatInfo),
+                                context.resources.getQuantityString(R.plurals.qh_cmd_stats_song_text, sessionCount, sessionCount, formatMs(totalMs), lastPlayed, repeatInfo),
                                 context = context
                             )
                         }
@@ -1635,7 +1635,7 @@ fun executeCommand(commandText: String, context: Context) {
                                     .format(Date(lastPlayedAt))
                             showSimpleNotificationExtern(
                                 "📊 $showName",
-                                context.getString(R.string.qh_cmd_stats_podcast_text, sessionCount, formatMs(totalMs), lastPlayed),
+                                context.resources.getQuantityString(R.plurals.qh_cmd_stats_podcast_text, sessionCount, sessionCount, formatMs(totalMs), lastPlayed),
                                 context = context
                             )
                         }
@@ -1698,7 +1698,7 @@ fun executeCommand(commandText: String, context: Context) {
                         rebuildSessions(remaining)
                         showSimpleNotificationExtern(
                             context.getString(R.string.qh_cmd_title_reset),
-                            context.getString(R.string.qh_cmd_songs_removed, matchedLabels.size, matchedLabels.joinToString(", ")),
+                            context.resources.getQuantityString(R.plurals.qh_cmd_songs_removed, matchedLabels.size, matchedLabels.size, matchedLabels.joinToString(", ")),
                             context = context
                         )
                     }
@@ -1725,7 +1725,7 @@ fun executeCommand(commandText: String, context: Context) {
                         rebuildSessions(remaining)
                         showSimpleNotificationExtern(
                             context.getString(R.string.qh_cmd_title_reset),
-                            context.getString(R.string.qh_cmd_shows_removed, matchedLabels.size, matchedLabels.joinToString(", ")),
+                            context.resources.getQuantityString(R.plurals.qh_cmd_shows_removed, matchedLabels.size, matchedLabels.size, matchedLabels.joinToString(", ")),
                             context = context
                         )
                     }
@@ -1886,7 +1886,7 @@ private fun showAvailableCommands(context: Context) {
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_menu_help)
             .setContentTitle(context.getString(R.string.qh_cmd_available_commands_title, index + 1, chunked.size))
-            .setContentText(context.getString(R.string.qh_cmd_commands_count, chunk.size))
+            .setContentText(context.resources.getQuantityString(R.plurals.qh_cmd_commands_count, chunk.size, chunk.size))
             .setStyle(NotificationCompat.BigTextStyle().bigText(commandList))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
@@ -1899,7 +1899,7 @@ private fun showAvailableCommands(context: Context) {
     val summary = NotificationCompat.Builder(context, CHANNEL_ID)
         .setSmallIcon(android.R.drawable.ic_menu_info_details)
         .setContentTitle(context.getString(R.string.qh_cmd_all_commands))
-        .setContentText(context.getString(R.string.qh_cmd_commands_count_summary, chunked.size))
+        .setContentText(context.resources.getQuantityString(R.plurals.qh_cmd_commands_count_summary, chunked.size, chunked.size))
         .setPriority(NotificationCompat.PRIORITY_HIGH)
         .setGroup("commands")
         .setGroupSummary(true)
@@ -1967,7 +1967,7 @@ private fun checkBahnZuege(context: Context, daysAhead: Int = 1) {
             val dayLabel = when (daysAhead) {
                 1 -> appContext.getString(R.string.qh_cmd_day_tomorrow)
                 2 -> appContext.getString(R.string.qh_cmd_day_day_after_tomorrow)
-                else -> appContext.getString(R.string.qh_cmd_in_days, daysAhead)
+                else -> appContext.resources.getQuantityString(R.plurals.qh_cmd_in_days, daysAhead, daysAhead)
             }
 
             val response = withContext(Dispatchers.IO) {
