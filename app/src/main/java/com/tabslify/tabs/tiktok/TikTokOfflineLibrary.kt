@@ -32,6 +32,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -48,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
@@ -211,8 +213,8 @@ fun OfflineLibraryScreen(
 @Composable
 private fun AutoZeile(context: android.content.Context) {
     var auto by remember { mutableStateOf(TikTokOfflineStore.autoAktiv(context)) }
-    var limit by remember { mutableStateOf(TikTokOfflineStore.autoLimit(context)) }
-    var grenze by remember { mutableStateOf(TikTokOfflineStore.maxBytes(context)) }
+    var limit by remember { mutableIntStateOf(TikTokOfflineStore.autoLimit(context)) }
+    var grenze by remember { mutableLongStateOf(TikTokOfflineStore.maxBytes(context)) }
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -498,6 +500,7 @@ fun OfflinePlayerOverlay(
 }
 
 @Composable
+@androidx.annotation.OptIn(markerClass = [UnstableApi::class])
 private fun OfflinePlayer(video: OfflineVideo) {
     val context = LocalContext.current
     val datei = remember(video.videoId, video.sizeBytes) {

@@ -1,6 +1,7 @@
 package com.tabslify.tabs.tiktok
 
 import android.content.Context
+import androidx.core.content.edit
 import com.tabslify.core.logging.Log
 import java.io.File
 import java.util.zip.ZipEntry
@@ -29,7 +30,7 @@ object TikTokDump {
     fun istAktiv(context: Context): Boolean = prefs(context).getBoolean(KEY_AKTIV, false)
 
     fun setzeAktiv(context: Context, aktiv: Boolean) {
-        prefs(context).edit().putBoolean(KEY_AKTIV, aktiv).apply()
+        prefs(context).edit { putBoolean(KEY_AKTIV, aktiv) }
         raeumeAltenStand(context)
         Log.i(TAG, "Rohdaten-Aufzeichnung ${if (aktiv) "an" else "aus"}")
     }

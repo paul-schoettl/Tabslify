@@ -1,6 +1,8 @@
 package com.tabslify.tabs.tiktok
 
+import android.app.Application
 import android.content.Context
+import androidx.core.content.edit
 import com.tabslify.core.logging.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -66,7 +68,7 @@ object TikTokDmClient {
 
     private val hasMoreConv = mutableMapOf<String, Boolean>()
     private var selfId = ""
-    private var context: Context? = null
+    private var context: Application? = null
     private var pollScope: CoroutineScope? = null
     private var pollJob: Job? = null
     private var pollRefs = 0
@@ -89,7 +91,7 @@ object TikTokDmClient {
 
     fun startPolling(context: Context) {
         val app = context.applicationContext
-        this@TikTokDmClient.context = app
+        this@TikTokDmClient.context = app as Application
         synchronized(this) {
             pollRefs++
             if (pollJob?.isActive == true) return
@@ -123,7 +125,7 @@ object TikTokDmClient {
     }
 
     suspend fun load(context: Context): TikTokFeed = withContext(Dispatchers.IO) {
-        this@TikTokDmClient.context = context.applicationContext
+        this@TikTokDmClient.context = context.applicationContext as Application
         try {
             val session = TikTokCookieRepository.session(context)
             val parsed = fetch(session)
@@ -383,7 +385,7 @@ object TikTokDmClient {
             )
         }
         if (account.length() == 0) obj.remove(ownerId) else obj.put(ownerId, account)
-        prefs.edit().putString(PREFS_STREAK, obj.toString()).apply()
+        prefs.edit { putString(PREFS_STREAK, obj.toString()) }
     }
 
     suspend fun applyFrontierReaction(

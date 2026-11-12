@@ -1,7 +1,6 @@
 package com.tabslify.tabs.tiktok
 
 import android.content.Context
-import android.provider.Settings
 import com.tabslify.core.logging.Log
 import androidx.core.content.edit
 import io.github.jan.supabase.functions.functions
@@ -11,6 +10,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import java.util.UUID
 
 object TikTokPushStore {
 
@@ -23,10 +23,7 @@ object TikTokPushStore {
     fun origin(context: Context): String {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         prefs.getString(ORIGIN, null)?.takeIf { it.isNotEmpty() }?.let { return it }
-        val raw = runCatching {
-            Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID)
-        }.getOrNull().orEmpty()
-        val value = raw.ifEmpty { "unbekannt" }
+        val value = UUID.randomUUID().toString()
         prefs.edit { putString(ORIGIN, value) }
         return value
     }

@@ -1,6 +1,7 @@
 package com.tabslify.tabs.tiktok
 
 import android.content.Context
+import androidx.core.content.edit
 import com.tabslify.core.logging.Log
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
@@ -62,17 +63,17 @@ object TikTokFeedApi {
         val app = context.applicationContext
         val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val deviceId = prefs.getString("device_id", null) ?: zufallsNummer().also {
-            prefs.edit().putString("device_id", it).apply()
+            prefs.edit { putString("device_id", it) }
         }
         val installId = prefs.getString("install_id", null) ?: zufallsNummer().also {
-            prefs.edit().putString("install_id", it).apply()
+            prefs.edit { putString("install_id", it) }
         }
         val iid = installId
         val cdid = prefs.getString("cdid", null) ?: UUID.randomUUID().toString().also {
-            prefs.edit().putString("cdid", it).apply()
+            prefs.edit { putString("cdid", it) }
         }
         val openudid = prefs.getString("openudid", null) ?: zufallsHex().also {
-            prefs.edit().putString("openudid", it).apply()
+            prefs.edit { putString("openudid", it) }
         }
         val zeit = System.currentTimeMillis()
         val felder = linkedMapOf(

@@ -1,6 +1,7 @@
 package com.tabslify.tabs.tiktok
 
 import android.content.Context
+import androidx.core.content.edit
 import android.os.StatFs
 import com.tabslify.core.logging.Log
 import kotlinx.coroutines.Dispatchers
@@ -229,8 +230,9 @@ object TikTokOfflineStore {
             .coerceAtLeast(SCHRITT_BYTES)
 
     fun setzeMaxBytes(context: Context, wert: Long) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-            .putLong(KEY_MAX_BYTES, wert.coerceAtLeast(SCHRITT_BYTES)).apply()
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit {
+            putLong(KEY_MAX_BYTES, wert.coerceAtLeast(SCHRITT_BYTES))
+        }
     }
 
     fun autoLimit(context: Context): Int =
@@ -239,8 +241,9 @@ object TikTokOfflineStore {
             .coerceIn(0, MAX_AUTO_LIMIT)
 
     fun setzeAutoLimit(context: Context, wert: Int) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-            .putInt(KEY_AUTO_LIMIT, wert.coerceIn(0, MAX_AUTO_LIMIT)).apply()
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit {
+            putInt(KEY_AUTO_LIMIT, wert.coerceIn(0, MAX_AUTO_LIMIT))
+        }
     }
 
     fun autoAktiv(context: Context): Boolean =
@@ -248,8 +251,9 @@ object TikTokOfflineStore {
             .getBoolean(KEY_AUTO_AKTIV, true)
 
     fun setzeAutoAktiv(context: Context, aktiv: Boolean) {
-        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-            .putBoolean(KEY_AUTO_AKTIV, aktiv).apply()
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit {
+            putBoolean(KEY_AUTO_AKTIV, aktiv)
+        }
     }
 
     fun frei(context: Context): Long = runCatching {

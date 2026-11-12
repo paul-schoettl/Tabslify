@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -799,6 +800,7 @@ private fun antragAusNachricht(message: TikTokMessage): OfflineAntrag? {
 }
 
 @Composable
+@androidx.annotation.OptIn(markerClass = [UnstableApi::class])
 private fun TikTokVideoPlayer(streamUrl: String, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val cookie = remember(streamUrl) { TikTokCookieRepository.cachedCookie(context) }
@@ -829,6 +831,7 @@ private fun TikTokVideoPlayer(streamUrl: String, modifier: Modifier = Modifier) 
 }
 
 @Composable
+@androidx.annotation.OptIn(markerClass = [UnstableApi::class])
 private fun TikTokVoicePlayer(streamUrl: String, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val cookie = remember(streamUrl) { TikTokCookieRepository.cachedCookie(context) }
