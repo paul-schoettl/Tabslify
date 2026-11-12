@@ -6,6 +6,8 @@ import com.tabslify.tabs.exploretab.ExploreBikeClassifier
 import org.json.JSONObject
 
 const val BIKE_MODE_AUTO = "AUTO"
+const val BIKE_SOURCE_AUTO = "AUTO"
+const val BIKE_SOURCE_RECORDED = "RECORDED"
 
 data class BikeRoutePoint(
     val lat: Double,
@@ -31,7 +33,10 @@ data class BikeRide(
     val elevationGainM: Float,
     val elevationLossM: Float,
     val calories: Float,
-    val route: List<BikeRoutePoint>
+    val route: List<BikeRoutePoint>,
+    val source: String = BIKE_SOURCE_AUTO,
+    val title: String = "",
+    val photoCount: Int = 0
 ) {
     val durationMs: Long get() = endTime - startTime
     val durationMinutes: Int get() = (durationMs / 60_000L).toInt()

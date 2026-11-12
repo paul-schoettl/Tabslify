@@ -1,25 +1,30 @@
 package com.tabslify.tabs.ridetracking.service
 
+import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import com.tabslify.R
 import com.tabslify.core.logging.AppLog
-import com.tabslify.tabs.ridetracking.data.RideRecorderState
 import com.tabslify.tabs.ridetracking.data.RIDE_STATUS_PAUSED
+import com.tabslify.tabs.ridetracking.data.RideRecorderState
+import com.tabslify.tabs.ridetracking.data.RideRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Locale
 
 class RideTrackingService : Service() {
@@ -65,8 +70,19 @@ class RideTrackingService : Service() {
                 if (RideRecorder.state.value.active) {
                     startCollector()
                 } else {
-                    stopSelf()
-                    return START_NOT_STICKY
+                    CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+                        val active = runCatching {
+                            RideRepository(applicationContext).activeRide()
+                        }.getOrNull()
+                        withContext(Dispatchers.Main) {
+                            if (active != null) {
+                                RideRecorder.onServiceStarted(this@RideTrackingService)
+                                startCollector()
+                            } else {
+                                stopSelf()
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -99,6 +115,11 @@ class RideTrackingService : Service() {
     ) {
         val now = System.currentTimeMillis()
         if (!force && now - lastNotificationAt < 1_500L) return
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
         lastNotificationAt = now
         val notification = buildNotification(state)
         runCatching {

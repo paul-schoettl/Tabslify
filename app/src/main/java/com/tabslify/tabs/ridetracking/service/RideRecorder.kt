@@ -376,6 +376,7 @@ object RideRecorder {
 
     @SuppressLint("MissingPermission")
     private fun registerLocationUpdates(context: Context) {
+        if (locationCallback != null) return
         val callback = locationCallback ?: object : LocationCallback() {
             override fun onLocationResult(result: LocationResult) {
                 result.locations.forEach { handleLocation(context, it) }
@@ -412,6 +413,7 @@ object RideRecorder {
 
     @SuppressLint("MissingPermission")
     private fun registerActivityUpdates(context: Context) {
+        if (activityPendingIntent != null) return
         val intent = Intent(context, RideActivityReceiver::class.java)
         val pending = PendingIntent.getBroadcast(
             context,
@@ -428,6 +430,7 @@ object RideRecorder {
         }
     }
 
+    @SuppressLint("MissingPermission")
     private fun stopActivityUpdates() {
         val pending = activityPendingIntent ?: return
         appContext?.let { context ->
@@ -765,6 +768,7 @@ object RideRecorder {
         if (!busy.compareAndSet(false, true)) return
         try {
             val id = rideId ?: return
+            val baseRow = rideRow
             accumulate()
             val end = System.currentTimeMillis()
             val pending = pendingPoints.toList()
@@ -805,6 +809,9 @@ object RideRecorder {
             addEvent(RIDE_EVENT_STOP)
             ioScope.launch {
                 runCatching {
+                    if (baseRow != null && repository?.ride(id) == null) {
+                        repository?.createRide(baseRow)
+                    }
                     repository?.addPoints(pending)
                     pending.forEach { point ->
                         runCatching { exploreRepository?.ingestTile(point.lat, point.lon) }

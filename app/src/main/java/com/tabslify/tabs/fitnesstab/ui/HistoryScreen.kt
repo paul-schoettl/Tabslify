@@ -61,6 +61,7 @@ import com.tabslify.tabs.fitnesstab.data.DayStats
 import com.tabslify.tabs.fitnesstab.data.EXERCISE_ID_CYCLING
 import com.tabslify.tabs.fitnesstab.data.ExerciseRepository
 import com.tabslify.tabs.fitnesstab.data.ExploreActivityBridge
+import com.tabslify.tabs.ridetracking.data.RideSessionAdapter
 import com.tabslify.tabs.fitnesstab.data.MuscleGroup
 import com.tabslify.tabs.fitnesstab.data.WorkoutSession
 import java.text.SimpleDateFormat
@@ -293,6 +294,7 @@ private fun SessionCard(
     val minutes = ((session.dateEndMs - session.dateStartMs) / 60_000L).coerceAtLeast(0L).toInt()
     val isPushup = session.sessionId.startsWith("pushup_")
     val isExplore = ExploreActivityBridge.isExploreSession(session.sessionId)
+    val isRide = RideSessionAdapter.isRideSession(session.sessionId)
     val exploreExercise = if (isExplore) {
         session.entries.firstOrNull()?.let { ExerciseRepository.findById(it.exerciseId) }
     } else {
@@ -314,6 +316,7 @@ private fun SessionCard(
         modifier = Modifier.fillMaxWidth(),
         cornerRadius = RoundedCornerShape(16.dp),
         neonColors = when {
+            isRide -> listOf(SuccessGreen, AccentBlue)
             isExplore -> listOf(AccentBlue, AccentGreen)
             isPushup -> listOf(Accent, AccentDim)
             else -> listOf(AccentBlue, AccentDim)
@@ -335,6 +338,7 @@ private fun SessionCard(
                 ) {
                     Text(
                         text = when {
+                            isRide -> "🚴"
                             isExplore -> if (isCycling) "🚴" else "🚶"
                             isPushup -> "📷"
                             else -> "🏋️"
@@ -346,6 +350,8 @@ private fun SessionCard(
                 Column(Modifier.weight(1f)) {
                     Text(
                         text = when {
+                            isRide && session.name.isNotBlank() -> session.name
+                            isRide -> stringResource(R.string.ride_tracking_explore_card_title)
                             exploreExercise != null -> stringResource(exploreExercise.nameRes)
                             isPushup -> stringResource(R.string.fitness_history_workout_pushup)
                             session.name.isNotBlank() -> session.name

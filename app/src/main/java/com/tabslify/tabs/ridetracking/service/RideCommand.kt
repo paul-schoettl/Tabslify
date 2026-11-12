@@ -9,6 +9,6 @@ object RideCommand {
     const val EXTRA_RIDE_ID = "ride_id"
     const val EXTRA_MODE = "ride_mode"
 
-    const val NOTIFICATION_ID = 80001
+    const val NOTIFICATION_ID = 81001
     const val CHANNEL_ID = "ride_tracking"
 }

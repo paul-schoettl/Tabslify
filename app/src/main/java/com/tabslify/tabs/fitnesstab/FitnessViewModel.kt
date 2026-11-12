@@ -28,6 +28,9 @@ import com.tabslify.tabs.fitnesstab.data.FitnessStats
 import com.tabslify.tabs.fitnesstab.data.FitnessStorage
 import com.tabslify.tabs.fitnesstab.data.WorkoutEntry
 import com.tabslify.tabs.fitnesstab.data.WorkoutSession
+import com.tabslify.tabs.ridetracking.data.RideBikeAdapter
+import com.tabslify.tabs.ridetracking.data.RideRecovery
+import com.tabslify.tabs.ridetracking.data.RideRepository
 import com.tabslify.tabs.ridetracking.data.RideSessionAdapter
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -190,13 +193,25 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         if (!force && loadedBikeRangeDays == bikeRangeDays) return
         bikeLoading = true
         viewModelScope.launch {
-            val rides = runCatching {
+            val factor = storage.calorieFactor()
+            val autoRides = runCatching {
                 BikeRideRepository.ridesForLastDays(
                     getApplication(),
                     bikeRangeDays,
-                    storage.calorieFactor()
+                    factor
                 )
             }.getOrDefault(emptyList())
+            val recordedRides = runCatching {
+                RideBikeAdapter.ridesForLastDays(
+                    getApplication(),
+                    bikeRangeDays,
+                    factor
+                )
+            }.getOrDefault(emptyList())
+            val rides = (
+                    recordedRides +
+                            RideBikeAdapter.withoutOverlappingAuto(autoRides, recordedRides)
+                    ).sortedByDescending { it.startTime }
             _bikeRides.value = rides
             _bikeStats.value = BikeRideRepository.statsFor(rides)
             loadedBikeRangeDays = bikeRangeDays
@@ -466,6 +481,15 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
 
     fun deleteSession(sessionId: String) {
         if (ExploreActivityBridge.isExploreSession(sessionId)) return
+        if (RideSessionAdapter.isRideSession(sessionId)) {
+            viewModelScope.launch {
+                val rideId = sessionId.removePrefix(RideSessionAdapter.RIDE_SESSION_PREFIX)
+                runCatching { RideRepository(getApplication<Application>()).deleteRideCascade(rideId) }
+                refreshStats()
+                loadBikeRides(force = true)
+            }
+            return
+        }
         storage.deleteSession(sessionId)
         refreshStats()
     }
@@ -476,6 +500,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         get() = if (elapsedMs < 3_000L || reps == 0) 0f else reps * 60_000f / elapsedMs
 
     init {
+        RideRecovery.recover(application)
         refreshStats()
     }
 

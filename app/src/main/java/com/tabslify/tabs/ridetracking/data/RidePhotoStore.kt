@@ -1,16 +1,20 @@
 package com.tabslify.tabs.ridetracking.data
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.media.ExifInterface
 import android.net.Uri
+import androidx.core.graphics.scale
+import androidx.exifinterface.media.ExifInterface
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.math.abs
+import kotlin.math.min
 
 object RidePhotoStore {
 
@@ -35,6 +39,54 @@ object RidePhotoStore {
                 true
             }.getOrDefault(false)
         }
+
+    fun optimize(file: File, maxDimension: Int = 2048, quality: Int = 85) {
+        if (!file.exists() || file.length() <= 0L) return
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(file.absolutePath, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return
+        var sample = 1
+        while (bounds.outWidth / sample > maxDimension || bounds.outHeight / sample > maxDimension) {
+            sample *= 2
+        }
+        val options = BitmapFactory.Options().apply { inSampleSize = sample }
+        val decoded = BitmapFactory.decodeFile(file.absolutePath, options) ?: return
+        val scaled = if (decoded.width > maxDimension || decoded.height > maxDimension) {
+            val ratio = min(
+                maxDimension.toFloat() / decoded.width,
+                maxDimension.toFloat() / decoded.height
+            )
+            val width = (decoded.width * ratio).toInt().coerceAtLeast(1)
+            val height = (decoded.height * ratio).toInt().coerceAtLeast(1)
+            decoded.scale(width, height).also {
+                if (it !== decoded) decoded.recycle()
+            }
+        } else {
+            decoded
+        }
+        val temp = File(file.parentFile, "${file.name}.tmp")
+        runCatching {
+            FileOutputStream(temp).use { output ->
+                scaled.compress(Bitmap.CompressFormat.JPEG, quality, output)
+            }
+        }
+        scaled.recycle()
+        if (temp.length() <= 0L) {
+            temp.delete()
+            return
+        }
+        val backup = File(file.parentFile, "${file.name}.orig")
+        if (!file.renameTo(backup)) {
+            temp.delete()
+            return
+        }
+        if (temp.renameTo(file)) {
+            backup.delete()
+        } else {
+            backup.renameTo(file)
+            temp.delete()
+        }
+    }
 
     fun captureTimestamp(file: File, fallback: Long = System.currentTimeMillis()): Long {
         val raw = runCatching {

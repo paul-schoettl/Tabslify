@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -47,6 +48,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -54,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import com.tabslify.R
 import com.tabslify.core.ui.Accent
 import com.tabslify.core.ui.AlertDialogTabslify
@@ -92,6 +96,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.TextButton
@@ -150,9 +155,7 @@ fun RideTrackingCard(
             add(Manifest.permission.ACCESS_FINE_LOCATION)
             add(Manifest.permission.ACCESS_COARSE_LOCATION)
             add(Manifest.permission.ACTIVITY_RECOGNITION)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                add(Manifest.permission.POST_NOTIFICATIONS)
-            }
+            add(Manifest.permission.POST_NOTIFICATIONS)
         }.filter {
             ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED
         }
@@ -363,6 +366,13 @@ fun RideTrackingCard(
                         modifier = Modifier.weight(1f)
                     ) { showStopDialog = true }
                 }
+                RideActionButton(
+                    text = stringResource(R.string.ride_tracking_photo_section),
+                    colors = listOf(RideAccentSecondary, RideAccent),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    state.rideId?.let(onOpenStats)
+                }
             } else if (finished) {
                 val id = state.finishedRideId
                 Row(verticalAlignment = Alignment.Bottom) {
@@ -496,7 +506,9 @@ fun RideStatsScreen(
     onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    BackHandler(onBack = onClose)
     val context = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     val repo = remember { RideRepository(context) }
     val rideFlow = remember(repo, rideId) { repo.rideFlow(rideId) }
@@ -520,7 +532,7 @@ fun RideStatsScreen(
             val saved = persistRidePhoto(context, repo, rideId, file, points, fallbackTimestamp)
             if (!saved) {
                 file.delete()
-                errorMessage = context.getString(R.string.ride_tracking_photo_failed)
+                errorMessage = resources.getString(R.string.ride_tracking_photo_failed)
             }
         }
     }
@@ -544,7 +556,7 @@ fun RideStatsScreen(
             pendingCameraFile = file
             cameraLauncher.launch(uri)
         }.onFailure {
-            errorMessage = context.getString(R.string.ride_tracking_photo_failed)
+            errorMessage = resources.getString(R.string.ride_tracking_photo_failed)
         }
     }
 
@@ -554,7 +566,7 @@ fun RideStatsScreen(
         if (granted) {
             startCamera()
         } else {
-            errorMessage = context.getString(R.string.ride_tracking_camera_denied)
+            errorMessage = resources.getString(R.string.ride_tracking_camera_denied)
         }
     }
 
@@ -569,7 +581,7 @@ fun RideStatsScreen(
                     savePhoto(target, System.currentTimeMillis())
                 } else {
                     target.delete()
-                    errorMessage = context.getString(R.string.ride_tracking_photo_failed)
+                    errorMessage = resources.getString(R.string.ride_tracking_photo_failed)
                 }
             }
         }
@@ -659,6 +671,23 @@ fun RideStatsScreen(
                         text = dateFmt.format(Date(it.startTime)),
                         color = TextSecondary,
                         fontSize = 12.sp
+                    )
+                }
+            }
+            if (points.isNotEmpty()) {
+                IconButton(
+                    onClick = {
+                        openRideLocation(
+                            context,
+                            points.first().lat,
+                            points.first().lon
+                        )
+                    }
+                ) {
+                    Icon(
+                        Icons.Default.Map,
+                        contentDescription = stringResource(R.string.ride_tracking_open_map),
+                        tint = RideAccentSecondary
                     )
                 }
             }
@@ -767,6 +796,7 @@ private suspend fun persistRidePhoto(
     runCatching {
         if (file.length() <= 0L) return@runCatching false
         val timestamp = RidePhotoStore.captureTimestamp(file, fallbackTimestamp)
+        RidePhotoStore.optimize(file)
         val ridePoints = points.ifEmpty {
             runCatching { repo.pointsForRide(rideId) }.getOrDefault(emptyList())
         }
@@ -818,6 +848,7 @@ private fun RideTrackMap(
         return
     }
 
+    val mapPoints = remember(points) { RideMetrics.downsample(points, 1000) }
     var mapView by remember { mutableStateOf<MapView?>(null) }
     DisposableEffect(Unit) {
         onDispose {
@@ -844,13 +875,13 @@ private fun RideTrackMap(
                     isTilesScaledToDpi = false
                     setScrollableAreaLimitDouble(null)
                     controller.setZoom(14.0)
-                    controller.setCenter(GeoPoint(points.first().lat, points.first().lon))
+                    controller.setCenter(GeoPoint(mapPoints.first().lat, mapPoints.first().lon))
                 }.also { mapView = it }
             },
             update = { view ->
                 view.overlays.removeAll(view.overlays.filterIsInstance<Polyline>().toSet())
                 view.overlays.removeAll(view.overlays.filterIsInstance<Marker>().toSet())
-                val geoPoints = points.map { GeoPoint(it.lat, it.lon) }
+                val geoPoints = mapPoints.map { GeoPoint(it.lat, it.lon) }
                 view.overlays.add(
                     Polyline().apply {
                         setPoints(geoPoints)
@@ -960,7 +991,11 @@ private fun RideElevationProfile(points: List<RidePoint>, events: List<RideEvent
     BikeSectionTitle(stringResource(R.string.ride_tracking_elevation_profile))
     if (pauses.isNotEmpty()) {
         Text(
-            text = stringResource(R.string.ride_tracking_pause_markers, pauses.size),
+            text = pluralStringResource(
+                R.plurals.ride_tracking_pause_markers,
+                pauses.size,
+                pauses.size
+            ),
             color = Color(0xFFFFB74D),
             fontSize = 11.sp
         )
@@ -1056,6 +1091,8 @@ private fun RideElevationProfile(points: List<RidePoint>, events: List<RideEvent
 
 @Composable
 private fun RideSplitRow(split: RideSplit) {
+    val resources = LocalResources.current
+    val locale = resources.configuration.locales[0]
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1071,7 +1108,7 @@ private fun RideSplitRow(split: RideSplit) {
                 fontSize = 12.sp
             )
             Text(
-                text = String.format(Locale.getDefault(), "%.2f km", split.distanceM / 1000.0),
+                text = String.format(locale, "%.2f km", split.distanceM / 1000.0),
                 color = TextTertiary,
                 fontSize = 10.sp
             )
@@ -1285,6 +1322,17 @@ private fun RideActionButton(
             color = Color.White,
             fontSize = 14.sp,
             fontWeight = FontWeight.Bold
+        )
+    }
+}
+
+private fun openRideLocation(context: Context, lat: Double, lon: Double) {
+    runCatching {
+        context.startActivity(
+            Intent(
+                Intent.ACTION_VIEW,
+                "geo:$lat,$lon?q=$lat,$lon".toUri()
+            )
         )
     }
 }

@@ -2,9 +2,11 @@ package com.tabslify.tabs.ridetracking.data
 
 import android.content.Context
 import kotlinx.coroutines.flow.Flow
+import java.io.File
 
 class RideRepository(context: Context) {
 
+    private val appContext = context.applicationContext
     private val dao = RideDatabase.get(context).dao()
 
     fun activeRideFlow(): Flow<Ride?> = dao.activeRideFlow()
@@ -100,16 +102,33 @@ class RideRepository(context: Context) {
     suspend fun markStaleRecordings(cutoff: Long): List<Ride> {
         val stale = dao.staleRecordings(cutoff)
         stale.forEach { ride ->
-            val lastPoint = dao.pointsForRide(ride.id).lastOrNull()
+            val points = dao.pointsForRide(ride.id)
+            val lastPoint = points.lastOrNull()
             val end = lastPoint?.timestamp ?: ride.startTime
+            val distance = lastPoint?.distanceFromStartM ?: ride.distanceMeters
+            val moving = ride.movingTimeMs.takeIf { it > 0L } ?: (end - ride.startTime)
+            val (gain, loss) = RideMetrics.elevationGainLoss(points)
+            val avg = if (moving > 0L) distance / (moving / 1000.0) else ride.avgSpeedMps
+            val max = points.maxOfOrNull { it.speedMps ?: 0.0 } ?: ride.maxSpeedMps
+            val splits = RideMetrics.computeSplits(points, ride.id)
             dao.updateRide(
                 ride.copy(
                     status = RIDE_STATUS_FINISHED,
                     endTime = end,
+                    movingTimeMs = moving,
+                    distanceMeters = distance,
+                    elevationGainM = gain,
+                    elevationLossM = loss,
+                    avgSpeedMps = avg,
+                    maxSpeedMps = max,
+                    pointCount = points.size,
+                    calories = estimateCalories(distance, moving, ride.mode),
                     heartbeatAt = cutoff,
                     updatedAt = System.currentTimeMillis()
                 )
             )
+            dao.deleteSplitsForRide(ride.id)
+            dao.insertSplits(splits)
             dao.insertEvent(
                 RideEvent(
                     rideId = ride.id,
@@ -128,6 +147,7 @@ class RideRepository(context: Context) {
         dao.deleteSplitsForRide(rideId)
         dao.deleteEventsForRide(rideId)
         dao.deleteRide(rideId)
+        runCatching { File(appContext.filesDir, "rides/$rideId").deleteRecursively() }
     }
 
     private suspend fun refreshPhotoCount(rideId: String) {

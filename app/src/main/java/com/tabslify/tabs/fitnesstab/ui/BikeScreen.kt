@@ -33,6 +33,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -43,23 +44,31 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.tabslify.R
+import com.tabslify.core.objects.prvt
 import com.tabslify.core.ui.Accent
 import com.tabslify.core.ui.AccentDim
 import com.tabslify.core.ui.BgCard
+import com.tabslify.core.ui.FeatureToggle
 import com.tabslify.core.ui.NeonBox
 import com.tabslify.core.ui.SuccessGreen
 import com.tabslify.core.ui.TextPrimary
 import com.tabslify.core.ui.TextSecondary
 import com.tabslify.core.ui.TextTertiary
+import com.tabslify.core.ui.isFeatureEnabled
 import com.tabslify.tabs.exploretab.ExploreBikeClassifier
 import com.tabslify.tabs.fitnesstab.BikeFilter
 import com.tabslify.tabs.fitnesstab.FitnessViewModel
 import com.tabslify.tabs.fitnesstab.data.BIKE_MODE_AUTO
+import com.tabslify.tabs.fitnesstab.data.BIKE_SOURCE_RECORDED
 import com.tabslify.tabs.fitnesstab.data.BikeRide
 import com.tabslify.tabs.fitnesstab.data.BikeStats
+import com.tabslify.tabs.ridetracking.data.RideSessionAdapter
+import com.tabslify.tabs.ridetracking.service.RideRecorder
 import com.tabslify.tabs.ridetracking.ui.RideRecentSection
 import com.tabslify.tabs.ridetracking.ui.RideStatsScreen
 import com.tabslify.tabs.ridetracking.ui.RideTrackingCard
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -97,11 +106,25 @@ internal fun bikeDurationLabel(millis: Long): String {
 
 @Composable
 fun BikeScreen(vm: FitnessViewModel, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
     val rides by vm.bikeRides.collectAsState()
     val stats by vm.bikeStats.collectAsState()
     var rideStatsId by remember { mutableStateOf<String?>(null) }
+    val rideTrackingEnabled = prvt() && isFeatureEnabled(context, FeatureToggle.RIDE_TRACKING)
 
     LaunchedEffect(Unit) { vm.loadBikeRides() }
+
+    LaunchedEffect(Unit) {
+        RideRecorder.state
+            .map { it.finishedRideId }
+            .distinctUntilChanged()
+            .collect { id ->
+                if (id != null) {
+                    vm.loadBikeRides(force = true)
+                    vm.refreshStats()
+                }
+            }
+    }
 
     rideStatsId?.let { id ->
         RideStatsScreen(
@@ -176,9 +199,10 @@ fun BikeScreen(vm: FitnessViewModel, modifier: Modifier = Modifier) {
 
         item { BikeSummaryCard(stats = stats) }
 
-        item { RideTrackingCard(onOpenStats = { rideStatsId = it }) }
-
-        item { RideRecentSection(onOpenStats = { rideStatsId = it }) }
+        if (rideTrackingEnabled) {
+            item { RideTrackingCard(onOpenStats = { rideStatsId = it }) }
+            item { RideRecentSection(onOpenStats = { rideStatsId = it }) }
+        }
 
         item {
             BikeChipRow(
@@ -255,7 +279,13 @@ fun BikeScreen(vm: FitnessViewModel, modifier: Modifier = Modifier) {
                     ride = ride,
                     dateLabel = dateFmt.format(Date(ride.startTime)),
                     timeLabel = "${timeFmt.format(Date(ride.startTime))} – ${timeFmt.format(Date(ride.endTime))}",
-                    onClick = { vm.openRide(ride.rideId) }
+                    onClick = {
+                        if (ride.source == BIKE_SOURCE_RECORDED) {
+                            rideStatsId = ride.rideId.removePrefix(RideSessionAdapter.RIDE_SESSION_PREFIX)
+                        } else {
+                            vm.openRide(ride.rideId)
+                        }
+                    }
                 )
             }
         }
@@ -488,6 +518,15 @@ private fun BikeRideCard(
                         maxLines = 1
                     )
                     Text(text = timeLabel, color = TextSecondary, fontSize = 11.sp)
+                    if (ride.source == BIKE_SOURCE_RECORDED) {
+                        Text(
+                            text = ride.title.takeIf { it.isNotBlank() }
+                                ?: stringResource(R.string.ride_tracking_explore_card_title),
+                            color = SuccessGreen,
+                            fontSize = 10.sp,
+                            maxLines = 1
+                        )
+                    }
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
@@ -516,6 +555,12 @@ private fun BikeRideCard(
                     text = stringResource(R.string.fitness_bike_value_kcal, ride.calories),
                     color = BikeOrange
                 )
+                if (ride.photoCount > 0) {
+                    BikeTag(
+                        text = "📷 ${ride.photoCount}",
+                        color = BikeAccentSecondary
+                    )
+                }
                 if (ride.elevationGainM >= 1f) {
                     BikeTag(
                         text = "↑ " + stringResource(R.string.fitness_bike_value_meters, ride.elevationGainM),
