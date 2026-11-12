@@ -26,7 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.InsertDriveFile
+import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -44,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -98,7 +99,7 @@ private fun dateiListe(host: String, pfad: String, code: String?): List<DateiEin
 }
 
 private fun dateiHerunterladen(
-    kontext: Context,
+    context: Context,
     host: String,
     pfad: String,
     name: String,
@@ -113,9 +114,9 @@ private fun dateiHerunterladen(
             put(MediaStore.Downloads.MIME_TYPE, "application/octet-stream")
             put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
         }
-        val ziel = kontext.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, werte)
+        val ziel = context.contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, werte)
             ?: return false
-        kontext.contentResolver.openOutputStream(ziel)?.use { ausgabe ->
+        context.contentResolver.openOutputStream(ziel)?.use { ausgabe ->
             verbindung.inputStream.use { eingang -> eingang.copyTo(ausgabe) }
         } ?: return false
         true
@@ -124,8 +125,8 @@ private fun dateiHerunterladen(
     }
 }
 
-private fun dateiName(kontext: Context, uri: Uri): String? {
-    kontext.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+private fun dateiName(context: Context, uri: Uri): String? {
+    context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
         ?.use { cursor ->
             if (cursor.moveToFirst()) {
                 val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
@@ -136,7 +137,7 @@ private fun dateiName(kontext: Context, uri: Uri): String? {
 }
 
 private fun dateiHochladen(
-    kontext: Context,
+    context: Context,
     host: String,
     zielPfad: String,
     name: String,
@@ -148,17 +149,17 @@ private fun dateiHochladen(
     return try {
         verbindung.requestMethod = "POST"
         verbindung.doOutput = true
-        val laenge = kontext.contentResolver.openAssetFileDescriptor(uri, "r")?.use { it.length } ?: -1L
+        val laenge = context.contentResolver.openAssetFileDescriptor(uri, "r")?.use { it.length } ?: -1L
         if (laenge >= 0) {
             verbindung.setFixedLengthStreamingMode(laenge)
         } else {
-            val daten = kontext.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            val daten = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
                 ?: return false
             verbindung.setFixedLengthStreamingMode(daten.size)
             verbindung.outputStream.use { it.write(daten) }
             return verbindung.responseCode == 200
         }
-        kontext.contentResolver.openInputStream(uri)?.use { eingang ->
+        context.contentResolver.openInputStream(uri)?.use { eingang ->
             verbindung.outputStream.use { ausgabe -> eingang.copyTo(ausgabe) }
         } ?: return false
         verbindung.responseCode == 200
@@ -169,7 +170,8 @@ private fun dateiHochladen(
 
 @Composable
 fun StreamdDateien(host: String, authCode: () -> String?, onSchliessen: () -> Unit) {
-    val kontext = LocalContext.current
+    val context = LocalContext.current
+    val resources = LocalResources.current
     val bereich = rememberCoroutineScope()
     var pfad by remember { mutableStateOf("") }
     var eintraege by remember { mutableStateOf<List<DateiEintrag>>(emptyList()) }
@@ -198,20 +200,20 @@ fun StreamdDateien(host: String, authCode: () -> String?, onSchliessen: () -> Un
 
     val uploader = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
-            val name = dateiName(kontext, uri)
+            val name = dateiName(context, uri)
             if (name == null) {
-                fehler = kontext.getString(R.string.stream_fehler, "kein Dateiname")
+                fehler = resources.getString(R.string.stream_fehler, "kein Dateiname")
             } else {
                 val ziel = if (pfad.isBlank()) name else "$pfad/$name"
                 bereich.launch {
                     laedt = true
                     val ok = withContext(Dispatchers.IO) {
-                        runCatching { dateiHochladen(kontext, host, ziel, name, uri, authCode()) }
+                        runCatching { dateiHochladen(context, host, ziel, name, uri, authCode()) }
                             .getOrDefault(false)
                     }
                     laedt = false
-                    hinweis = if (ok) kontext.getString(R.string.stream_upload_fertig, name)
-                    else kontext.getString(R.string.stream_fehler, "Upload")
+                    hinweis = if (ok) resources.getString(R.string.stream_upload_fertig, name)
+                    else resources.getString(R.string.stream_fehler, "Upload")
                     laden(pfad)
                 }
             }
@@ -292,14 +294,14 @@ fun StreamdDateien(host: String, authCode: () -> String?, onSchliessen: () -> Un
                                             val ok = withContext(Dispatchers.IO) {
                                                 runCatching {
                                                     dateiHerunterladen(
-                                                        kontext, host, quelle, eintrag.name, authCode()
+                                                        context, host, quelle, eintrag.name, authCode()
                                                     )
                                                 }.getOrDefault(false)
                                             }
                                             hinweis = if (ok) {
-                                                kontext.getString(R.string.stream_datei_gespeichert, eintrag.name)
+                                                resources.getString(R.string.stream_datei_gespeichert, eintrag.name)
                                             } else {
-                                                kontext.getString(R.string.stream_fehler, "Download")
+                                                resources.getString(R.string.stream_fehler, "Download")
                                             }
                                         }
                                     }
@@ -308,7 +310,8 @@ fun StreamdDateien(host: String, authCode: () -> String?, onSchliessen: () -> Un
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                if (eintrag.dir) Icons.Default.Folder else Icons.Default.InsertDriveFile,
+                                if (eintrag.dir) Icons.Default.Folder
+                                else Icons.AutoMirrored.Filled.InsertDriveFile,
                                 contentDescription = null,
                                 tint = if (eintrag.dir) Color(0xFFFFA500) else TextSecondary,
                                 modifier = Modifier.size(20.dp)
