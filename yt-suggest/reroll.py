@@ -15,6 +15,7 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 DEFAULT_STATE = BASE_DIR / "state"
+DEFAULT_RAW_DIR = BASE_DIR / "raw"
 DEFAULT_LOG = BASE_DIR / "logs" / "reroll.log"
 DEFAULT_ENV = BASE_DIR / ".env"
 POLL_SECONDS = 3
@@ -181,15 +182,31 @@ def pipeline_lock(timeout: int = LOCK_TIMEOUT):
             time.sleep(1)
 
 
+def latest_raw() -> Path | None:
+    files = sorted(DEFAULT_RAW_DIR.glob("*.json"))
+    return files[-1] if files else None
+
+
+def needs_scrape() -> bool:
+    latest = latest_raw()
+    return latest is None or latest.stem != datetime.now().astimezone().strftime("%Y-%m-%d")
+
+
 def run_pipeline(logfile: Path) -> tuple[bool, str]:
     lock = pipeline_lock()
     if lock is None:
         return False, "pipeline lock timeout"
     try:
         python = sys.executable
-        steps = (
-            [python, str(BASE_DIR / "pick.py")],
-            [python, str(BASE_DIR / "push.py"), "--valid-from", "now"],
+        steps = []
+        if needs_scrape():
+            log("scrape start: no raw for today", logfile)
+            steps.append([python, str(BASE_DIR / "yt_scrape.py"), "--login-timeout", "0"])
+        steps.extend(
+            [
+                [python, str(BASE_DIR / "pick.py")],
+                [python, str(BASE_DIR / "push.py"), "--valid-from", "now"],
+            ]
         )
         output = []
         for step in steps:

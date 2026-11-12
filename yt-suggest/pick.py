@@ -299,7 +299,7 @@ def call_commandcode(prompt: str, env: dict[str, str], logfile: Path) -> str:
             {"role": "user", "content": prompt},
         ],
         "temperature": 0.3,
-        "max_tokens": 500,
+        "max_tokens": 2000,
     }
     request = urllib.request.Request(
         f"{base}/chat/completions",
@@ -384,7 +384,7 @@ def main() -> int:
             prompt = build_prompt(raw, candidates, sorted(excluded))
             model = env.get("COMMANDCODE_MODEL", "deepseek/deepseek-v4.1-flash")
             last_error = None
-            for attempt in range(1, 3):
+            for attempt in range(1, 4):
                 try:
                     content = call_commandcode(prompt, env, args.log)
                     selection = parse_reply(content)
