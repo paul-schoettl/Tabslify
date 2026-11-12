@@ -5,6 +5,7 @@ import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
+import androidx.core.content.edit
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
@@ -265,9 +266,7 @@ object ExploreLocationTracker {
     private fun setPresence(context: Context, value: String) {
         context.applicationContext
             .getSharedPreferences(PRESENCE_PREFS, Context.MODE_PRIVATE)
-            .edit()
-            .putString(PRESENCE_KEY, value)
-            .apply()
+            .edit { putString(PRESENCE_KEY, value) }
     }
 
     fun onGeofenceEnter(context: Context) {
@@ -469,8 +468,7 @@ object ExploreLocationTracker {
         if (backgroundLocationRequested) {
             return
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
-            ContextCompat.checkSelfPermission(appCtx, Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED
+        if (ContextCompat.checkSelfPermission(appCtx, Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED
         ) {
             isEnabled = false
             _trackerInfo.value = _trackerInfo.value.copy(isEnabled = false)
@@ -607,8 +605,7 @@ object ExploreLocationTracker {
             )
             return
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
-            ContextCompat.checkSelfPermission(appCtx, Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED
+        if (ContextCompat.checkSelfPermission(appCtx, Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED
         ) {
             _trackerInfo.value = _trackerInfo.value.copy(
                 geofenceRegistered = false,
