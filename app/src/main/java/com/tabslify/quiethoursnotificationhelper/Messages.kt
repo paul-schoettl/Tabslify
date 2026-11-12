@@ -161,7 +161,7 @@ private fun postChatNotification(key: String, context: Context, sourceLabel: Str
                     summaryId, NotificationCompat.Builder(context, "Nachrichten")
                         .setSmallIcon(android.R.drawable.stat_notify_chat)
                         .setContentTitle(context.getString(R.string.qh_msg_long_title, sourceLabel, displayName))
-                        .setContentText(context.getString(R.string.qh_msg_parts_count, partIndex))
+                        .setContentText(context.resources.getQuantityString(R.plurals.qh_msg_parts_count, partIndex, partIndex))
                         .setPriority(NotificationCompat.PRIORITY_LOW)
                         .setGroup("long_$key")
                         .setGroupSummary(true)
