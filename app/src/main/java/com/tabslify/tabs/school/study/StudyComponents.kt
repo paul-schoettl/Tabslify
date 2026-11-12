@@ -211,7 +211,7 @@ fun StudySectionTitle(text: String) {
 }
 
 @Composable
-fun StudyKindLabel(kind: String): String = when (kind) {
+fun studyKindLabel(kind: String): String = when (kind) {
     "vocab" -> stringResource(R.string.study_vocab)
     "text_section" -> stringResource(R.string.study_text_section)
     else -> kind

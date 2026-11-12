@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -93,7 +94,7 @@ fun StudyPlanScreen(
                 ) {
                     item {
                         Text(
-                            text = state.project?.title?.ifBlank { null }
+                            text = state.project.title.ifBlank { null }
                                 ?: stringResource(R.string.study_untitled),
                             color = TextPrimary,
                             fontSize = 18.sp,
@@ -132,7 +133,10 @@ fun StudyPlanScreen(
 
             else -> {
                 val today = LocalDate.now().toString()
-                val currentDay = state.days.firstOrNull { it.status != "done" }?.dayIndex
+                val currentDay = state.days.firstOrNull { it.date == today }?.dayIndex
+                    ?: state.days.firstOrNull { day ->
+                        state.assignments.any { it.dayId == day.id && it.status != "done" }
+                    }?.dayIndex
                     ?: state.days.size.coerceAtLeast(1)
                 val totalDays = state.days.size.takeIf { it > 0 } ?: 5
                 LazyColumn(
@@ -280,7 +284,7 @@ private fun StudyDayCard(
                 text = if (day.status == "done") {
                     stringResource(R.string.study_done)
                 } else {
-                    stringResource(R.string.study_task_count, taskCount)
+                    pluralStringResource(R.plurals.study_task_count, taskCount, taskCount)
                 },
                 color = tertiaryColor,
                 fontSize = 10.sp,

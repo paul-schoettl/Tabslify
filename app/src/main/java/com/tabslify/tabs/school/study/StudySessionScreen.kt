@@ -93,7 +93,7 @@ fun StudySessionScreen(
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        StudyTypeChip(StudyKindLabel(task.item.kind))
+                        StudyTypeChip(studyKindLabel(task.item.kind))
                         StudySourceChip(task.item.referenceLabel)
                     }
                     Text(

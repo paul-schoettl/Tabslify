@@ -158,8 +158,8 @@ data class StudyPlanResponse(
 @Serializable
 data class StudyGradeResponse(
     @SerialName("review_id") val reviewId: String? = null,
-    val score: Float = 0f,
-    val correct: Boolean = false,
+    val score: Float? = null,
+    val correct: Boolean? = null,
     val feedback: String? = null,
     @SerialName("next_due_date") val nextDueDate: String? = null,
 )

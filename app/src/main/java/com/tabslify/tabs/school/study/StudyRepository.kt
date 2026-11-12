@@ -1,6 +1,7 @@
 package com.tabslify.tabs.school.study
 
 import android.content.Context
+import androidx.core.content.edit
 import android.graphics.Bitmap
 import android.graphics.ImageDecoder
 import android.net.Uri
@@ -334,7 +335,7 @@ object StudyRepository {
             materials = response.materials,
             cachedAt = System.currentTimeMillis(),
         )
-        prefs(context).edit().putString(SNAPSHOT_KEY, json.encodeToString(snapshot)).apply()
+        prefs(context).edit { putString(SNAPSHOT_KEY, json.encodeToString(snapshot)) }
     }
 
     fun loadCachedSnapshot(context: Context): StudySnapshot? {
@@ -345,7 +346,7 @@ object StudyRepository {
 
     fun clearCache(context: Context) {
         ensurePrivate()
-        prefs(context).edit().remove(SNAPSHOT_KEY).apply()
+        prefs(context).edit { remove(SNAPSHOT_KEY) }
     }
 
     suspend fun markAssignmentDone(assignmentId: String): Boolean {

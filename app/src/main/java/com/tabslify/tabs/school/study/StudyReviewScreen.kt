@@ -210,7 +210,7 @@ private fun StudyItemCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            StudyTypeChip(StudyKindLabel(item.kind))
+            StudyTypeChip(studyKindLabel(item.kind))
             StudySourceChip(item.referenceLabel)
             if (item.confidence < 0.6f) StudyConfidenceWarning()
         }

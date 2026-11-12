@@ -66,7 +66,15 @@ class StudyUploadViewModel(application: Application) : AndroidViewModel(applicat
         val tooMany = uris.size > remaining
         _state.value = _state.value.copy(
             images = current + added,
-            error = if (tooMany) getApplication<Application>().getString(R.string.study_max_images, MAX_IMAGES) else null,
+            error = if (tooMany) {
+                getApplication<Application>().resources.getQuantityString(
+                    R.plurals.study_max_images,
+                    MAX_IMAGES,
+                    MAX_IMAGES
+                )
+            } else {
+                null
+            },
         )
     }
 
@@ -153,7 +161,9 @@ class StudyUploadViewModel(application: Application) : AndroidViewModel(applicat
                     notice = notice,
                     error = if (items.isEmpty()) app.getString(R.string.study_no_items) else null,
                 )
-                StudyRepository.updateProjectStatus(project.id, if (items.isEmpty()) "draft" else "ready")
+                runCatching {
+                    StudyRepository.updateProjectStatus(project.id, if (items.isEmpty()) "draft" else "ready")
+                }
             } catch (error: Exception) {
                 _state.value = _state.value.copy(
                     busy = false,
