@@ -3,6 +3,7 @@ package com.tabslify.tabs
 import android.app.Activity
 import android.content.ClipData
 import android.content.ClipboardManager
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
@@ -40,8 +41,8 @@ import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Keyboard
 import androidx.compose.material.icons.filled.KeyboardAlt
-import androidx.compose.material.icons.filled.VolumeOff
-import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.ZoomIn
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -115,6 +116,7 @@ private fun Context.aktivitaet(): Activity? {
     return null
 }
 
+@Suppress("DEPRECATION")
 private fun streamdHoehe(kontext: Context): Int {
     val cm = kontext.getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
         ?: return 720
@@ -126,6 +128,7 @@ private fun streamdHoehe(kontext: Context): Int {
     return if (hatWlan) 1080 else 720
 }
 
+@Suppress("DEPRECATION")
 private fun streamdMobilfunk(kontext: Context): Boolean {
     val cm = kontext.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
         ?: return false
@@ -150,6 +153,7 @@ private fun hevcMoeglich(): Boolean = runCatching {
     }
 }.getOrDefault(false)
 
+@SuppressLint("SourceLockedOrientationActivity")
 @Composable
 fun StreamdBildschirm(profil: StreamProfil, onZurueck: () -> Unit) {
     val kontext = LocalContext.current
@@ -690,7 +694,8 @@ fun StreamdBildschirm(profil: StreamProfil, onZurueck: () -> Unit) {
                     modifier = Modifier.size(40.dp)
                 ) {
                     Icon(
-                        if (audioAn) Icons.Default.VolumeUp else Icons.Default.VolumeOff,
+                        if (audioAn) Icons.AutoMirrored.Filled.VolumeUp
+                        else Icons.AutoMirrored.Filled.VolumeOff,
                         contentDescription = stringResource(R.string.stream_audio),
                         tint = if (audioAn) Color(0xFFFFA500) else TextPrimary,
                         modifier = Modifier.size(20.dp)
