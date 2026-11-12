@@ -11,19 +11,15 @@
     <string name="notification_permission_title">Allow notifications</string>
     <string name="notification_permission_subtitle">Tabslify uses notifications for Quiet Hours, music and download status, and more. Many features won\'t work correctly without this permission.</string>
 
-    <string name="ungultiger_dateipfad">Invalid file path</string>
-    <string name="nicht_unterstutztes_uri_schema">Unsupported URI scheme: %1$s</string>
-    <string name="fehler_beim_laden_der_json">Error loading the JSON file: %1$s</string>
-    <string name="datei_konnte_nicht_geoffnet_werden_2">File could not be opened</string>
     <string name="ungultiger_share_intent">Invalid share intent</string>
     <string name="keine_datei_gefunden">No file found</string>
     <string name="keine_dateien_gefunden">No files found</string>
+    <string name="kein_text_gefunden">No text found</string>
     <plurals name="bilder_an_laptop_gesendet">
         <item quantity="one">📲 %1$d image sent to laptop!</item>
         <item quantity="other">📲 %1$d images sent to laptop!</item>
     </plurals>
     <string name="senden_fehlgeschlagen">❌ Sending failed</string>
-    <string name="gespeichert">Saved!</string>
     <plurals name="dateien_gespeichert">
         <item quantity="one">✅ %1$d file saved!</item>
         <item quantity="other">✅ %1$d files saved!</item>
@@ -42,6 +38,9 @@
     <string name="an_laptop_senden">💻 Send to laptop</string>
     <string name="laptop_nicht_verbunden">💻 Laptop not connected</string>
     <string name="lokal_speichern">📁 Save locally</string>
+    <string name="text_senden">📋 Send text</string>
+    <string name="text_wird_gesendet">Sending text</string>
+    <string name="text_an_laptop_gesendet">📋 Text sent to laptop</string>
     <string name="abbrechen">Cancel</string>
     <string name="song_ohne_ki_titel">AI unavailable</string>
     <string name="song_ohne_ki_text">Gemini is currently unavailable. Download the song anyway without hashtags?</string>
@@ -123,7 +122,6 @@
     <string name="wifi_direct_set_alarm_befehl_vom_notebook">WIFI_DIRECT: set_alarm command from the paired laptop to set an alarm</string>
     <string name="reportdeviceinformation_wlan_status_hotspot">reportDeviceInformation: Wi-Fi connection and hotspot status for the paired laptop</string>
     <string name="reportdeviceinformation_netzwerkstatus_konnektivitat">reportDeviceInformation: network and connectivity status for the paired laptop</string>
-    <string name="keine_angaben_hinterlegt">No details provided</string>
     <string name="open_information">Open information</string>
     <string name="tabslify_berechtigungen">Tabslify Permissions</string>
     <string name="close">Close</string>
@@ -644,11 +642,9 @@
     <string name="erstellen">Create</string>
     <string name="eintrag_loschen">Delete entry?</string>
     <string name="wird_unwiderruflich_geloscht">\"%1$s\" will be permanently deleted.</string>
-    <string name="neu_erstellen">Create new</string>
     <string name="bearbeiten">Edit</string>
     <string name="name">Name</string>
     <string name="e_mail">Email</string>
-    <string name="telefon">Phone</string>
     <string name="tage_rechner">Day Calculator</string>
     <string name="startdatum">Start date</string>
     <string name="enddatum">End date</string>
@@ -714,18 +710,7 @@
     <string name="feed_konnte_nicht_geladen_werden">Feed could not be loaded</string>
     <string name="keine_news_gefunden">No news found</string>
     <string name="aktualisieren_2">Refresh</string>
-    <string name="json_editor">JSON Editor</string>
-    <string name="ungultiges_json_format">Invalid JSON format!</string>
     <string name="speichern_2">💾 Save</string>
-    <string name="bearbeiten_2">✏️ Edit</string>
-    <string name="abbrechen_2">✖ Cancel</string>
-    <string name="formatieren">🔧 Format</string>
-    <string name="im_bearbeitungsmodus">⚠️ In edit mode</string>
-    <string name="anzeigemodus">👁️ View mode</string>
-    <string name="konnte_datei_nicht_offnen">Could not open file</string>
-    <string name="error_datei_konnte_nicht_geladen">{\n  \"error\": \"File could not be loaded\",\n  \"message\": \"%1$s\"\n}</string>
-    <string name="konnte_nicht_in_datei_schreiben">Could not write to file</string>
-    <string name="fehler_beim_speichern_2">Error saving: %1$s</string>
     <string name="alle_2">🎬 All</string>
     <string name="action">Action</string>
     <string name="komodie">Comedy</string>
@@ -831,7 +816,6 @@
     <string name="nummer">Number</string>
     <string name="verbinden">Connect</string>
     <string name="vollbild">Fullscreen</string>
-    <string name="remotedesktoptab_wake_lock_waehrend_einer_remote_desktop_sitzung">Keeps Wi-Fi and the screen active during a Remote Desktop session so the connection does not drop.</string>
     <string name="berechtigungen_standort_immer_erlauben">Permissions -&gt; Location -&gt; Allow all the time</string>
     <string name="tipp">TIP</string>
     <string name="wetter_notification_body">%1$s %2$s\n\n🌡️ Temperature: %3$d°C\n🌡️ Feels like: %4$d°C\n💧 Humidity: %5$d%%\n💨 Wind: %6$d km/h\n🔽 Pressure: %7$d hPa</string>
@@ -858,11 +842,7 @@
     <string name="c">%1$d°C - %2$s</string>
     <string name="tageslimit_erreicht">Daily limit reached</string>
     <string name="du_hast_dein_tagliches_limit">You have reached your daily limit for AI messages!</string>
-    <string name="chat_leeren">Clear chat?</string>
-    <string name="alle_nachrichten_in_diesem_chat">All messages in this chat will be permanently removed</string>
-    <string name="chat_leeren_2">Clear chat</string>
     <string name="vision_models">VISION MODELS:</string>
-    <string name="clear_ai_history">Clear AI History</string>
     <string name="nachricht_bearbeiten">Edit message…</string>
     <string name="bild_anhangen">Attach image</string>
     <string name="audio_anhangen">Attach audio</string>
@@ -874,7 +854,6 @@
     <string name="wird_gleich_zuruckgesetzt">Will reset shortly</string>
     <string name="reset_um_h_m">Reset at %1$s:%2$s (%3$dh %4$dm)</string>
     <string name="beschreibe_das_bild">Describe the image</string>
-    <string name="aitab_answer">AITab answer</string>
     <string name="kein_netzwerk">No network</string>
     <string name="wahle_einen_modus">Choose a mode</string>
     <string name="ai_chats">Chats</string>
@@ -1078,7 +1057,6 @@
     <string name="verbunden">connected</string>
     <string name="ja">yes</string>
     <string name="nein">no</string>
-    <string name="media_player_2">🎶 Media Player</string>
     <string name="open_downloader">Open Downloader</string>
     <string name="open_recorder">Open Recorder</string>
     <string name="medienzugriff_benotigt">Media access required</string>
@@ -1179,7 +1157,6 @@
     <string name="wird_aus_deinen_lieblings_podcasts">\"%1$s\" will be removed from your favorite podcasts.</string>
     <string name="podcast_suchen_oder_url_eingeben">Search a podcast or enter a URL…</string>
     <string name="url_eingeben_und_download_starten">Enter a URL and start the download</string>
-    <string name="downloading">Downloading: %1$d%%</string>
     <string name="converting_to_mp3">Saving…</string>
     <string name="download_complete">Download Complete!</string>
     <string name="lieblings_podcasts">Favorite podcasts</string>
@@ -1214,7 +1191,6 @@
     <string name="ai_zusammenfassung">AI summary</string>
     <string name="reanalyze_picture">Reanalyze Picture</string>
     <string name="zuletzt_genutzt">Recently used</string>
-    <string name="lokale_extraktion_leer">Local extraction empty…</string>
     <string name="keine_vokabeln_erkannt">No vocabulary recognized.</string>
     <string name="schule">School</string>
     <string name="dein_dashboard">Your dashboard</string>
@@ -1412,7 +1388,6 @@
     <string name="fitness_ellbogen">Elbow %1$d°</string>
     <string name="fitness_kein_korper">No body detected – position the phone so you are fully in frame.</string>
     <string name="fitness_arme_verdeckt">Arms not visible – hands and elbows must be in frame.</string>
-    <string name="fitness_kalibriert">Calibrating … do one full push-up.</string>
     <string name="fitness_form_huefte">Keep your hips straight</string>
     <string name="fitness_form_tiefer">Go deeper</string>
     <string name="fitness_kamera_wechseln">Switch camera</string>
@@ -1426,7 +1401,7 @@
     <string name="fitness_rep_minus">Remove one rep</string>
     <string name="fitness_kalibrierung">Hold the plank position – calibrating in %1$d s</string>
     <string name="fitness_result_title">Correct push-ups</string>
-    <string name="fitness_result_detected">%1$d detected · %2$s</string>
+    <string tools:ignore="PluralsCandidate" name="fitness_result_detected">%1$d detected · %2$s</string>
     <string name="fitness_result_hint">Delete wrongly detected reps or set the value manually.</string>
     <string name="fitness_result_manual">Set value manually</string>
     <string name="fitness_result_rep_list">Detected reps</string>
@@ -2459,16 +2434,13 @@
     <string name="chat_geoeffnet">Opening in the AI chat</string>
 
     <string name="commandcode_widget_label">CommandCode monthly limit</string>
-    <string name="commandcode_widget_description">Monthly CommandCode usage with pace line</string>
     <string name="commandcode_widget_over">%1$s over pace</string>
     <string name="commandcode_widget_under">%1$s under pace</string>
-    <string name="commandcode_widget_no_cookie">PC unreachable</string>
     <string name="commandcode_widget_error">Not available</string>
     <string name="commandcode_widget_expired">Cookie expired</string>
     <string name="commandcode_widget_blocked">Server blocked the request</string>
     <string name="commandcode_widget_loading">Loading …</string>
     <string name="lamp_widget_label">Lamp</string>
-    <string name="lamp_widget_description">Toggle lamp on/off</string>
     <string name="hose_widget_label">Light hoses</string>
     <string name="home_bar_widget_label">CommandCode + lamp</string>
     <string name="home_bar_widget_description">Bar with CommandCode usage and lamp switch</string>
@@ -2509,7 +2481,6 @@
     <string name="stream_audio">Sound</string>
     <string name="stream_dateien">Files</string>
     <string name="stream_text">Send text</string>
-    <string name="stream_tastatur">Keyboard</string>
     <string name="stream_senden">Send</string>
     <string name="stream_pruefe">Checking connection…</string>
     <string name="stream_laedt">Loading…</string>
@@ -2540,7 +2511,10 @@
     <string name="update_title">App update</string>
     <string name="update_subtitle">Download the APK in parts from Supabase Storage, verify it and install it</string>
     <string name="update_installed">Installed: %1$s (versionCode %2$d)</string>
-    <string name="update_available">Available: %1$s (versionCode %2$d) · %3$s · %4$d parts</string>
+    <plurals name="update_available">
+        <item quantity="one">Available: %1$s (versionCode %2$d) · %3$s · %4$d part</item>
+        <item quantity="other">Available: %1$s (versionCode %2$d) · %3$s · %4$d parts</item>
+    </plurals>
     <string name="update_ready">APK downloaded and SHA-256 verified, ready to install.</string>
     <string name="update_progress">Part %1$d/%2$d · %3$s of %4$s</string>
     <string name="update_check">Check for update</string>
@@ -2557,11 +2531,8 @@
     <string name="update_open_release">Open release page</string>
     <string name="update_open_release_failed">Could not open the release page.</string>
     <string name="study_plan">Study plan</string>
-    <string name="study_plan_today">Due today</string>
     <string name="study_plan_day">Day %1$d</string>
     <string name="study_plan_progress">Day %1$d of %2$d</string>
-    <string name="study_plan_start">Start plan</string>
-    <string name="study_plan_create">Create plan</string>
     <string name="study_plan_generate">Create plan</string>
     <string name="study_plan_generating">Creating plan…</string>
     <string name="study_plan_empty_title">No study plan yet</string>
@@ -2570,8 +2541,8 @@
     <string name="study_plan_error">Could not load the study plan.</string>
     <string name="study_plan_offline">Offline – cached plan</string>
     <string name="study_plan_review_hint">Check the extracted content first. Then the AI creates the plan.</string>
-    <string name="study_plan_today_count">Today: %1$d due</string>
-    <string name="study_plan_done_short">%1$d of %2$d done</string>
+    <string tools:ignore="PluralsCandidate" name="study_plan_today_count">Today: %1$d due</string>
+    <string tools:ignore="PluralsCandidate" name="study_plan_done_short">%1$d of %2$d done</string>
     <string name="study_upload_title">Photograph material</string>
     <string name="study_upload_subtitle">Up to 6 images, handwriting is fine</string>
     <string name="study_add_images">Add images</string>
@@ -2583,7 +2554,10 @@
     <string name="study_analyze">Analyze</string>
     <string name="study_analyzing">Extracting content…</string>
     <string name="study_remove_image">Remove image</string>
-    <string name="study_max_images">At most %1$d images per plan.</string>
+    <plurals name="study_max_images">
+        <item quantity="one">At most %1$d image per plan.</item>
+        <item quantity="other">At most %1$d images per plan.</item>
+    </plurals>
     <string name="study_review_title">Extracted content</string>
     <string name="study_review_subtitle">Check source, correct, then create the plan</string>
     <string name="study_review_instruction">Handwriting can be inaccurate. Check items with low confidence especially.</string>
@@ -2617,7 +2591,6 @@
     <string name="study_done">Done</string>
     <string name="study_material">Material</string>
     <string name="study_material_empty">No material generated yet.</string>
-    <string name="study_upload_error">Upload failed.</string>
     <string name="study_extract_error">Extraction failed.</string>
     <string name="study_save_failed">Saving failed.</string>
     <string name="study_login_required">Please sign in first.</string>
@@ -2625,25 +2598,21 @@
     <string name="study_partial_warning">Some images could not be extracted. You can add items manually.</string>
     <string name="study_untitled">Study plan</string>
     <string name="study_tasks">Tasks</string>
-    <string name="study_task_count">%1$d tasks</string>
-    <string name="study_day_locked">Not due yet</string>
+    <plurals name="study_task_count">
+        <item quantity="one">%1$d task</item>
+        <item quantity="other">%1$d tasks</item>
+    </plurals>
     <string name="study_translation_hint">Translate: %1$s</string>
     <string name="study_text_section">Text section</string>
     <string name="study_vocab">Vocabulary</string>
     <string name="study_vocab_question">What does this mean: %1$s</string>
     <string name="study_question_progress">%1$d of %2$d</string>
-    <string name="study_close">Close</string>
     <string name="study_edit_title">Edit item</string>
     <string name="study_front_label">Front / text</string>
     <string name="study_back_label">Back / meaning</string>
-    <string name="study_kind_label">Type</string>
-    <string name="study_image_order">Order</string>
-    <string name="study_move_left">Move left</string>
-    <string name="study_move_right">Move right</string>
     <string name="study_minutes_short">%1$d min</string>
     <string name="study_no_tasks_today">Nothing is due today.</string>
     <string name="study_back_to_plan">To the plan</string>
-    <string name="study_review_today">Review today</string>
     <string name="feature_ride_tracking_title">Ride tracking</string>
     <string name="feature_ride_tracking_desc">Record your own bike rides with GPS. Private mode only.</string>
     <string name="ride_tracking_start">Record ride</string>
@@ -2713,7 +2682,10 @@
     <string name="ride_tracking_photo_delete_title">Delete photo?</string>
     <string name="ride_tracking_photo_delete_text">The photo will be removed from this ride.</string>
     <string name="ride_tracking_elevation_profile">Elevation profile</string>
-    <string name="ride_tracking_pause_markers">%1$d pauses marked</string>
+    <plurals name="ride_tracking_pause_markers">
+        <item quantity="one">%1$d pause marked</item>
+        <item quantity="other">%1$d pauses marked</item>
+    </plurals>
     <string name="ride_tracking_elevation_empty">No elevation data available.</string>
     <string name="tracker_status_stopped_home">Stopped (home)</string>
     <string name="tracker_status_outside">Outside</string>
@@ -2723,7 +2695,7 @@
     <string name="tracker_status_active_background">Running (background)</string>
     <string name="tracker_status_update_error">Inactive (update error)</string>
     <string name="tracker_status_disabled">Disabled</string>
-    <string name="tracker_status_starting">Starting...</string>
+    <string name="tracker_status_starting">Starting…</string>
     <string name="tracker_status_error">Error: %1$s</string>
     <string name="tracker_status_active">Running</string>
     <string name="tracker_status_fgs_not_started">Inactive (FGS not started)</string>
@@ -2746,7 +2718,7 @@
     <string name="qh_cmd_desc_flashlevel">Sets torch brightness (syntax: flashlevel [1-max])</string>
     <string name="qh_cmd_desc_message">Sends a message to a saved contact</string>
     <string name="qh_cmd_desc_stopmediaplayer">Stops the media player service</string>
-    <string name="qh_cmd_desc_weather">Shows weather (syntax: weather [0-2] [0-23])</string>
+    <string name="qh_cmd_desc_weather">Shows weather (syntax: weather [0–2] [0–23])</string>
     <string name="qh_cmd_desc_extract">Shows the last WhatsApp message as a separate notification</string>
     <string name="qh_cmd_desc_gallerie">Shows the gallery as notifications</string>
     <string name="qh_cmd_desc_setdowntime">Sets downtime for QuietHoursNotificationService (setdowntime [Stunde])</string>
@@ -2759,7 +2731,7 @@
     <string name="qh_cmd_desc_favorite">Marks the current song as a favorite</string>
     <string name="qh_cmd_desc_favmode">Toggles favorites mode (play only favorites)</string>
     <string name="qh_cmd_desc_algplay">Plays an algorithmic playlist (algplay [id|name])</string>
-    <string name="qh_cmd_desc_speed">Sets podcast speed (syntax: speed [0.5-3.0])</string>
+    <string name="qh_cmd_desc_speed">Sets podcast speed (syntax: speed [0.5–3.0])</string>
     <string name="qh_cmd_desc_todo">Adds a to-do (syntax: * my task)</string>
     <string name="qh_cmd_desc_ai_command">Sends an AI command to the server</string>
     <string name="qh_cmd_desc_todos">Shows all to-dos</string>
@@ -2793,7 +2765,7 @@
     <string name="qh_cmd_weather_fetch_failed">Weather data could not be retrieved: %1$s</string>
     <string name="qh_cmd_title_invalid_day">❌ Invalid day</string>
     <string name="qh_cmd_invalid_day_hint">Day must be 0, 1 or 2</string>
-    <string name="qh_cmd_help_weather">Syntax: weather [0=Today, 1=Tomorrow, 2=Day after tomorrow] [0-23]</string>
+    <string name="qh_cmd_help_weather">Syntax: weather [0=Today, 1=Tomorrow, 2=Day after tomorrow] [0–23]</string>
     <string name="qh_cmd_title_weather">ℹ️ Weather</string>
     <string name="qh_cmd_torch_toggle_failed">Torch could not be toggled</string>
     <string name="qh_cmd_title_invalid_value">❌ Invalid value</string>
@@ -2815,8 +2787,8 @@
     <string name="qh_cmd_title_invalid_speed">❌ Invalid speed</string>
     <string name="qh_cmd_invalid_speed_hint">Please enter a value between 0.5 and 3.0</string>
     <string name="qh_cmd_title_speed">ℹ️ Speed</string>
-    <string name="qh_cmd_help_speed">Syntax: speed [0.5-3.0]\nExample: speed 1.5 for 1.5x speed</string>
-    <string name="qh_cmd_help_speed_short">Syntax: speed [0.5-3.0]\nExample: speed 1.5</string>
+    <string name="qh_cmd_help_speed">Syntax: speed [0.5–3.0]\nExample: speed 1.5 for 1.5x speed</string>
+    <string name="qh_cmd_help_speed_short">Syntax: speed [0.5–3.0]\nExample: speed 1.5</string>
     <string name="qh_cmd_help_todo_syntax">Syntax: * \"your task\"</string>
     <string name="qh_cmd_title_todo">ℹ️ To-do</string>
     <string name="qh_cmd_help_todo">Syntax: * \"your task\"\nExample: * \"Buy milk\"</string>
@@ -2829,7 +2801,7 @@
     <string name="qh_cmd_help_todone">Syntax: todone [nummer]\nUse \'todos\' to see numbers</string>
     <string name="qh_cmd_help_todorm">Syntax: todorm [nummer]\nUse \'todos\' to see numbers</string>
     <string name="qh_cmd_title_invalid_input">❌ Invalid input</string>
-    <string name="qh_cmd_help_bahn">Syntax: bahn [1-7]\n1=Tomorrow, 2=Day after tomorrow, etc.</string>
+    <string name="qh_cmd_help_bahn">Syntax: bahn [1–7]\n1=Tomorrow, 2=Day after tomorrow, etc.</string>
     <string name="qh_cmd_title_invalid_type">❌ Invalid type</string>
     <string name="qh_cmd_invalid_type_hint">Type must be \'music\' or \'podcast\'</string>
     <string name="qh_cmd_help_plcreate_syntax">Syntax: plcreate [music|podcast] \"Name\"</string>
@@ -2876,16 +2848,28 @@
     <string name="qh_cmd_no_song_stats">No song with \"%1$s\" in the statistics</string>
     <string name="qh_cmd_no_podcast_stats">No podcast with \"%1$s\" in the statistics</string>
     <string name="qh_cmd_repeat_info"> · repeated max %1$d×</string>
-    <string name="qh_cmd_stats_song_text">▶ %1$d sessions · ⏱ listened to %2$s\n🕐 Last: %3$s%4$s</string>
-    <string name="qh_cmd_stats_podcast_text">▶ %1$d sessions · ⏱ listened to %2$s\n🕐 Last: %3$s</string>
+    <plurals name="qh_cmd_stats_song_text">
+        <item quantity="one">▶ %1$d session · ⏱ listened to %2$s\n🕐 Last: %3$s%4$s</item>
+        <item quantity="other">▶ %1$d sessions · ⏱ listened to %2$s\n🕐 Last: %3$s%4$s</item>
+    </plurals>
+    <plurals name="qh_cmd_stats_podcast_text">
+        <item quantity="one">▶ %1$d session · ⏱ listened to %2$s\n🕐 Last: %3$s</item>
+        <item quantity="other">▶ %1$d sessions · ⏱ listened to %2$s\n🕐 Last: %3$s</item>
+    </plurals>
     <string name="qh_cmd_use_song_or_podcast">Use \'song\' or \'podcast\'</string>
     <string name="qh_cmd_title_statsreset">ℹ️ statsreset</string>
     <string name="qh_cmd_help_statsreset">Syntax: statsreset [song|podcast|all] [suche]\nstatsreset all → delete everything</string>
     <string name="qh_cmd_help_statsreset_short">statsreset [song|podcast] [dateiname-teilstring]</string>
     <string name="qh_cmd_title_reset">✓ Reset</string>
     <string name="qh_cmd_all_analytics_deleted">All analytics data has been deleted</string>
-    <string name="qh_cmd_songs_removed">%1$d song(s) removed from analytics:\n%2$s</string>
-    <string name="qh_cmd_shows_removed">%1$d show(s) removed from analytics:\n%2$s</string>
+    <plurals name="qh_cmd_songs_removed">
+        <item quantity="one">%1$d song removed from analytics:\n%2$s</item>
+        <item quantity="other">%1$d songs removed from analytics:\n%2$s</item>
+    </plurals>
+    <plurals name="qh_cmd_shows_removed">
+        <item quantity="one">%1$d show removed from analytics:\n%2$s</item>
+        <item quantity="other">%1$d shows removed from analytics:\n%2$s</item>
+    </plurals>
     <string name="qh_cmd_title_type">❌ Type</string>
     <string name="qh_cmd_use_song_podcast_all">Use \'song\', \'podcast\' or \'all\'</string>
     <string name="qh_cmd_title_plp">ℹ️ plp</string>
@@ -2897,9 +2881,15 @@
     <string name="qh_cmd_title_unknown_command">❌ Unknown command</string>
     <string name="qh_cmd_command_not_found">\'%1$s\' not found. Use \'help\' for all commands.</string>
     <string name="qh_cmd_available_commands_title">📋 Available commands (page %1$d/%2$d)</string>
-    <string name="qh_cmd_commands_count">%1$d commands</string>
+    <plurals name="qh_cmd_commands_count">
+        <item quantity="one">%1$d command</item>
+        <item quantity="other">%1$d commands</item>
+    </plurals>
     <string name="qh_cmd_all_commands">All commands</string>
-    <string name="qh_cmd_commands_count_summary">%1$d commands</string>
+    <plurals name="qh_cmd_commands_count_summary">
+        <item quantity="one">%1$d command</item>
+        <item quantity="other">%1$d commands</item>
+    </plurals>
     <string name="qh_cmd_title_bahn_api_error">❌ Bahn API error</string>
     <string name="qh_cmd_title_no_train">ℹ️ No 07:05 train</string>
     <string name="qh_cmd_no_train_text">No matching train to %1$s in %2$s %3$s at 07:05 was found in the schedule data.</string>
@@ -2920,7 +2910,10 @@
     <string name="qh_cmd_day_today">today</string>
     <string name="qh_cmd_day_tomorrow">tomorrow</string>
     <string name="qh_cmd_day_day_after_tomorrow">day after tomorrow</string>
-    <string name="qh_cmd_in_days">in %1$d days</string>
+    <plurals name="qh_cmd_in_days">
+        <item quantity="one">in %1$d day</item>
+        <item quantity="other">in %1$d days</item>
+    </plurals>
     <string name="qh_cmd_train_default">Train</string>
     <string name="qh_cmd_status_on_time">✅ On time</string>
     <string name="qh_cmd_train_title">🚆 %1$s (%2$s)</string>
@@ -2931,7 +2924,10 @@
     <string name="qh_msg_part_title">%1$s · %2$s (part %3$d/%4$d)</string>
     <string name="qh_msg_mark_read">Mark as read</string>
     <string name="qh_msg_long_title">%1$s · Long message from %2$s</string>
-    <string name="qh_msg_parts_count">%1$d parts</string>
+    <plurals name="qh_msg_parts_count">
+        <item quantity="one">%1$d part</item>
+        <item quantity="other">%1$d parts</item>
+    </plurals>
     <string name="qh_msg_source_new">📨 New</string>
     <string name="qh_msg_source_chat">💬 Chat</string>
     <string name="qh_msg_no_unanswered">No unanswered messages</string>
@@ -2980,16 +2976,15 @@
     <string name="qh_notif_quiet_ended_title">☀️ Quiet hours ended</string>
     <string name="qh_notif_quiet_started_text">Notifications are being collected</string>
     <string name="qh_notif_quiet_ended_text">Normal notifications active</string>
-    <string name="qh_notif_command_input_label">Enter command...</string>
+    <string name="qh_notif_command_input_label">Enter command…</string>
     <string name="qh_notif_command_action">Command</string>
     <string name="qh_notif_ready_title">🔥 Ready</string>
     <string name="qh_notif_settings_action">Settings</string>
-    <string name="qh_notif_end_time_label">End time (0-23)</string>
+    <string name="qh_notif_end_time_label">End time (0–23)</string>
     <string name="qh_notif_end_action">End: %1$sh</string>
-    <string name="qh_notif_waiting_title">👀 Waiting...</string>
+    <string name="qh_notif_waiting_title">👀 Waiting…</string>
     <string name="qh_notif_ready_range">Ready from %1$s to %2$s</string>
     <string name="qh_notif_connect_action">Connect</string>
-    <string name="json_file_too_large">File too large (max. 4 MB)</string>
     <string name="bluetooth_deaktiviert">Bluetooth is disabled</string>
     <string name="ride_tracking_error_feature_off">Ride tracking is disabled in settings.</string>
     <string name="ride_tracking_error_no_permission">Location permission is missing.</string>
@@ -3033,4 +3028,6 @@
         <item>Late hour</item>
         <item>Night mode active</item>
     </string-array>
+    <string name="commandcode_api_key">CommandCode API key</string>
+    <string name="ride_tracking_open_map">Open in maps</string>
 </resources>

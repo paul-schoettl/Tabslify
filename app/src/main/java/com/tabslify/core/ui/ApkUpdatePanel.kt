@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -181,8 +182,9 @@ fun ApkUpdatePanel(visible: Boolean, modifier: Modifier = Modifier) {
             info?.let { meta ->
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = stringResource(
-                        R.string.update_available,
+                    text = pluralStringResource(
+                        R.plurals.update_available,
+                        meta.partCount,
                         meta.versionName,
                         meta.versionCode,
                         ApkUpdater.formatSize(meta.totalSize),

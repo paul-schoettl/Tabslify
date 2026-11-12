@@ -24,19 +24,15 @@
     <!-- app/src/main/java/com/tabslify/apkm/ApkmInstaller.kt:559 | PrivateTabslifyApp.kt:1647 | OtherBucketTab.kt:554 -->
     <!-- app/src/main/java/com/tabslify/apkm/ApkmInstaller.kt:561 | PrivateTabslifyApp.kt:1643 | OtherBucketTab.kt:550 -->
     <!-- app/src/main/java/com/tabslify/apkm/ApkmInstaller.kt:562 | PrivateTabslifyApp.kt:1639 | OtherBucketTab.kt:546 -->
-    <string name="ungultiger_dateipfad">Ungültiger Dateipfad</string> <!-- app/src/main/java/com/tabslify/core/activities/MainActivity.kt:209 -->
-    <string name="nicht_unterstutztes_uri_schema">Nicht unterstütztes URI-Schema: %1$s</string> <!-- app/src/main/java/com/tabslify/core/activities/MainActivity.kt:216  ||  %1$s=uri.scheme -->
-    <string name="fehler_beim_laden_der_json">Fehler beim Laden der JSON-Datei: %1$s</string> <!-- app/src/main/java/com/tabslify/core/activities/MainActivity.kt:226  ||  %1$s=e.message -->
-    <string name="datei_konnte_nicht_geoffnet_werden_2">Datei konnte nicht geöffnet werden</string> <!-- app/src/main/java/com/tabslify/core/activities/MainActivity.kt:235 -->
     <string name="ungultiger_share_intent">Ungültiger Share-Intent</string> <!-- app/src/main/java/com/tabslify/core/activities/ShareActivity.kt:68 -->
     <string name="keine_datei_gefunden">Keine Datei gefunden</string> <!-- app/src/main/java/com/tabslify/core/activities/ShareActivity.kt:79 -->
     <string name="keine_dateien_gefunden">Keine Dateien gefunden</string> <!-- app/src/main/java/com/tabslify/core/activities/ShareActivity.kt:89 -->
+    <string name="kein_text_gefunden">Kein Text gefunden</string>
     <plurals name="bilder_an_laptop_gesendet"> <!-- app/src/main/java/com/tabslify/core/activities/ShareActivity.kt:140  ||  %1$s=successCount -->
         <item quantity="one">📲 %1$d Bild an Laptop gesendet!</item>
         <item quantity="other">📲 %1$d Bilder an Laptop gesendet!</item>
     </plurals>
     <string name="senden_fehlgeschlagen">❌ Senden fehlgeschlagen</string> <!-- app/src/main/java/com/tabslify/core/activities/ShareActivity.kt:142 -->
-    <string name="gespeichert">Gespeichert!</string> <!-- app/src/main/java/com/tabslify/tabs/JsonEditorTab.kt:101 -->
     <plurals name="dateien_gespeichert"> <!-- app/src/main/java/com/tabslify/core/activities/ShareActivity.kt:234  ||  %1$s=successCount -->
         <item quantity="one">✅ %1$d Datei gespeichert!</item>
         <item quantity="other">✅ %1$d Dateien gespeichert!</item>
@@ -55,6 +51,9 @@
     <string name="an_laptop_senden">💻 An Laptop senden</string> <!-- app/src/main/java/com/tabslify/core/activities/ShareActivity.kt:338 -->
     <string name="laptop_nicht_verbunden">💻 Laptop nicht verbunden</string> <!-- app/src/main/java/com/tabslify/core/activities/ShareActivity.kt:352 -->
     <string name="lokal_speichern">📁 Lokal speichern</string> <!-- app/src/main/java/com/tabslify/core/activities/ShareActivity.kt:365 -->
+    <string name="text_senden">📋 Text senden</string>
+    <string name="text_wird_gesendet">Text wird gesendet</string>
+    <string name="text_an_laptop_gesendet">📋 Text an Laptop gesendet</string>
     <string name="abbrechen">Abbrechen</string> <!-- app/src/main/java/com/tabslify/core/activities/ShareActivity.kt:369 | Composables.kt:534 | Composables.kt:653 | LandingPage.kt:2242 -->
     <string name="song_ohne_ki_titel">KI nicht verfügbar</string>
     <string name="song_ohne_ki_text">Gemini ist gerade nicht verfügbar. Soll der Song trotzdem ohne Hashtags heruntergeladen werden?</string>
@@ -154,7 +153,6 @@
     <string name="wifi_direct_set_alarm_befehl_vom_notebook">WIFI_DIRECT: set_alarm-Befehl vom gekoppelten Notebook zum Stellen eines Weckers</string> <!-- app/src/main/java/com/tabslify/quiethoursnotificationhelper/WIFI_DIRECT.kt (nur Debug-Build) -->
     <string name="reportdeviceinformation_wlan_status_hotspot">reportDeviceInformation: WLAN-Verbindungs- und Hotspot-Status für das gekoppelte Notebook</string> <!-- app/src/main/java/com/tabslify/quiethoursnotificationhelper/WIFI_DIRECT.kt (nur Debug-Build) -->
     <string name="reportdeviceinformation_netzwerkstatus_konnektivitat">reportDeviceInformation: Netzwerk- und Konnektivitätsstatus für das gekoppelte Notebook</string> <!-- app/src/main/java/com/tabslify/quiethoursnotificationhelper/WIFI_DIRECT.kt (nur Debug-Build) -->
-    <string name="keine_angaben_hinterlegt">Keine Angaben hinterlegt</string> <!-- app/src/main/java/com/tabslify/core/ui/LandingPage.kt:1079 -->
     <string name="open_information">Open information</string> <!-- app/src/main/java/com/tabslify/core/ui/LandingPage.kt:1106 | LandingPage.kt:2112 -->
     <string name="tabslify_berechtigungen">Tabslify Berechtigungen</string> <!-- app/src/main/java/com/tabslify/core/ui/LandingPage.kt:1197 | WelcomeOnboarding.kt:133 -->
     <string name="close">Close</string> <!-- app/src/main/java/com/tabslify/core/ui/LandingPage.kt:1214 | LandingPage.kt:1546 | LandingPage.kt:2312 -->
@@ -1196,11 +1194,9 @@
     <string name="erstellen">Erstellen</string> <!-- app/src/main/java/com/tabslify/tabs/CalenderTab.kt:954 | NotesTab.kt:477 -->
     <string name="eintrag_loschen">Eintrag löschen?</string> <!-- app/src/main/java/com/tabslify/tabs/CalenderTab.kt:967 | Passwordmanagerscreen.kt:761 | MediaPlayerTab.kt:3914 -->
     <string name="wird_unwiderruflich_geloscht">\"%1$s\" wird unwiderruflich gelöscht.</string> <!-- app/src/main/java/com/tabslify/tabs/CalenderTab.kt:970 | MediaPlayerTab.kt:1467  ||  %1$s=existingEntry?.title -->
-    <string name="neu_erstellen">Neu erstellen</string>
     <string name="bearbeiten">Bearbeiten</string> <!-- app/src/main/java/com/tabslify/tabs/aitab/AITab.kt:792 | Passwordmanagerscreen.kt:751 -->
     <string name="name">Name</string> <!-- app/src/main/java/com/tabslify/tabs/school/VocabTab.kt:1845 | VocabTab.kt:1913 -->
     <string name="e_mail">E-Mail</string>
-    <string name="telefon">Telefon</string>
     <string name="tage_rechner">Tage-Rechner</string> <!-- app/src/main/java/com/tabslify/tabs/DateCalculatorTab.kt:51 -->
     <string name="startdatum">Startdatum</string> <!-- app/src/main/java/com/tabslify/tabs/DateCalculatorTab.kt:59 -->
     <string name="enddatum">Enddatum</string> <!-- app/src/main/java/com/tabslify/tabs/DateCalculatorTab.kt:72 -->
@@ -1303,18 +1299,7 @@
     <!-- app/src/main/java/com/tabslify/tabs/HeiseNewsTab.kt:1504 -->
     <!-- app/src/main/java/com/tabslify/tabs/HeiseNewsTab.kt:1616 -->
     <!-- app/src/main/java/com/tabslify/tabs/HeiseNewsTab.kt:1632 -->
-    <string name="json_editor">JSON Editor</string> <!-- app/src/main/java/com/tabslify/tabs/JsonEditorTab.kt:66 -->
-    <string name="ungultiges_json_format">Ungültiges JSON-Format!</string> <!-- app/src/main/java/com/tabslify/tabs/JsonEditorTab.kt:101 -->
     <string name="speichern_2">💾 Speichern</string> <!-- app/src/main/java/com/tabslify/tabs/JsonEditorTab.kt:113 | VocabTab.kt:1241 -->
-    <string name="bearbeiten_2">✏️ Bearbeiten</string> <!-- app/src/main/java/com/tabslify/tabs/JsonEditorTab.kt:113 -->
-    <string name="abbrechen_2">✖ Abbrechen</string> <!-- app/src/main/java/com/tabslify/tabs/JsonEditorTab.kt:126 -->
-    <string name="formatieren">🔧 Formatieren</string> <!-- app/src/main/java/com/tabslify/tabs/JsonEditorTab.kt:143 -->
-    <string name="im_bearbeitungsmodus">⚠️ Im Bearbeitungsmodus</string> <!-- app/src/main/java/com/tabslify/tabs/JsonEditorTab.kt:195 -->
-    <string name="anzeigemodus">👁️ Anzeigemodus</string> <!-- app/src/main/java/com/tabslify/tabs/JsonEditorTab.kt:195 -->
-    <string name="konnte_datei_nicht_offnen">Konnte Datei nicht öffnen</string> <!-- app/src/main/java/com/tabslify/tabs/JsonEditorTab.kt:208 -->
-    <string name="error_datei_konnte_nicht_geladen">{\n  \"error\": \"Datei konnte nicht geladen werden\",\n  \"message\": \"%1$s\"\n}</string> <!-- app/src/main/java/com/tabslify/tabs/JsonEditorTab.kt:213  ||  %1$s=e.message -->
-    <string name="konnte_nicht_in_datei_schreiben">Konnte nicht in Datei schreiben</string> <!-- app/src/main/java/com/tabslify/tabs/JsonEditorTab.kt:222 -->
-    <string name="fehler_beim_speichern_2">Fehler beim Speichern: %1$s</string> <!-- app/src/main/java/com/tabslify/tabs/JsonEditorTab.kt:227  ||  %1$s=e.message -->
     <string name="alle_2">🎬 Alle</string> <!-- app/src/main/java/com/tabslify/tabs/MovieDiscoveryTab.kt:83 -->
     <string name="action">Action</string> <!-- app/src/main/java/com/tabslify/tabs/MovieDiscoveryTab.kt:84 -->
     <string name="komodie">Komödie</string> <!-- app/src/main/java/com/tabslify/tabs/MovieDiscoveryTab.kt:85 -->
@@ -1436,7 +1421,6 @@
     <string name="nummer">Nummer</string> <!-- app/src/main/java/com/tabslify/tabs/QuickSettingsTab.kt:426 -->
     <string name="verbinden">Verbinden</string> <!-- app/src/main/java/com/tabslify/tabs/RemoteDesktopTab.kt:1057 -->
     <string name="vollbild">Vollbild</string> <!-- app/src/main/java/com/tabslify/tabs/RemoteDesktopTab.kt:1311 | MaterialScreen.kt:1084 -->
-    <string name="remotedesktoptab_wake_lock_waehrend_einer_remote_desktop_sitzung">Hält WLAN und Bildschirm während einer Remote-Desktop-Sitzung aktiv, damit die Verbindung nicht abbricht.</string>
     <string name="berechtigungen_standort_immer_erlauben">Berechtigungen -&gt; Standort -&gt; Immer erlauben</string> <!-- app/src/main/java/com/tabslify/tabs/WeatherTab.kt:415 -->
     <string name="tipp">TIPP</string> <!-- app/src/main/java/com/tabslify/tabs/WeatherTab.kt:763 -->
     <string name="wetter_notification_body">%1$s %2$s\n\n🌡️ Temperatur: %3$d°C\n🌡️ Gefühlt: %4$d°C\n💧 Luftfeuchtigkeit: %5$d%%\n💨 Wind: %6$d km/h\n🔽 Luftdruck: %7$d hPa</string> <!-- app/src/main/java/com/tabslify/tabs/WeatherTab.kt:1178  ||  %1$s=emoji, %2$s=condition, %3$s=temp, %4$s=feelsLike, %5$s=humidity, %6$s=wind, %7$s=pressure -->
@@ -1464,13 +1448,9 @@
     <!-- app/src/main/java/com/tabslify/tabs/WeatherTab.kt:1178  ||  %1$s=iconToEmoji(hourData.icon), %2$s=hourData.condition, %3$s=hourData.temp.toInt(), %4$s=hourData.feelsLike.toInt(), %5$s=hourData.humidity, %6$s=hourData.wind.toInt(), %7$s=hourData.pressure -->
     <string name="tageslimit_erreicht">Tageslimit erreicht</string> <!-- app/src/main/java/com/tabslify/tabs/aitab/AITab.kt:205 -->
     <string name="du_hast_dein_tagliches_limit">Du hast dein tägliches Limit für AI-Nachrichten erreicht!</string> <!-- app/src/main/java/com/tabslify/tabs/aitab/AITab.kt:206 -->
-    <string name="chat_leeren">Chat leeren?</string> <!-- app/src/main/java/com/tabslify/tabs/aitab/AITab.kt:216 -->
-    <string name="alle_nachrichten_in_diesem_chat">Alle Nachrichten in diesem Chat werden dauerhaft entfernt</string> <!-- app/src/main/java/com/tabslify/tabs/aitab/AITab.kt:217 -->
-    <string name="chat_leeren_2">Chat leeren</string> <!-- app/src/main/java/com/tabslify/tabs/aitab/AITab.kt:218 -->
     <!-- app/src/main/java/com/tabslify/tabs/aitab/AITab.kt:242 | AITab.kt:324 | ViewModel.kt:50 | ViewModel.kt:65 -->
     <!-- app/src/main/java/com/tabslify/tabs/aitab/AITab.kt:244 | AITab.kt:372 | ViewModel.kt:66 | ViewModel.kt:167 -->
     <string name="vision_models">VISION MODELS:</string> <!-- app/src/main/java/com/tabslify/tabs/aitab/AITab.kt:289 -->
-    <string name="clear_ai_history">Clear AI History</string> <!-- app/src/main/java/com/tabslify/tabs/aitab/AITab.kt:366 -->
     <string name="nachricht_bearbeiten">Nachricht bearbeiten…</string> <!-- app/src/main/java/com/tabslify/tabs/aitab/AITab.kt:457 -->
     <string name="bild_anhangen">Bild Anhängen</string> <!-- app/src/main/java/com/tabslify/tabs/aitab/AITab.kt:612 -->
     <string name="audio_anhangen">Audio Anhängen</string> <!-- app/src/main/java/com/tabslify/tabs/aitab/AITab.kt:631 -->
@@ -1482,7 +1462,6 @@
     <string name="wird_gleich_zuruckgesetzt">Wird gleich zurückgesetzt</string> <!-- app/src/main/java/com/tabslify/tabs/aitab/ViewModel.kt:129 -->
     <string name="reset_um_h_m">Reset um %1$s:%2$s (%3$dh %4$dm)</string> <!-- app/src/main/java/com/tabslify/tabs/aitab/ViewModel.kt:138  ||  %1$s=hh, %2$s=mm, %3$d=hours, %4$d=minutes -->
     <string name="beschreibe_das_bild">Beschreibe das Bild</string> <!-- app/src/main/java/com/tabslify/tabs/aitab/ViewModel.kt:182 | ViewModel.kt:217 -->
-    <string name="aitab_answer">AITab answer</string> <!-- app/src/main/java/com/tabslify/tabs/aitab/ViewModel.kt:227 -->
     <string name="kein_netzwerk">Kein Netzwerk</string> <!-- app/src/main/java/com/tabslify/tabs/aitab/ViewModel.kt:252 -->
     <string name="wahle_einen_modus">Wähle einen Modus</string> <!-- app/src/main/java/com/tabslify/tabs/aitab/ViewModel.kt:276 -->
     <string name="ai_chats">Chats</string>
@@ -1764,7 +1743,6 @@
     <string name="verbunden">verbunden</string> <!-- app/src/main/java/com/tabslify/tabs/exploretab/ExploreTabContent.kt:320 -->
     <string name="ja">ja</string> <!-- app/src/main/java/com/tabslify/tabs/exploretab/ExploreTabContent.kt:322 -->
     <string name="nein">nein</string> <!-- app/src/main/java/com/tabslify/tabs/exploretab/ExploreTabContent.kt:322 -->
-    <string name="media_player_2">🎶 Media Player</string> <!-- app/src/main/java/com/tabslify/tabs/mediaplayer/MediaPlayerTab.kt:249 -->
     <string name="open_downloader">Open Downloader</string> <!-- app/src/main/java/com/tabslify/tabs/mediaplayer/MediaPlayerTab.kt:269 -->
     <string name="open_recorder">Open Recorder</string> <!-- app/src/main/java/com/tabslify/tabs/mediaplayer/MediaPlayerTab.kt:287 -->
     <string name="medienzugriff_benotigt">Medienzugriff benötigt</string> <!-- app/src/main/java/com/tabslify/tabs/mediaplayer/MediaPlayerTab.kt:314 -->
@@ -1870,7 +1848,6 @@
     <string name="wird_aus_deinen_lieblings_podcasts">\"%1$s\" wird aus deinen Lieblings-Podcasts entfernt.</string> <!-- app/src/main/java/com/tabslify/tabs/mediaplayer/PodcastDownloaderTab.kt:374  ||  %1$s=feed.title -->
     <string name="podcast_suchen_oder_url_eingeben">Podcast suchen oder URL eingeben…</string> <!-- app/src/main/java/com/tabslify/tabs/mediaplayer/PodcastDownloaderTab.kt:394 -->
     <string name="url_eingeben_und_download_starten">URL eingeben und Download starten</string> <!-- app/src/main/java/com/tabslify/tabs/mediaplayer/PodcastDownloaderTab.kt:445 -->
-    <string name="downloading">Downloading: %1$d%%</string> <!-- app/src/main/java/com/tabslify/tabs/mediaplayer/PodcastDownloaderTab.kt:450  ||  %1$s=progress -->
     <string name="converting_to_mp3">Wird gespeichert…</string> <!-- app/src/main/java/com/tabslify/tabs/mediaplayer/PodcastDownloaderTab.kt:455 -->
     <string name="download_complete">Download Complete!</string> <!-- app/src/main/java/com/tabslify/tabs/mediaplayer/PodcastDownloaderTab.kt:458 -->
     <string name="lieblings_podcasts">Lieblings-Podcasts</string> <!-- app/src/main/java/com/tabslify/tabs/mediaplayer/PodcastDownloaderTab.kt:490 -->
@@ -1907,7 +1884,6 @@
     <string name="ai_zusammenfassung">AI Zusammenfassung</string> <!-- app/src/main/java/com/tabslify/tabs/school/MaterialScreen.kt:1213 -->
     <string name="reanalyze_picture">Reanalyze Picture</string> <!-- app/src/main/java/com/tabslify/tabs/school/MaterialScreen.kt:1237 -->
     <string name="zuletzt_genutzt">Zuletzt genutzt</string> <!-- app/src/main/java/com/tabslify/tabs/school/SchoolHeader.kt:167 -->
-    <string name="lokale_extraktion_leer">Lokale Extraktion leer…</string> <!-- app/src/main/java/com/tabslify/tabs/school/VocabTab.kt:385 -->
     <string name="keine_vokabeln_erkannt">Keine Vokabeln erkannt.</string> <!-- app/src/main/java/com/tabslify/tabs/school/VocabTab.kt:419 -->
     <string name="schule">Schule</string> <!-- app/src/main/java/com/tabslify/tabs/school/VocabTab.kt:505 -->
     <string name="dein_dashboard">Dein Dashboard</string> <!-- app/src/main/java/com/tabslify/tabs/school/VocabTab.kt:506 -->
@@ -2115,7 +2091,6 @@
     <string name="fitness_ellbogen">Ellbogen %1$d°</string> <!-- app/src/main/java/com/tabslify/tabs/fitnesstab/PushUpControls.kt -->
     <string name="fitness_kein_korper">Kein Körper erkannt – stell das Handy so auf, dass du komplett im Bild bist.</string> <!-- app/src/main/java/com/tabslify/tabs/fitnesstab/PushUpControls.kt -->
     <string name="fitness_arme_verdeckt">Arme nicht sichtbar – Hände und Ellbogen müssen im Bild sein.</string> <!-- app/src/main/java/com/tabslify/tabs/fitnesstab/PushUpControls.kt -->
-    <string name="fitness_kalibriert">Kalibriere … mach einen vollen Push-up.</string> <!-- app/src/main/java/com/tabslify/tabs/fitnesstab/PushUpControls.kt -->
     <string name="fitness_form_huefte">Hüfte durchdrücken</string> <!-- app/src/main/java/com/tabslify/tabs/fitnesstab/FitnessViewModel.kt -->
     <string name="fitness_form_tiefer">Tiefer gehen</string> <!-- app/src/main/java/com/tabslify/tabs/fitnesstab/FitnessViewModel.kt -->
     <string name="fitness_kamera_wechseln">Kamera wechseln</string> <!-- app/src/main/java/com/tabslify/tabs/fitnesstab/PushUpControls.kt -->
@@ -2129,7 +2104,7 @@
     <string name="fitness_rep_minus">Wiederholung abziehen</string>
     <string name="fitness_kalibrierung">Stützposition halten – Kalibrierung in %1$d s</string>
     <string name="fitness_result_title">Push-ups korrigieren</string>
-    <string name="fitness_result_detected">%1$d erkannt · %2$s</string>
+    <string tools:ignore="PluralsCandidate" name="fitness_result_detected">%1$d erkannt · %2$s</string>
     <string name="fitness_result_hint">Lösche falsch erkannte Wiederholungen oder setze den Wert manuell.</string>
     <string name="fitness_result_manual">Wert manuell setzen</string>
     <string name="fitness_result_rep_list">Erkannte Wiederholungen</string>
@@ -3163,16 +3138,14 @@
     <string name="chat_geoeffnet">Wird im AI-Chat geöffnet</string>
 
     <string name="commandcode_widget_label">CommandCode Monatslimit</string>
-    <string name="commandcode_widget_description">Monatlicher CommandCode-Verbrauch mit Pace-Linie</string>
     <string name="commandcode_widget_over">%1$s über Pace</string>
     <string name="commandcode_widget_under">%1$s unter Pace</string>
-    <string name="commandcode_widget_no_cookie">PC nicht erreichbar</string>
     <string name="commandcode_widget_error">Nicht verfügbar</string>
     <string name="commandcode_widget_expired">Cookie abgelaufen</string>
     <string name="commandcode_widget_blocked">Server blockiert die Anfrage</string>
     <string name="commandcode_widget_loading">Lade …</string>
     <string name="lamp_widget_label">Lampe</string>
-    <string name="lamp_widget_description">Lampe an/aus schalten</string>
+    <string name="widget_chevron" translatable="false">›</string>
     <string name="hose_widget_label">Lichtschläuche</string>
     <string name="home_bar_widget_label">CommandCode + Lampe</string>
     <string name="home_bar_widget_description">Leiste mit CommandCode-Verbrauch und Lampen-Schalter</string>
@@ -3212,7 +3185,6 @@
     <string name="stream_audio">Ton</string>
     <string name="stream_dateien">Dateien</string>
     <string name="stream_text">Text senden</string>
-    <string name="stream_tastatur">Tastatur</string>
     <string name="stream_senden">Senden</string>
     <string name="stream_pruefe">Prüfe Verbindung…</string>
     <string name="stream_laedt">Lädt…</string>
@@ -3226,7 +3198,10 @@
     <string name="update_title">App-Update</string>
     <string name="update_subtitle">APK in Teilen aus Supabase Storage laden, prüfen und installieren</string>
     <string name="update_installed">Installiert: %1$s (versionCode %2$d)</string>
-    <string name="update_available">Verfügbar: %1$s (versionCode %2$d) · %3$s · %4$d Teile</string>
+    <plurals name="update_available">
+        <item quantity="one">Verfügbar: %1$s (versionCode %2$d) · %3$s · %4$d Teil</item>
+        <item quantity="other">Verfügbar: %1$s (versionCode %2$d) · %3$s · %4$d Teile</item>
+    </plurals>
     <string name="update_ready">APK heruntergeladen und SHA-256-geprüft, bereit zur Installation.</string>
     <string name="update_progress">Teil %1$d/%2$d · %3$s von %4$s</string>
     <string name="update_check">Nach Update suchen</string>
@@ -3243,11 +3218,8 @@
     <string name="update_open_release">Release-Seite öffnen</string>
     <string name="update_open_release_failed">Release-Seite konnte nicht geöffnet werden.</string>
     <string name="study_plan">Lernplan</string>
-    <string name="study_plan_today">Heute fällig</string>
     <string name="study_plan_day">Tag %1$d</string>
-    <string name="study_plan_progress">Tag %1$d von %2$d</string>
-    <string name="study_plan_start">Plan starten</string>
-    <string name="study_plan_create">Plan erzeugen</string>
+    <string tools:ignore="PluralsCandidate" name="study_plan_progress">Tag %1$d von %2$d</string>
     <string name="study_plan_generate">Plan erzeugen</string>
     <string name="study_plan_generating">Plan wird erzeugt…</string>
     <string name="study_plan_empty_title">Noch kein Lernplan</string>
@@ -3256,8 +3228,8 @@
     <string name="study_plan_error">Lernplan konnte nicht geladen werden.</string>
     <string name="study_plan_offline">Offline – gespeicherter Plan</string>
     <string name="study_plan_review_hint">Prüfe zuerst die erkannten Inhalte. Danach erzeugt die KI den Plan.</string>
-    <string name="study_plan_today_count">Heute: %1$d fällig</string>
-    <string name="study_plan_done_short">%1$d von %2$d erledigt</string>
+    <string tools:ignore="PluralsCandidate" name="study_plan_today_count">Heute: %1$d fällig</string>
+    <string tools:ignore="PluralsCandidate" name="study_plan_done_short">%1$d von %2$d erledigt</string>
     <string name="study_upload_title">Stoff fotografieren</string>
     <string name="study_upload_subtitle">Bis zu 6 Bilder, Handschrift ist erlaubt</string>
     <string name="study_add_images">Bilder hinzufügen</string>
@@ -3269,7 +3241,10 @@
     <string name="study_analyze">Analysieren</string>
     <string name="study_analyzing">Erkenne Inhalte…</string>
     <string name="study_remove_image">Bild entfernen</string>
-    <string name="study_max_images">Maximal %1$d Bilder pro Plan.</string>
+    <plurals name="study_max_images">
+        <item quantity="one">Maximal %1$d Bild pro Plan.</item>
+        <item quantity="other">Maximal %1$d Bilder pro Plan.</item>
+    </plurals>
     <string name="study_review_title">Erkannte Inhalte</string>
     <string name="study_review_subtitle">Quelle prüfen, korrigieren, dann Plan erzeugen</string>
     <string name="study_review_instruction">Handschrift kann ungenau sein. Prüfe besonders Einträge mit niedriger Sicherheit.</string>
@@ -3303,33 +3278,28 @@
     <string name="study_done">Erledigt</string>
     <string name="study_material">Material</string>
     <string name="study_material_empty">Noch kein Material erzeugt.</string>
-    <string name="study_upload_error">Hochladen fehlgeschlagen.</string>
     <string name="study_extract_error">Erkennung fehlgeschlagen.</string>
     <string name="study_save_failed">Speichern fehlgeschlagen.</string>
     <string name="study_login_required">Bitte zuerst anmelden.</string>
-    <string name="study_progress_image">Bild %1$d von %2$d wird hochgeladen…</string>
+    <string tools:ignore="PluralsCandidate" name="study_progress_image">Bild %1$d von %2$d wird hochgeladen…</string>
     <string name="study_partial_warning">Einige Bilder konnten nicht erkannt werden. Du kannst Einträge manuell ergänzen.</string>
     <string name="study_untitled">Lernplan</string>
     <string name="study_tasks">Aufgaben</string>
-    <string name="study_task_count">%1$d Aufgaben</string>
-    <string name="study_day_locked">Noch nicht fällig</string>
+    <plurals name="study_task_count">
+        <item quantity="one">%1$d Aufgabe</item>
+        <item quantity="other">%1$d Aufgaben</item>
+    </plurals>
     <string name="study_translation_hint">Übersetze: %1$s</string>
     <string name="study_text_section">Textabschnitt</string>
     <string name="study_vocab">Vokabel</string>
     <string name="study_vocab_question">Was bedeutet: %1$s</string>
-    <string name="study_question_progress">%1$d von %2$d</string>
-    <string name="study_close">Schließen</string>
+    <string tools:ignore="PluralsCandidate" name="study_question_progress">%1$d von %2$d</string>
     <string name="study_edit_title">Eintrag bearbeiten</string>
     <string name="study_front_label">Vorderseite / Wortlaut</string>
     <string name="study_back_label">Rückseite / Bedeutung</string>
-    <string name="study_kind_label">Typ</string>
-    <string name="study_image_order">Reihenfolge</string>
-    <string name="study_move_left">Nach links</string>
-    <string name="study_move_right">Nach rechts</string>
     <string name="study_minutes_short">%1$d min</string>
     <string name="study_no_tasks_today">Heute ist nichts fällig.</string>
     <string name="study_back_to_plan">Zum Plan</string>
-    <string name="study_review_today">Heute wiederholen</string>
     <string name="feature_ride_tracking_title">Ride-Tracking</string>
     <string name="feature_ride_tracking_desc">Eigene Fahrradtouren mit GPS aufzeichnen. Nur im privaten Modus.</string>
     <string name="ride_tracking_start">Fahrt aufzeichnen</string>
@@ -3399,7 +3369,10 @@
     <string name="ride_tracking_photo_delete_title">Foto löschen?</string>
     <string name="ride_tracking_photo_delete_text">Das Foto wird aus der Fahrt entfernt.</string>
     <string name="ride_tracking_elevation_profile">Höhenprofil</string>
-    <string name="ride_tracking_pause_markers">%1$d Pausen markiert</string>
+    <plurals name="ride_tracking_pause_markers">
+        <item quantity="one">%1$d Pause markiert</item>
+        <item quantity="other">%1$d Pausen markiert</item>
+    </plurals>
     <string name="ride_tracking_elevation_empty">Keine Höhendaten vorhanden.</string>
     <string name="tracker_status_stopped_home">Gestoppt (Zuhause)</string>
     <string name="tracker_status_outside">Außerhalb</string>
@@ -3409,7 +3382,7 @@
     <string name="tracker_status_active_background">Läuft aktiv (Hintergrund)</string>
     <string name="tracker_status_update_error">Inaktiv (Update-Fehler)</string>
     <string name="tracker_status_disabled">Deaktiviert</string>
-    <string name="tracker_status_starting">Startet...</string>
+    <string name="tracker_status_starting">Startet…</string>
     <string name="tracker_status_error">Fehler: %1$s</string>
     <string name="tracker_status_active">Läuft aktiv</string>
     <string name="tracker_status_fgs_not_started">Inaktiv (FGS nicht gestartet)</string>
@@ -3432,7 +3405,7 @@
     <string name="qh_cmd_desc_flashlevel">Setze Taschenlampen-Helligkeit (Syntax: flashlevel [1-max])</string>
     <string name="qh_cmd_desc_message">Sendet Nachricht an gespeicherten Kontakt</string>
     <string name="qh_cmd_desc_stopmediaplayer">Stoppt Media Player Service</string>
-    <string name="qh_cmd_desc_weather">Zeigt Wetter (Syntax: weather [0-2] [0-23])</string>
+    <string name="qh_cmd_desc_weather">Zeigt Wetter (Syntax: weather [0–2] [0–23])</string>
     <string name="qh_cmd_desc_extract">Zeigt letzte WhatsApp Nachricht als separate Notification</string>
     <string name="qh_cmd_desc_gallerie">Zeigt Gallerie als nots</string>
     <string name="qh_cmd_desc_setdowntime">Lege Downtime für QuietHoursNotificationService fest (setdowntime [Stunde])</string>
@@ -3445,7 +3418,7 @@
     <string name="qh_cmd_desc_favorite">Markiert aktuellen Song als Favorit</string>
     <string name="qh_cmd_desc_favmode">Schaltet Favoriten-Modus um (nur Favoriten abspielen)</string>
     <string name="qh_cmd_desc_algplay">Spielt algorithmische Playlist ab (algplay [id|name])</string>
-    <string name="qh_cmd_desc_speed">Setzt Podcast-Geschwindigkeit (Syntax: speed [0.5-3.0])</string>
+    <string name="qh_cmd_desc_speed">Setzt Podcast-Geschwindigkeit (Syntax: speed [0.5–3.0])</string>
     <string name="qh_cmd_desc_todo">Fügt To-do hinzu (Syntax: * meine aufgabe)</string>
     <string name="qh_cmd_desc_ai_command">Sendet AI Command an Server</string>
     <string name="qh_cmd_desc_todos">Zeigt alle To-dos</string>
@@ -3479,7 +3452,7 @@
     <string name="qh_cmd_weather_fetch_failed">Wetterdaten konnten nicht abgerufen werden: %1$s</string>
     <string name="qh_cmd_title_invalid_day">❌ Ungültiger Tag</string>
     <string name="qh_cmd_invalid_day_hint">Tag muss 0, 1 oder 2 sein</string>
-    <string name="qh_cmd_help_weather">Syntax: weather [0=Heute, 1=Morgen, 2=Übermorgen] [0-23]</string>
+    <string name="qh_cmd_help_weather">Syntax: weather [0=Heute, 1=Morgen, 2=Übermorgen] [0–23]</string>
     <string name="qh_cmd_title_weather">ℹ️ Wetter</string>
     <string name="qh_cmd_torch_toggle_failed">Taschenlampe konnte nicht geschaltet werden</string>
     <string name="qh_cmd_title_invalid_value">❌ Ungültiger Wert</string>
@@ -3501,8 +3474,8 @@
     <string name="qh_cmd_title_invalid_speed">❌ Ungültige Geschwindigkeit</string>
     <string name="qh_cmd_invalid_speed_hint">Bitte einen Wert zwischen 0.5 und 3.0 eingeben</string>
     <string name="qh_cmd_title_speed">ℹ️ Geschwindigkeit</string>
-    <string name="qh_cmd_help_speed">Syntax: speed [0.5-3.0]\nBeispiel: speed 1.5 für 1.5x Geschwindigkeit</string>
-    <string name="qh_cmd_help_speed_short">Syntax: speed [0.5-3.0]\nBeispiel: speed 1.5</string>
+    <string name="qh_cmd_help_speed">Syntax: speed [0.5–3.0]\nBeispiel: speed 1.5 für 1.5x Geschwindigkeit</string>
+    <string name="qh_cmd_help_speed_short">Syntax: speed [0.5–3.0]\nBeispiel: speed 1.5</string>
     <string name="qh_cmd_help_todo_syntax">Syntax: * \"deine aufgabe\"</string>
     <string name="qh_cmd_title_todo">ℹ️ To-do</string>
     <string name="qh_cmd_help_todo">Syntax: * \"deine aufgabe\"\nBeispiel: * \"Milch kaufen\"</string>
@@ -3515,7 +3488,7 @@
     <string name="qh_cmd_help_todone">Syntax: todone [nummer]\nVerwende \'todos\' um Nummern zu sehen</string>
     <string name="qh_cmd_help_todorm">Syntax: todorm [nummer]\nVerwende \'todos\' um Nummern zu sehen</string>
     <string name="qh_cmd_title_invalid_input">❌ Ungültige Eingabe</string>
-    <string name="qh_cmd_help_bahn">Syntax: bahn [1-7]\n1=Morgen, 2=Übermorgen, etc.</string>
+    <string name="qh_cmd_help_bahn">Syntax: bahn [1–7]\n1=Morgen, 2=Übermorgen, etc.</string>
     <string name="qh_cmd_title_invalid_type">❌ Ungültiger Typ</string>
     <string name="qh_cmd_invalid_type_hint">Typ muss \'music\' oder \'podcast\' sein</string>
     <string name="qh_cmd_help_plcreate_syntax">Syntax: plcreate [music|podcast] \"Name\"</string>
@@ -3562,16 +3535,28 @@
     <string name="qh_cmd_no_song_stats">Kein Song mit \"%1$s\" in der Statistik</string>
     <string name="qh_cmd_no_podcast_stats">Kein Podcast mit \"%1$s\" in der Statistik</string>
     <string name="qh_cmd_repeat_info"> · max %1$d× wiederholt</string>
-    <string name="qh_cmd_stats_song_text">▶ %1$d Sessions · ⏱ %2$s gehört\n🕐 Zuletzt: %3$s%4$s</string>
-    <string name="qh_cmd_stats_podcast_text">▶ %1$d Sessions · ⏱ %2$s gehört\n🕐 Zuletzt: %3$s</string>
+    <plurals name="qh_cmd_stats_song_text">
+        <item quantity="one">▶ %1$d Session · ⏱ %2$s gehört\n🕐 Zuletzt: %3$s%4$s</item>
+        <item quantity="other">▶ %1$d Sessions · ⏱ %2$s gehört\n🕐 Zuletzt: %3$s%4$s</item>
+    </plurals>
+    <plurals name="qh_cmd_stats_podcast_text">
+        <item quantity="one">▶ %1$d Session · ⏱ %2$s gehört\n🕐 Zuletzt: %3$s</item>
+        <item quantity="other">▶ %1$d Sessions · ⏱ %2$s gehört\n🕐 Zuletzt: %3$s</item>
+    </plurals>
     <string name="qh_cmd_use_song_or_podcast">Verwende \'song\' oder \'podcast\'</string>
     <string name="qh_cmd_title_statsreset">ℹ️ statsreset</string>
     <string name="qh_cmd_help_statsreset">Syntax: statsreset [song|podcast|all] [suche]\nstatsreset all → alles löschen</string>
     <string name="qh_cmd_help_statsreset_short">statsreset [song|podcast] [dateiname-teilstring]</string>
     <string name="qh_cmd_title_reset">✓ Reset</string>
     <string name="qh_cmd_all_analytics_deleted">Alle Analytics-Daten wurden gelöscht</string>
-    <string name="qh_cmd_songs_removed">%1$d Song(s) aus Analytics entfernt:\n%2$s</string>
-    <string name="qh_cmd_shows_removed">%1$d Show(s) aus Analytics entfernt:\n%2$s</string>
+    <plurals name="qh_cmd_songs_removed">
+        <item quantity="one">%1$d Song aus Analytics entfernt:\n%2$s</item>
+        <item quantity="other">%1$d Songs aus Analytics entfernt:\n%2$s</item>
+    </plurals>
+    <plurals name="qh_cmd_shows_removed">
+        <item quantity="one">%1$d Show aus Analytics entfernt:\n%2$s</item>
+        <item quantity="other">%1$d Shows aus Analytics entfernt:\n%2$s</item>
+    </plurals>
     <string name="qh_cmd_title_type">❌ Typ</string>
     <string name="qh_cmd_use_song_podcast_all">Verwende \'song\', \'podcast\' oder \'all\'</string>
     <string name="qh_cmd_title_plp">ℹ️ plp</string>
@@ -3583,9 +3568,15 @@
     <string name="qh_cmd_title_unknown_command">❌ Unbekannter Befehl</string>
     <string name="qh_cmd_command_not_found">\'%1$s\' nicht gefunden. Verwende \'help\' für alle Befehle.</string>
     <string name="qh_cmd_available_commands_title">📋 Verfügbare Befehle (Seite %1$d/%2$d)</string>
-    <string name="qh_cmd_commands_count">%1$d Befehle</string>
+    <plurals name="qh_cmd_commands_count">
+        <item quantity="one">%1$d Befehl</item>
+        <item quantity="other">%1$d Befehle</item>
+    </plurals>
     <string name="qh_cmd_all_commands">Alle Commands</string>
-    <string name="qh_cmd_commands_count_summary">%1$d Commands</string>
+    <plurals name="qh_cmd_commands_count_summary">
+        <item quantity="one">%1$d Command</item>
+        <item quantity="other">%1$d Commands</item>
+    </plurals>
     <string name="qh_cmd_title_bahn_api_error">❌ Bahn API Fehler</string>
     <string name="qh_cmd_title_no_train">ℹ️ Kein 07:05-Zug</string>
     <string name="qh_cmd_no_train_text">In den Plan-Daten wurde kein passender Zug um 07:05 Uhr nach %1$s in %2$s %3$s gefunden.</string>
@@ -3606,7 +3597,10 @@
     <string name="qh_cmd_day_today">heute</string>
     <string name="qh_cmd_day_tomorrow">morgen</string>
     <string name="qh_cmd_day_day_after_tomorrow">übermorgen</string>
-    <string name="qh_cmd_in_days">in %1$d Tagen</string>
+    <plurals name="qh_cmd_in_days">
+        <item quantity="one">in %1$d Tag</item>
+        <item quantity="other">in %1$d Tagen</item>
+    </plurals>
     <string name="qh_cmd_train_default">Zug</string>
     <string name="qh_cmd_status_on_time">✅ Pünktlich</string>
     <string name="qh_cmd_train_title">🚆 %1$s (%2$s)</string>
@@ -3617,7 +3611,10 @@
     <string name="qh_msg_part_title">%1$s · %2$s (Teil %3$d/%4$d)</string>
     <string name="qh_msg_mark_read">Als gelesen markieren</string>
     <string name="qh_msg_long_title">%1$s · Lange Nachricht von %2$s</string>
-    <string name="qh_msg_parts_count">%1$d Teile</string>
+    <plurals name="qh_msg_parts_count">
+        <item quantity="one">%1$d Teil</item>
+        <item quantity="other">%1$d Teile</item>
+    </plurals>
     <string name="qh_msg_source_new">📨 Neu</string>
     <string name="qh_msg_source_chat">💬 Chat</string>
     <string name="qh_msg_no_unanswered">Keine unbeantworteten Nachrichten</string>
@@ -3666,17 +3663,18 @@
     <string name="qh_notif_quiet_ended_title">☀️ Ruhezeit beendet</string>
     <string name="qh_notif_quiet_started_text">Benachrichtigungen werden gesammelt</string>
     <string name="qh_notif_quiet_ended_text">Normale Benachrichtigungen aktiv</string>
-    <string name="qh_notif_command_input_label">Befehl eingeben...</string>
+    <string name="qh_notif_command_input_label">Befehl eingeben…</string>
     <string name="qh_notif_command_action">Befehl</string>
     <string name="qh_notif_ready_title">🔥 Ready</string>
     <string name="qh_notif_settings_action">Settings</string>
-    <string name="qh_notif_end_time_label">Endzeit (0-23)</string>
+    <string name="qh_notif_end_time_label">Endzeit (0–23)</string>
     <string name="qh_notif_end_action">Ende: %1$sh</string>
-    <string name="qh_notif_waiting_title">👀 Warte...</string>
+    <string name="qh_notif_waiting_title">👀 Warte…</string>
     <string name="qh_notif_ready_range">Ready ab %1$s Uhr bis %2$s Uhr</string>
     <string name="qh_notif_connect_action">Connect</string>
-    <string name="json_file_too_large">Datei zu groß (max. 4 MB)</string>
     <string name="bluetooth_deaktiviert">Bluetooth ist deaktiviert</string>
     <string name="ride_tracking_error_feature_off">Ride-Tracking ist in den Einstellungen deaktiviert.</string>
     <string name="ride_tracking_error_no_permission">Standortberechtigung fehlt.</string>
+    <string name="commandcode_api_key">CommandCode API-Key</string>
+    <string name="ride_tracking_open_map">In Karten-App öffnen</string>
 </resources>
