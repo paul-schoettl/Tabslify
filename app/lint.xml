@@ -3,4 +3,8 @@
     <issue id="IconMissingDensityFolder">
         <ignore path="src/main/res" />
     </issue>
+    <issue id="Typos">
+        <ignore path="src/main/res/values/strings-de.xml" />
+        <ignore path="src/main/res/values-en/strings.xml" />
+    </issue>
 </lint>
