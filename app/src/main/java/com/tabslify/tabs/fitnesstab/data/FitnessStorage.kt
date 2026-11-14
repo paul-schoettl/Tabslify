@@ -2,12 +2,51 @@ package com.tabslify.tabs.fitnesstab.data
 
 import android.content.Context
 import androidx.core.content.edit
-import org.json.JSONArray
-import org.json.JSONObject
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.decodeFromJsonElement
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+
+private val sessionsJson = Json {
+    ignoreUnknownKeys = true
+    encodeDefaults = true
+}
+
+@Serializable
+private data class SetRecord(
+    @SerialName("n") val setNumber: Int,
+    @SerialName("reps") val reps: Int = 0,
+    @SerialName("w") val weightKg: Float = 0f,
+    @SerialName("dur") val durationSeconds: Int = 0,
+    @SerialName("dist") val distanceKm: Float = 0f,
+    @SerialName("done") val completed: Boolean = false
+)
+
+@Serializable
+private data class EntryRecord(
+    @SerialName("id") val entryId: String,
+    @SerialName("exId") val exerciseId: String,
+    val sets: List<SetRecord>,
+    val notes: String = "",
+    @SerialName("start") val startedAtMs: Long = 0L,
+    @SerialName("end") val finishedAtMs: Long = 0L
+)
+
+@Serializable
+private data class SessionRecord(
+    @SerialName("id") val sessionId: String,
+    @SerialName("start") val dateStartMs: Long,
+    @SerialName("end") val dateEndMs: Long,
+    val entries: List<EntryRecord>,
+    @SerialName("kcal") val totalCalories: Float = 0f,
+    val name: String = "",
+    @SerialName("repTimes") val repTimesMs: List<Long> = emptyList()
+)
 
 class FitnessStorage(context: Context) {
 
@@ -27,10 +66,12 @@ class FitnessStorage(context: Context) {
 
     fun loadAllSessions(): List<WorkoutSession> {
         val raw = prefs.getString(KEY_SESSIONS, null) ?: return emptyList()
-        return runCatching {
-            val arr = JSONArray(raw)
-            (0 until arr.length()).mapNotNull { idx -> parseSession(arr.getJSONObject(idx)) }
-        }.getOrDefault(emptyList())
+        val elements = runCatching { sessionsJson.decodeFromString<List<JsonElement>>(raw) }.getOrNull()
+            ?: return emptyList()
+        return elements.mapNotNull { element ->
+            runCatching { sessionsJson.decodeFromJsonElement<SessionRecord>(element).toSession() }
+                .getOrNull()
+        }
     }
 
     fun mergeWithStored(extraSessions: List<WorkoutSession>): List<WorkoutSession> {
@@ -103,91 +144,67 @@ class FitnessStorage(context: Context) {
     // ----- private helpers -----
 
     private fun saveSessions(sessions: List<WorkoutSession>) {
-        val arr = JSONArray()
-        sessions.sortedByDescending { it.dateStartMs }.forEach { arr.put(serializeSession(it)) }
-        prefs.edit { putString(KEY_SESSIONS, arr.toString()) }
+        val encoded = runCatching {
+            sessionsJson.encodeToString(sessions.sortedByDescending { it.dateStartMs }.map { it.toRecord() })
+        }.getOrDefault("[]")
+        prefs.edit { putString(KEY_SESSIONS, encoded) }
     }
 
-    private fun serializeSession(s: WorkoutSession): JSONObject {
-        val entriesArr = JSONArray()
-        s.entries.forEach { entry ->
-            val setsArr = JSONArray()
-            entry.sets.forEach { set ->
-                setsArr.put(
-                    JSONObject()
-                        .put("n", set.setNumber)
-                        .put("reps", set.reps)
-                        .put("w", set.weightKg.toDouble())
-                        .put("dur", set.durationSeconds)
-                        .put("dist", set.distanceKm.toDouble())
-                        .put("done", set.completed)
-                )
-            }
-            entriesArr.put(
-                JSONObject()
-                    .put("id", entry.entryId)
-                    .put("exId", entry.exerciseId)
-                    .put("sets", setsArr)
-                    .put("notes", entry.notes)
-                    .put("start", entry.startedAtMs)
-                    .put("end", entry.finishedAtMs)
-            )
-        }
-        val repTimesArr = JSONArray()
-        s.repTimesMs.forEach { repTimesArr.put(it) }
-        return JSONObject()
-            .put("id", s.sessionId)
-            .put("start", s.dateStartMs)
-            .put("end", s.dateEndMs)
-            .put("entries", entriesArr)
-            .put("kcal", s.totalCalories.toDouble())
-            .put("name", s.name)
-            .put("repTimes", repTimesArr)
-    }
+    private fun WorkoutSession.toRecord(): SessionRecord = SessionRecord(
+        sessionId = sessionId,
+        dateStartMs = dateStartMs,
+        dateEndMs = dateEndMs,
+        entries = entries.map { it.toRecord() },
+        totalCalories = totalCalories,
+        name = name,
+        repTimesMs = repTimesMs
+    )
 
-    private fun parseSession(obj: JSONObject): WorkoutSession? {
-        return runCatching {
-            val entriesArr = obj.getJSONArray("entries")
-            val entries = (0 until entriesArr.length()).map { i ->
-                val eObj = entriesArr.getJSONObject(i)
-                val setsArr = eObj.getJSONArray("sets")
-                val sets = (0 until setsArr.length()).map { j ->
-                    val sObj = setsArr.getJSONObject(j)
-                    ExerciseSet(
-                        setNumber = sObj.getInt("n"),
-                        reps = sObj.getInt("reps"),
-                        weightKg = sObj.getDouble("w").toFloat(),
-                        durationSeconds = sObj.getInt("dur"),
-                        distanceKm = sObj.getDouble("dist").toFloat(),
-                        completed = sObj.getBoolean("done")
-                    )
-                }
-                WorkoutEntry(
-                    entryId = eObj.getString("id"),
-                    exerciseId = eObj.getString("exId"),
-                    sets = sets,
-                    notes = eObj.optString("notes", ""),
-                    startedAtMs = eObj.optLong("start", 0L),
-                    finishedAtMs = eObj.optLong("end", 0L)
-                )
-            }
-            val repTimesArr = obj.optJSONArray("repTimes")
-            val repTimes = if (repTimesArr == null) {
-                emptyList()
-            } else {
-                (0 until repTimesArr.length()).map { idx -> repTimesArr.optLong(idx, 0L) }
-            }
-            WorkoutSession(
-                sessionId = obj.getString("id"),
-                dateStartMs = obj.getLong("start"),
-                dateEndMs = obj.getLong("end"),
-                entries = entries,
-                totalCalories = obj.getDouble("kcal").toFloat(),
-                name = obj.optString("name", ""),
-                repTimesMs = repTimes
-            )
-        }.getOrNull()
-    }
+    private fun WorkoutEntry.toRecord(): EntryRecord = EntryRecord(
+        entryId = entryId,
+        exerciseId = exerciseId,
+        sets = sets.map { it.toRecord() },
+        notes = notes,
+        startedAtMs = startedAtMs,
+        finishedAtMs = finishedAtMs
+    )
+
+    private fun ExerciseSet.toRecord(): SetRecord = SetRecord(
+        setNumber = setNumber,
+        reps = reps,
+        weightKg = weightKg,
+        durationSeconds = durationSeconds,
+        distanceKm = distanceKm,
+        completed = completed
+    )
+
+    private fun SessionRecord.toSession(): WorkoutSession = WorkoutSession(
+        sessionId = sessionId,
+        dateStartMs = dateStartMs,
+        dateEndMs = dateEndMs,
+        entries = entries.map { it.toEntry() },
+        totalCalories = totalCalories,
+        name = name,
+        repTimesMs = repTimesMs
+    )
+
+    private fun EntryRecord.toEntry(): WorkoutEntry = WorkoutEntry(
+        entryId = entryId,
+        exerciseId = exerciseId,
+        sets = sets.map { it.toSet() },
+        notes = notes,
+        startedAtMs = startedAtMs,
+        finishedAtMs = finishedAtMs
+    )
+
+    private fun SetRecord.toSet(): ExerciseSet = ExerciseSet(
+        setNumber = setNumber,
+        reps = reps,
+        weightKg = weightKg,
+        durationSeconds = durationSeconds,
+        distanceKm = distanceKm,
+        completed = completed
+    )
 
     private fun buildDayStats(ymd: String, sessions: List<WorkoutSession>): DayStats {
         val minutes = sessions.sumOf { sessionMinutes(it) }

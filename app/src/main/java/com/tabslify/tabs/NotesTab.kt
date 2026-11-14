@@ -72,8 +72,10 @@ import androidx.compose.ui.window.Dialog
 import androidx.core.content.edit
 import com.tabslify.R
 import com.tabslify.core.ui.APP_COLOR
-import org.json.JSONArray
-import org.json.JSONObject
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.decodeFromJsonElement
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -87,6 +89,7 @@ sealed class NoteType {
     data class Checklist(val items: List<ChecklistItem>) : NoteType()
 }
 
+@Serializable
 data class ChecklistItem(
     val id: String = UUID.randomUUID().toString(),
     val text: String,
@@ -100,6 +103,24 @@ data class Note(
     val timestamp: Long = System.currentTimeMillis(),
     val color: NoteColor = NoteColor.DEFAULT
 )
+
+@Serializable
+private data class NoteRecord(
+    val id: String,
+    val title: String,
+    val timestamp: Long,
+    val color: String,
+    val type: String,
+    val content: String? = null,
+    val items: List<ChecklistItem>? = null
+)
+
+private val notesJson = Json {
+    ignoreUnknownKeys = true
+    coerceInputValues = true
+    encodeDefaults = true
+    explicitNulls = false
+}
 
 enum class NoteColor(val color: Color) {
     DEFAULT(APP_COLOR),
@@ -751,39 +772,37 @@ fun EditNoteDialog(
 
 fun saveNotes(context: Context, notes: List<Note>) {
     val prefs = context.getSharedPreferences("notes_prefs", Context.MODE_PRIVATE)
+    val encoded = runCatching { notesJson.encodeToString(notes.map { it.toRecord() }) }
+        .getOrDefault("[]")
+    prefs.edit(commit = true) { putString("notes", encoded) }
+}
 
-    val arr = JSONArray()
-    notes.forEach { note ->
-        val obj = JSONObject()
-        obj.put("id", note.id)
-        obj.put("title", note.title)
-        obj.put("timestamp", note.timestamp)
-        obj.put("color", note.color.name)
-        when (val type = note.type) {
-            is NoteType.Text -> {
-                obj.put("type", "TEXT")
-                obj.put("content", type.content)
-            }
+private fun Note.toRecord(): NoteRecord = NoteRecord(
+    id = id,
+    title = title,
+    timestamp = timestamp,
+    color = color.name,
+    type = when (type) {
+        is NoteType.Text -> "TEXT"
+        is NoteType.Checklist -> "CHECK"
+    },
+    content = (type as? NoteType.Text)?.content,
+    items = (type as? NoteType.Checklist)?.items
+)
 
-            is NoteType.Checklist -> {
-                obj.put("type", "CHECK")
-                val items = JSONArray()
-                type.items.forEach { item ->
-                    items.put(
-                        JSONObject().apply {
-                            put("id", item.id)
-                            put("text", item.text)
-                            put("isChecked", item.isChecked)
-                        }
-                    )
-                }
-                obj.put("items", items)
-            }
-        }
-        arr.put(obj)
+private fun NoteRecord.toNote(): Note? {
+    val noteType = when (type) {
+        "TEXT" -> NoteType.Text(content.orEmpty())
+        "CHECK" -> NoteType.Checklist(items.orEmpty())
+        else -> return null
     }
-
-    prefs.edit(commit = true) { putString("notes", arr.toString()) }
+    return Note(
+        id = id.ifBlank { UUID.randomUUID().toString() },
+        title = title,
+        type = noteType,
+        timestamp = timestamp,
+        color = runCatching { NoteColor.valueOf(color) }.getOrDefault(NoteColor.DEFAULT)
+    )
 }
 
 fun deleteNote(context: Context, notes: List<Note>, noteId: String): List<Note> {
@@ -805,43 +824,13 @@ fun loadNotes(context: Context): List<Note> {
     }
 }
 
-private fun parseNotesFromJson(raw: String): List<Note> =
-    runCatching {
-        val arr = JSONArray(raw)
-        (0 until arr.length()).mapNotNull { i ->
-            val obj = arr.optJSONObject(i) ?: return@mapNotNull null
-
-            val type = when (obj.optString("type")) {
-                "TEXT" -> NoteType.Text(obj.optString("content"))
-
-                "CHECK" -> {
-                    val itemsArr = obj.optJSONArray("items")
-                    val items = if (itemsArr == null) emptyList() else {
-                        (0 until itemsArr.length()).mapNotNull { j ->
-                            val itemObj = itemsArr.optJSONObject(j) ?: return@mapNotNull null
-                            ChecklistItem(
-                                id = itemObj.optString("id").ifBlank { UUID.randomUUID().toString() },
-                                text = itemObj.optString("text"),
-                                isChecked = itemObj.optBoolean("isChecked")
-                            )
-                        }
-                    }
-                    NoteType.Checklist(items)
-                }
-
-                else -> return@mapNotNull null
-            }
-
-            Note(
-                id = obj.optString("id").ifBlank { UUID.randomUUID().toString() },
-                title = obj.optString("title"),
-                timestamp = obj.optLong("timestamp", System.currentTimeMillis()),
-                color = runCatching { NoteColor.valueOf(obj.optString("color")) }
-                    .getOrDefault(NoteColor.DEFAULT),
-                type = type
-            )
-        }
-    }.getOrDefault(emptyList())
+private fun parseNotesFromJson(raw: String): List<Note> {
+    val elements = runCatching { notesJson.decodeFromString<List<JsonElement>>(raw) }.getOrNull()
+        ?: return emptyList()
+    return elements.mapNotNull { element ->
+        runCatching { notesJson.decodeFromJsonElement<NoteRecord>(element).toNote() }.getOrNull()
+    }
+}
 
 private fun parseLegacyNotes(raw: String): List<Note> {
     return raw.split("||").mapNotNull { entry ->

@@ -66,8 +66,10 @@ import com.tabslify.core.ui.OnAccentFillMuted
 import com.tabslify.core.ui.TextPrimary
 import com.tabslify.core.ui.TextSecondary
 import com.tabslify.core.ui.TextTertiary
-import org.json.JSONArray
-import org.json.JSONObject
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.decodeFromJsonElement
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -91,6 +93,28 @@ data class NotenFach(
 )
 
 private const val NOTEN_KEY = "noten_faecher"
+
+private val notenJson = Json {
+    ignoreUnknownKeys = true
+    encodeDefaults = true
+}
+
+@Serializable
+private data class EintragRecord(
+    val id: Long = 0L,
+    val note: Double = 0.0,
+    val gruppe: String = NotenGruppe.GROSS.name,
+    val halbjahr: Int = 1,
+    val datum: Long = System.currentTimeMillis(),
+    val titel: String = ""
+)
+
+@Serializable
+private data class FachRecord(
+    val name: String,
+    val gewicht: Map<String, Double> = emptyMap(),
+    val eintraege: List<EintragRecord> = emptyList()
+)
 
 private val NOTEN_STUFEN =
     listOf(1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0)
@@ -128,83 +152,55 @@ fun kurzZahl(wert: Double, locale: Locale): String =
 
 fun ladeNotenFaecher(prefs: SharedPreferences): List<NotenFach> {
     val raw = prefs.getString(NOTEN_KEY, null) ?: return emptyList()
-    return try {
-        val arr = JSONArray(raw)
-        (0 until arr.length()).mapNotNull { i ->
-            val o = arr.optJSONObject(i) ?: return@mapNotNull null
-            val name = o.optString("name").takeIf { it.isNotBlank() } ?: return@mapNotNull null
-            val eintraege = mutableListOf<NotenEintrag>()
-            val ea = o.optJSONArray("eintraege")
-            if (ea != null) {
-                (0 until ea.length()).forEach { j ->
-                    val e = ea.optJSONObject(j) ?: return@forEach
-                    val gruppe = runCatching {
-                        NotenGruppe.valueOf(e.optString("gruppe", NotenGruppe.GROSS.name))
-                    }.getOrDefault(NotenGruppe.GROSS)
-                    eintraege.add(
-                        NotenEintrag(
-                            id = e.optLong("id", 0L),
-                            note = e.optDouble("note", 0.0),
-                            gruppe = gruppe,
-                            halbjahr = if (e.optInt("halbjahr", 1) == 2) 2 else 1,
-                            datum = e.optLong("datum", System.currentTimeMillis()),
-                            titel = e.optString("titel")
-                        )
-                    )
-                }
-            }
-            val gewichte = mutableMapOf<NotenGruppe, Double>()
-            val gw = o.optJSONObject("gewicht")
-            if (gw != null) {
-                NotenGruppe.entries.forEach { gruppe ->
-                    if (gw.has(gruppe.name)) gewichte[gruppe] = gw.optDouble(gruppe.name, 1.0)
-                }
-            }
-            NotenFach(name = name, eintraege = eintraege, gruppenGewichte = gewichte)
-        }
-    } catch (_: Exception) {
-        emptyList()
+    val elements = runCatching { notenJson.decodeFromString<List<JsonElement>>(raw) }.getOrNull()
+        ?: return emptyList()
+    return elements.mapNotNull { element ->
+        runCatching { notenJson.decodeFromJsonElement<FachRecord>(element).toFach() }.getOrNull()
     }
 }
 
+private fun FachRecord.toFach(): NotenFach? {
+    val fachName = name.takeIf { it.isNotBlank() } ?: return null
+    val gewichte = gewicht.mapNotNull { (schluessel, wert) ->
+        NotenGruppe.entries.firstOrNull { it.name == schluessel }?.let { it to wert }
+    }.toMap()
+    return NotenFach(
+        name = fachName,
+        eintraege = eintraege.map { it.toEintrag() },
+        gruppenGewichte = gewichte
+    )
+}
+
+private fun EintragRecord.toEintrag(): NotenEintrag = NotenEintrag(
+    id = id,
+    note = note,
+    gruppe = runCatching { NotenGruppe.valueOf(gruppe) }.getOrDefault(NotenGruppe.GROSS),
+    halbjahr = if (halbjahr == 2) 2 else 1,
+    datum = datum,
+    titel = titel
+)
+
 fun speichereNotenFaecher(prefs: SharedPreferences, faecher: List<NotenFach>): List<NotenFach> {
-    val json = JSONArray().also { arr ->
-        faecher.forEach { fach ->
-            arr.put(
-                JSONObject().apply {
-                    put("name", fach.name)
-                    put(
-                        "gewicht",
-                        JSONObject().also { gw ->
-                            NotenGruppe.entries.forEach { gruppe ->
-                                gw.put(gruppe.name, notenGewicht(fach, gruppe))
-                            }
-                        }
-                    )
-                    put(
-                        "eintraege",
-                        JSONArray().also { ea ->
-                            fach.eintraege.forEach { e ->
-                                ea.put(
-                                    JSONObject().apply {
-                                        put("id", e.id)
-                                        put("note", e.note)
-                                        put("gruppe", e.gruppe.name)
-                                        put("halbjahr", e.halbjahr)
-                                        put("datum", e.datum)
-                                        put("titel", e.titel)
-                                    }
-                                )
-                            }
-                        }
-                    )
-                }
-            )
-        }
-    }.toString()
+    val json = runCatching { notenJson.encodeToString(faecher.map { it.toRecord() }) }
+        .getOrDefault("[]")
     prefs.edit { putString(NOTEN_KEY, json) }
     return faecher
 }
+
+private fun NotenFach.toRecord(): FachRecord = FachRecord(
+    name = name,
+    gewicht = NotenGruppe.entries.associate { it.name to notenGewicht(this, it) },
+    eintraege = eintraege.map { it.toRecord() }
+)
+
+private fun NotenEintrag.toRecord(): EintragRecord = EintragRecord(
+    id = id,
+    note = note,
+    gruppe = gruppe.name,
+    halbjahr = halbjahr,
+    datum = datum,
+    titel = titel
+)
 
 fun entferneNotenFach(prefs: SharedPreferences, fach: NotenFach): List<NotenFach> =
     speichereNotenFaecher(prefs, ladeNotenFaecher(prefs).filter { it.name != fach.name })
