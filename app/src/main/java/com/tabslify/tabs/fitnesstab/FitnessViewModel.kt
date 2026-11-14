@@ -2,6 +2,7 @@ package com.tabslify.tabs.fitnesstab
 
 import android.app.Application
 import android.content.Context
+import android.os.SystemClock
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -45,7 +46,7 @@ private const val PREFS_NAME = "fitness_pushups"
 private const val KEY_BEST = "best_reps"
 private const val KEY_SEEN_HINT = "seen_pushup_hint"
 
-enum class TrackingIssue { NONE, NO_BODY, ARMS_HIDDEN, CALIBRATING }
+enum class TrackingIssue { NONE, NO_BODY, ARMS_HIDDEN, NOT_IN_POSITION, CALIBRATING }
 
 enum class FitnessScreen { DASHBOARD, EXERCISES, WORKOUT, BIKE, HISTORY }
 
@@ -65,8 +66,10 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
 
     private val prefs = application.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     private val counter = PushUpCounter()
+    private val extractor = PushUpSignalExtractor()
     private var timerJob: Job? = null
     private var sessionStartedAtMs = 0L
+    private var sessionStartedAtElapsedMs = 0L
     private var lostFrames = 0
     private val detectedRepTimes = mutableStateListOf<Long>()
     private var editingPushUpSession: WorkoutSession? = null
@@ -108,9 +111,6 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         private set
 
     var lastRepAtMs by mutableLongStateOf(0L)
-        private set
-
-    var calibrationRemainingMs by mutableLongStateOf(0L)
         private set
 
     var pushUpEditor by mutableStateOf<PushUpEditorState?>(null)
@@ -519,7 +519,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             if (isRunning && timerJob == null) {
                 timerJob = viewModelScope.launch {
                     while (isRunning) {
-                        elapsedMs = System.currentTimeMillis() - sessionStartedAtMs
+                        elapsedMs = SystemClock.elapsedRealtime() - sessionStartedAtElapsedMs
                         delay(250L.milliseconds)
                     }
                 }
@@ -727,22 +727,23 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
 
     fun startSession() {
         counter.reset()
+        extractor.reset()
         lostFrames = 0
         lastRepAtMs = 0L
         reps = 0
         detectedRepTimes.clear()
-        calibrationRemainingMs = 0L
         trackingIssue = TrackingIssue.CALIBRATING
         phase = PushUpPhase.UNKNOWN
         formHintRes = null
         isNewRecord = false
         elapsedMs = 0L
         sessionStartedAtMs = System.currentTimeMillis()
+        sessionStartedAtElapsedMs = SystemClock.elapsedRealtime()
         isRunning = true
         timerJob?.cancel()
         timerJob = viewModelScope.launch {
             while (isRunning) {
-                elapsedMs = System.currentTimeMillis() - sessionStartedAtMs
+                elapsedMs = SystemClock.elapsedRealtime() - sessionStartedAtElapsedMs
                 delay(250L.milliseconds)
             }
         }
@@ -755,7 +756,6 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         timerJob = null
         phase = PushUpPhase.UNKNOWN
         formHintRes = null
-        calibrationRemainingMs = 0L
         pushUpBestBeforeSession = personalBest
         isNewRecord = false
         if (wasRunning) {
@@ -771,11 +771,11 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         phase = PushUpPhase.UNKNOWN
         formHintRes = null
         counter.reset()
+        extractor.reset()
         lostFrames = 0
         lastRepAtMs = 0L
         reps = 0
         detectedRepTimes.clear()
-        calibrationRemainingMs = 0L
         elapsedMs = 0L
         isNewRecord = false
         formHintRes = null
@@ -789,84 +789,79 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
 
     fun onPoseFrame(newFrame: PoseFrame) {
         frame = newFrame
-        val trackable = PoseMetrics.isTrackable(newFrame)
-        val signals = PoseMetrics.pushUpSignals(newFrame)
-        poseDetected = trackable
+        val now = SystemClock.elapsedRealtime()
+        val (imageLandmarks, worldLandmarks) = newFrame.toLandmark3Lists()
+        val signals = extractor.analyze(
+            image = imageLandmarks,
+            world = worldLandmarks,
+            imageWidth = newFrame.imageWidth,
+            imageHeight = newFrame.imageHeight,
+            timestampMs = now
+        )
+        poseDetected = signals.hasBody
 
-        if (!trackable) {
+        if (!signals.hasBody) {
             lostFrames++
             if (lostFrames >= LOST_FRAME_GRACE) {
                 counter.onPoseLost()
                 phase = PushUpPhase.UNKNOWN
                 trackingIssue = TrackingIssue.NO_BODY
-                calibrationRemainingMs = counter.calibrationRemainingMs
             }
             return
         }
-
-        if (!signals.elbowAngle.isNaN() && !isRunning) {
-            elbowAngle = signals.elbowAngle.roundToInt()
-        }
+        lostFrames = 0
 
         if (!isRunning) {
+            if (!signals.elbowAngle.isNaN()) {
+                elbowAngle = signals.elbowAngle.roundToInt()
+            }
             trackingIssue = when {
                 !signals.armsVisible -> TrackingIssue.ARMS_HIDDEN
                 !signals.fullyInFrame -> TrackingIssue.NO_BODY
+                !signals.postureHorizontal -> TrackingIssue.NOT_IN_POSITION
                 else -> TrackingIssue.NONE
             }
             return
         }
 
-        val now = System.currentTimeMillis()
         val sample = PushUpSample(
             timestampMs = now,
+            armExtension = signals.armExtension,
             elbowAngle = signals.elbowAngle,
-            bodyAngle = signals.bodyAngle,
-            torsoInclination = signals.torsoInclination,
-            poseConfidence = signals.poseConfidence,
-            armsVisible = signals.armsVisible,
-            fullyInFrame = signals.fullyInFrame,
-            wristsPlanted = signals.wristsPlanted,
+            elbowConfident = signals.elbowConfident,
+            wristPlantedTop = signals.wristPlantedTop,
+            wristPlantedWide = signals.wristPlantedWide,
+            postureHorizontal = signals.postureHorizontal,
             valid = signals.valid
         )
         val rep = counter.submit(sample)
         phase = counter.phase
-        calibrationRemainingMs = counter.calibrationRemainingMs
-        if (!counter.smoothedAngle.isNaN() && counter.smoothedAngle < PushUpCounter.MAX_ANGLE) {
+        if (counter.smoothedAngle < PushUpCounter.MAX_ANGLE) {
             elbowAngle = counter.smoothedAngle.roundToInt()
-        }
-
-        if (signals.valid) {
-            lostFrames = 0
-        } else {
-            lostFrames++
-            if (lostFrames >= LOST_FRAME_GRACE) {
-                counter.onPoseLost()
-                phase = PushUpPhase.UNKNOWN
-            }
         }
 
         if (rep != null) {
             reps++
-            detectedRepTimes.add(now - sessionStartedAtMs)
+            detectedRepTimes.add(now - sessionStartedAtElapsedMs)
             lastRepAtMs = now
         }
 
         trackingIssue = when {
             !signals.armsVisible -> TrackingIssue.ARMS_HIDDEN
             !signals.fullyInFrame -> TrackingIssue.NO_BODY
+            !signals.postureHorizontal -> TrackingIssue.NOT_IN_POSITION
             !counter.calibrated -> TrackingIssue.CALIBRATING
             else -> TrackingIssue.NONE
         }
 
-        formHintRes = resolveHint(newFrame)
+        formHintRes = resolveHint(signals)
     }
 
-    private fun resolveHint(current: PoseFrame): Int? {
-        if (PoseMetrics.hipReliable(current)) {
-            val hip = PoseMetrics.hipAngle(current)
-            if (!hip.isNaN() && hip < 152f) return R.string.fitness_form_huefte
+    private fun resolveHint(signals: PushUpSignals): Int? {
+        if (!signals.hipAngle.isNaN() && signals.hipAngle < 152f) {
+            return R.string.fitness_form_huefte
         }
+        if (counter.needsTopHint) return R.string.fitness_strecken
         if (counter.feedback == PushUpFeedback.TOO_SHALLOW) return R.string.fitness_form_tiefer
         return null
     }

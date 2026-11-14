@@ -50,10 +50,11 @@ fun StatusLine(vm: FitnessViewModel) {
         vm.errorMessage != null -> vm.errorMessage
         vm.trackingIssue == TrackingIssue.NO_BODY -> stringResource(R.string.fitness_kein_korper)
         vm.trackingIssue == TrackingIssue.ARMS_HIDDEN -> stringResource(R.string.fitness_arme_verdeckt)
-        vm.isRunning && vm.trackingIssue == TrackingIssue.CALIBRATING -> {
-            val seconds = ((vm.calibrationRemainingMs + 999L) / 1000L).toInt().coerceAtLeast(1)
-            stringResource(R.string.fitness_kalibrierung, seconds)
-        }
+        vm.isRunning && vm.trackingIssue == TrackingIssue.NOT_IN_POSITION ->
+            stringResource(R.string.fitness_keine_haltung)
+
+        vm.isRunning && vm.trackingIssue == TrackingIssue.CALIBRATING ->
+            stringResource(R.string.fitness_position_suche)
 
         vm.isRunning && vm.formHintRes != null -> stringResource(vm.formHintRes!!)
         vm.isNewRecord -> stringResource(R.string.fitness_neuer_rekord)

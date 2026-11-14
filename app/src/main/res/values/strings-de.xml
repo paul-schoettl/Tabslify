@@ -2102,7 +2102,9 @@
     <string name="fitness_tipp_text">Am genauesten wird es, wenn das Handy seitlich etwa zwei Meter entfernt steht. Frontal geht auch – wichtig ist nur, dass Schultern, Hüfte und Hände im Bild bleiben.</string> <!-- app/src/main/java/com/tabslify/tabs/fitnesstab/PushUpControls.kt -->
     <string name="fitness_verstanden">Verstanden</string> <!-- app/src/main/java/com/tabslify/tabs/fitnesstab/PushUpControls.kt -->
     <string name="fitness_rep_minus">Wiederholung abziehen</string>
-    <string name="fitness_kalibrierung">Stützposition halten – Kalibrierung in %1$d s</string>
+    <string name="fitness_position_suche">Such die Stützposition – Arme strecken, Hände unter die Schultern.</string> <!-- app/src/main/java/com/tabslify/tabs/fitnesstab/PushUpControls.kt -->
+    <string name="fitness_keine_haltung">Keine Liegestützhaltung erkannt – Körper waagerecht, Hände auf dem Boden.</string> <!-- app/src/main/java/com/tabslify/tabs/fitnesstab/PushUpControls.kt -->
+    <string name="fitness_strecken">Arme ganz strecken, dann geht\'s los.</string> <!-- app/src/main/java/com/tabslify/tabs/fitnesstab/FitnessViewModel.kt -->
     <string name="fitness_result_title">Push-ups korrigieren</string>
     <string tools:ignore="PluralsCandidate" name="fitness_result_detected">%1$d erkannt · %2$s</string>
     <string name="fitness_result_hint">Lösche falsch erkannte Wiederholungen oder setze den Wert manuell.</string>
