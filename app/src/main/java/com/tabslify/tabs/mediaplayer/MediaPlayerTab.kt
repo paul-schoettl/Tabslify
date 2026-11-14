@@ -3176,6 +3176,11 @@ class MediaViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    private fun nowPlayingMusicTitle(): String? {
+        val np = readNowPlayingFromPrefs()
+        return np.title.takeIf { np.mode == "music" && np.isActive && it.isNotEmpty() }
+    }
+
     private fun favoriteFingerprint(): String {
         val prefs = getApplication<Application>()
             .getSharedPreferences("music_player_prefs", Context.MODE_PRIVATE)
@@ -3191,7 +3196,7 @@ class MediaViewModel(app: Application) : AndroidViewModel(app) {
         if (songs.isEmpty()) return
         algJob?.cancel()
         algJob = viewModelScope.launch {
-            val nowPlaying = (nowPlayingName ?: readNowPlayingFromPrefs().title).takeIf { it.isNotEmpty() }
+            val nowPlaying = nowPlayingName ?: nowPlayingMusicTitle()
             val seed = System.currentTimeMillis() / 86_400_000L
             val computed = withContext(Dispatchers.IO) {
                 AlgorithmicPlaylistRegistry.all.map { source ->
@@ -3294,7 +3299,7 @@ class MediaViewModel(app: Application) : AndroidViewModel(app) {
                 source to source.getSongs(
                     PlaylistInput(
                         allSongs = songs,
-                        nowPlayingName = readNowPlayingFromPrefs().title.takeIf { it.isNotEmpty() },
+                        nowPlayingName = nowPlayingMusicTitle(),
                         seed = System.currentTimeMillis() / 86_400_000L
                     )
                 )
