@@ -41,6 +41,7 @@ enum class AiTarget {
     HeiseQa,
     MusicSummary,
     Vision,
+    VisionLexikon,
     SongHashtags,
     ChargingPrediction,
     TextAction
@@ -97,6 +98,25 @@ fun aiSystemPrompt(target: AiTarget): String = when (target) {
 
     AiTarget.Vision -> """
         Du extrahierst Vokabeln aus einem Bild. Es gibt ZWEI Spalten: Latein links, Deutsch rechts. Jede Zeile ist ein Vokabelpaar. Ordne jedes lateinische Wort dem deutschen Wort auf derselben vertikalen Position zu. Ignoriere Seitenzahlen (z. B. "116") und wiederholte oder doppelte Blöcke am unteren Rand. Antworte ausschließlich mit einem JSON-Array der Form [{"latein":"...","deutsch":"..."}], ohne Markdown, ohne Erklärung.
+    """.trimIndent()
+
+    AiTarget.VisionLexikon -> """
+        Du liest eine Seite aus einem Vokabelverzeichnis (Latein nach Deutsch) ein und gibst die Einträge als JSON zurück.
+        Aufbau der Seite:
+        - Grundwortschatz-Register: alle Angaben stehen nebeneinander in einer Zeile (Latein | Deutsch | Wortverwandtschaften, teils zusätzlich Wortart, Genitiv, Stammformen).
+        - Lernwortschatz: Die Nummer des Lernwortschatzes steht nur EINMAL oben am Abschnitt. Diese Nummer gilt für alle folgenden Einträge, bis eine neue Nummer erscheint.
+        Regeln:
+        - Jede Zeile ist genau ein Eintrag.
+        - Übernimm die geltende Lernwortschatz-Nummer in "quelle" (z. B. "Lernwortschatz 12"); im Grundwortschatz-Register "Grundwortschatz".
+        - "stichwort" ist die lateinische Grundform mit den Längezeichen wie im Buch (z. B. "dēfendere").
+        - "bedeutungen" ist ein Array der deutschen Bedeutungen, eine Bedeutung pro Element, ohne Kursiv-Zusätze.
+        - "formen" enthält den Genitiv und das Genus bei Substantiven bzw. die Stammformen bei Verben, jeweils als eigenes Element.
+        - "verwandtschaften" enthält die dritte Spalte (Wortverwandtschaften), falls vorhanden.
+        - "wortart" nur wenn im Buch angegeben (Substantiv, Verb, Adjektiv, Adverb, Präposition).
+        - Ignoriere Überschriften, Seitenzahlen, Kolumnentitel, Trennstriche und Wiederholungen am Seitenrand.
+        - Mehrzeilige Einträge gehören zusammen.
+        Antworte ausschließlich mit JSON, ohne Markdown, ohne Erklärung:
+        {"quelle":"Lernwortschatz 12 oder Grundwortschatz","eintraege":[{"stichwort":"...","bedeutungen":["..."],"wortart":"...","formen":["..."],"verwandtschaften":["..."]}]}
     """.trimIndent()
 
     AiTarget.SongHashtags -> """

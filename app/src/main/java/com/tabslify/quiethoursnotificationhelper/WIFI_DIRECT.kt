@@ -846,28 +846,26 @@ private fun todosToJsonArray(todos: List<TodoItem>): JSONArray = JSONArray().app
 }
 
 
-suspend fun callNvidiaVisionApi(
+suspend fun callVisionRaw(
     context: Context,
     bmp: Bitmap,
-    onError: (String) -> Unit,
-    onProgress: (String) -> Unit,
-    onVocabChange: (List<Vokabel>) -> Unit
-) {
-    fun Bitmap.scaleForApi(maxPx: Int = 1280): Bitmap {
+    prompt: String,
+    systemPrompt: String,
+    target: AiTarget,
+    maxPx: Int = 1280,
+    onProgress: (String) -> Unit
+): String {
+    fun Bitmap.scaleForApi(maxPx: Int): Bitmap {
         val scale = maxPx.toFloat() / maxOf(width, height)
         if (scale >= 1f) return this
         return this.scale((width * scale).toInt(), (height * scale).toInt())
     }
 
-    val scaledBmp = bmp.scaleForApi(1280)
+    val scaledBmp = bmp.scaleForApi(maxPx)
 
-    val prompt = "Extrahiere die Vokabelpaare aus diesem Bild als JSON-Array."
-    val systemPrompt = aiSystemPrompt(AiTarget.Vision)
-
-    val provider = getPreferredAiProvider(context, "vision")
-    val result = try {
+    try {
         val sb = StringBuilder()
-        if (provider == "nvidia") {
+        if (getPreferredAiProvider(context, "vision") == "nvidia") {
             val base64Pic = java.io.ByteArrayOutputStream().use { bos ->
                 scaledBmp.compress(Bitmap.CompressFormat.JPEG, 90, bos)
                 android.util.Base64.encodeToString(bos.toByteArray(), android.util.Base64.NO_WRAP)
@@ -876,7 +874,7 @@ suspend fun callNvidiaVisionApi(
                 context = context,
                 history = emptyList(),
                 userMessage = prompt,
-                target = AiTarget.Vision,
+                target = target,
                 model = "meta/llama-3.2-90b-vision-instruct",
                 pic = base64Pic,
                 provider = AiProvider.NVIDIA,
@@ -887,7 +885,7 @@ suspend fun callNvidiaVisionApi(
                     }
                 }
             )
-            ans ?: ""
+            if (sb.isEmpty()) sb.append(ans.orEmpty())
         } else {
             val model = Firebase.ai(backend = GenerativeBackend.googleAI())
                 .generativeModel(Config.DEF_GEMINI)
@@ -899,11 +897,31 @@ suspend fun callNvidiaVisionApi(
                         withContext(Dispatchers.Main) { onProgress(sb.toString()) }
                     }
                 }
-            sb.toString()
         }
+        return sb.toString()
+    } finally {
+        if (scaledBmp !== bmp) scaledBmp.recycle()
+    }
+}
+
+suspend fun callNvidiaVisionApi(
+    context: Context,
+    bmp: Bitmap,
+    onError: (String) -> Unit,
+    onProgress: (String) -> Unit,
+    onVocabChange: (List<Vokabel>) -> Unit
+) {
+    val result = try {
+        callVisionRaw(
+            context = context,
+            bmp = bmp,
+            prompt = "Extrahiere die Vokabelpaare aus diesem Bild als JSON-Array.",
+            systemPrompt = aiSystemPrompt(AiTarget.Vision),
+            target = AiTarget.Vision,
+            onProgress = onProgress
+        )
     } catch (_: Exception) {
         onError("API keine Antwort – prüfe Key & Netzwerk")
-        if (scaledBmp !== bmp) scaledBmp.recycle()
         return
     }
 
@@ -925,7 +943,6 @@ suspend fun callNvidiaVisionApi(
     } else {
         onError("API keine Antwort – prüfe Key & Netzwerk")
     }
-    if (scaledBmp !== bmp) scaledBmp.recycle()
 }
 
 @Volatile

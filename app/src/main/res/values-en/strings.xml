@@ -3030,4 +3030,36 @@
     </string-array>
     <string name="commandcode_api_key">CommandCode API key</string>
     <string name="ride_tracking_open_map">Open in maps</string>
+    <string name="wortschatz">Dictionary</string>
+    <string name="wortschatz_einlesen">Import dictionary</string>
+    <string name="wortschatz_leer_hinweis">No dictionary imported yet</string>
+    <string name="wortschatz_eintraege">%1$d entries</string>
+    <string name="wortschatz_suchfeld">Search a word (Latin or German)</string>
+    <string name="wortschatz_alle">All</string>
+    <string name="wortschatz_tipp">Type a word to search the dictionary</string>
+    <string name="wortschatz_kein_treffer">No match for “%1$s”</string>
+    <string name="wortschatz_leer_titel">No dictionary yet</string>
+    <string name="wortschatz_leer_text">Photograph the index pages once.</string>
+    <string name="wortschatz_loeschen">Delete dictionary?</string>
+    <string name="wortschatz_loeschen_text">“%1$s” will be deleted with all entries.</string>
+    <string name="wortschatz_stichwort">Headword</string>
+    <string name="wortschatz_bedeutungen">Meanings (separate with semicolon)</string>
+    <string name="wortschatz_wortart">Part of speech</string>
+    <string name="wortschatz_formen">Forms / principal parts</string>
+    <string name="wortschatz_verwandtschaften">Related words</string>
+    <string name="wortschatz_import_hinweis">Read pages and store them as a dictionary</string>
+    <string name="wortschatz_seiten_waehlen">Choose pages</string>
+    <string name="wortschatz_foto">Photo</string>
+    <string name="wortschatz_name">Dictionary name</string>
+    <string name="wortschatz_seiten_anzahl">%1$d pages selected</string>
+    <string name="wortschatz_starten">Import</string>
+    <string name="wortschatz_fortschritt">Page %1$d of %2$d</string>
+    <string name="wortschatz_abbrechen">Cancel</string>
+    <string name="wortschatz_import_leer">No entries were recognised.</string>
+    <string name="wortschatz_grundwortschatz">Basic vocabulary</string>
+    <string name="wortschatz_lernwortschatz">Lesson vocabulary</string>
+    <string name="wortschatz_fertig">Dictionary saved</string>
+    <string name="wortschatz_fertig_text">%1$d entries imported.</string>
+    <string name="wortschatz_auffaelligkeiten">Notable pages</string>
+    <string name="wortschatz_oeffnen">Open</string>
 </resources>

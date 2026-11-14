@@ -131,6 +131,9 @@ import com.tabslify.tabs.school.study.StudySessionScreen
 import com.tabslify.tabs.school.study.StudySessionViewModel
 import com.tabslify.tabs.school.study.StudyUploadScreen
 import com.tabslify.tabs.school.study.StudyUploadViewModel
+import com.tabslify.tabs.school.lexikon.LexikonImportScreen
+import com.tabslify.tabs.school.lexikon.LexikonNavigation
+import com.tabslify.tabs.school.lexikon.LexikonScreen
 import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -209,7 +212,7 @@ enum class LernModus { AUSWAHL, TIPPEN, AUFECKEN }
 enum class VokabelTabScreen {
     DASHBOARD, HOME, UPLOAD, REVIEW, LEARN, MATERIALIEN, NOTEN,
     STUDY_PLAN, STUDY_UPLOAD, STUDY_REVIEW, STUDY_DAY, STUDY_SESSION,
-    STUDY_RESULT, STUDY_MATERIAL
+    STUDY_RESULT, STUDY_MATERIAL, LEXIKON, LEXIKON_IMPORT
 }
 
 private val LEITNER_INTERVALLE = intArrayOf(0, 1, 2, 4, 8, 16, 32)
@@ -580,6 +583,12 @@ fun VocabTab(paddingValues: PaddingValues) {
             screen = VokabelTabScreen.STUDY_PLAN
         }
     }
+    LaunchedEffect(LexikonNavigation.openRequested) {
+        if (LexikonNavigation.openRequested) {
+            LexikonNavigation.openRequested = false
+            screen = VokabelTabScreen.LEXIKON
+        }
+    }
     LaunchedEffect(screen) {
         if (!prvt() && screen.name.startsWith("STUDY_")) {
             screen = VokabelTabScreen.DASHBOARD
@@ -685,6 +694,7 @@ fun VocabTab(paddingValues: PaddingValues) {
                     savedSets = deleteVokabelSet(prefs, set)
                 },
                 onMergeClick = { showMergeDialog = true },
+                onOpenLexikon = { screen = VokabelTabScreen.LEXIKON },
                 onBack = { screen = VokabelTabScreen.DASHBOARD },
                 paddingValues = paddingValues,
                 onOpenMaterial = {
@@ -964,6 +974,18 @@ fun VocabTab(paddingValues: PaddingValues) {
                 },
                 paddingValues = paddingValues,
             )
+
+            VokabelTabScreen.LEXIKON -> LexikonScreen(
+                paddingValues = paddingValues,
+                onBack = { screen = VokabelTabScreen.HOME },
+                onImport = { screen = VokabelTabScreen.LEXIKON_IMPORT }
+            )
+
+            VokabelTabScreen.LEXIKON_IMPORT -> LexikonImportScreen(
+                paddingValues = paddingValues,
+                onBack = { screen = VokabelTabScreen.LEXIKON },
+                onFertig = { screen = VokabelTabScreen.LEXIKON }
+            )
         }
     }
 }
@@ -1169,6 +1191,7 @@ fun VocabTabContent(
     onLearnWithMix: (VokabelSet) -> Unit,
     onDeleteSet: (VokabelSet) -> Unit,
     onMergeClick: () -> Unit = {},
+    onOpenLexikon: () -> Unit = {},
     onBack: () -> Unit,
     paddingValues: PaddingValues,
     onOpenMaterial: (RecentMaterial) -> Unit = {}
@@ -1233,6 +1256,16 @@ fun VocabTabContent(
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold
                         )
+                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(BgCard)
+                            .clickable { onOpenLexikon() }
+                            .padding(horizontal = 18.dp, vertical = 18.dp)
+                    ) {
+                        Text("🔍", fontSize = 20.sp)
                     }
                 }
             }
