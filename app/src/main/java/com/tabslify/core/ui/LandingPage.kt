@@ -280,6 +280,7 @@ fun LandingPageOrApp(
     var reloadKey by remember { mutableIntStateOf(0) }
     realDevice = !getDeviceName().trim().contains("sdk_gphone", ignoreCase = true)
     var landingReloadTrigger by remember { mutableIntStateOf(0) }
+    val startZiel = startTarget?.substringBefore('#')
 
     val appPrefs = remember { context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE) }
     LaunchedEffect(Unit) {
@@ -402,7 +403,7 @@ fun LandingPageOrApp(
 
     LaunchedEffect(startTarget) {
         if (startTarget != null && selectedMenuItem == null) {
-            selectedMenuItem = when (startTarget) {
+            selectedMenuItem = when (startZiel) {
                 "weather" -> MenuItem.WEATHER
                 "aitab" -> MenuItem.AITAB
                 "ai_questions" -> MenuItem.AITAB
@@ -412,6 +413,7 @@ fun LandingPageOrApp(
                 "virustotal" -> MenuItem.VIRUSTOTAL
                 "mediaplayer" -> MenuItem.MEDIAPLAYERTAB
                 "suggestion" -> MenuItem.SUGGESTION
+                "lexikon" -> MenuItem.Vocabs
                 else -> null
             }
             if (selectedMenuItem != null &&
@@ -423,6 +425,13 @@ fun LandingPageOrApp(
             if (selectedMenuItem != null && selectedMenuItem != MenuItem.APKM_INSTALLER) {
                 saveRecentTab(context, selectedMenuItem!!)
             }
+        }
+    }
+
+    LaunchedEffect(startTarget) {
+        if (startZiel == "lexikon" && hasLoadedApp) {
+            selectedMenuItem = MenuItem.Vocabs
+            isLandingShown = false
         }
     }
 
@@ -538,7 +547,7 @@ fun LandingPageOrApp(
 
         if (hasLoadedApp) {
             val targetMenuItem = selectedMenuItem ?: startTarget?.let { target ->
-                when (target) {
+                when (target.substringBefore('#')) {
                     "weather" -> MenuItem.WEATHER
                     "aitab" -> MenuItem.AITAB
                     "ai_questions" -> MenuItem.AITAB
@@ -549,6 +558,7 @@ fun LandingPageOrApp(
                     "virustotal" -> MenuItem.VIRUSTOTAL
                     "mediaplayer" -> MenuItem.MEDIAPLAYERTAB
                     "suggestion" -> MenuItem.SUGGESTION
+                    "lexikon" -> MenuItem.Vocabs
                     else -> null
                 }
             }?.takeIf { it == MenuItem.APKM_INSTALLER || menuItemVisible(it, context) }
@@ -560,6 +570,7 @@ fun LandingPageOrApp(
                             storage = storage,
                             startTarget = null,
                             initialMenuItem = targetMenuItem,
+                            lexikonToken = startTarget?.takeIf { it.startsWith("lexikon") },
                             onMenuClick = { openLanding() },
                             helpVisible = isHelpOpen,
                             onHelpVisibleChange = { isHelpOpen = it },
@@ -616,6 +627,7 @@ fun LandingPageOrApp(
                     storage = storage,
                     startTarget = null,
                     initialMenuItem = item,
+                    lexikonToken = null,
                     onMenuClick = null,
                     onImmersiveChange = { webImmersive = it }
                 )

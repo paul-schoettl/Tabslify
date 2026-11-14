@@ -39,12 +39,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -75,10 +79,13 @@ import java.io.File
 fun LexikonScreen(
     paddingValues: PaddingValues,
     onBack: () -> Unit,
-    onImport: () -> Unit
+    onImport: () -> Unit,
+    fokusAnfrage: Int = 0
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val sucheFokus = remember { FocusRequester() }
+    val tastatur = LocalSoftwareKeyboardController.current
     var wortschaetze by remember { mutableStateOf<List<Wortschatz>>(emptyList()) }
     var geladen by remember { mutableStateOf(false) }
     var neuLaden by remember { mutableStateOf(0) }
@@ -90,6 +97,14 @@ fun LexikonScreen(
     LaunchedEffect(neuLaden) {
         wortschaetze = withContext(Dispatchers.IO) { LexikonStore.ladeAlle(context) }
         geladen = true
+    }
+
+    LaunchedEffect(fokusAnfrage) {
+        if (fokusAnfrage > 0) {
+            withFrameNanos { }
+            sucheFokus.requestFocus()
+            tastatur?.show()
+        }
     }
 
     val index = remember(wortschaetze) { baueLexikonIndex(wortschaetze) }
@@ -142,7 +157,8 @@ fun LexikonScreen(
             singleLine = true,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = 16.dp)
+                .focusRequester(sucheFokus),
             placeholder = { Text(stringResource(R.string.wortschatz_suchfeld), color = TextTertiary) },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = TextTertiary) },
             trailingIcon = {

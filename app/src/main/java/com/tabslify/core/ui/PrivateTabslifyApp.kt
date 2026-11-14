@@ -421,6 +421,7 @@ fun PrivateTabslifyApp(
     storage: Storage,
     startTarget: String?,
     initialMenuItem: MenuItem,
+    lexikonToken: String? = null,
     onMenuClick: (() -> Unit)? = null,
     helpVisible: Boolean = false,
     onHelpVisibleChange: (Boolean) -> Unit = {},
@@ -714,7 +715,7 @@ fun PrivateTabslifyApp(
 
                         MenuItem.PRIVATE_CLOUD -> MainTabslifyScreen(storage = storage)
 
-                        MenuItem.Vocabs -> VocabTab(paddingValues)
+                        MenuItem.Vocabs -> VocabTab(paddingValues, lexikonToken)
 
                         MenuItem.MEDIAPLAYERTAB -> MediaTab(
                             contentPadding = paddingValues,
