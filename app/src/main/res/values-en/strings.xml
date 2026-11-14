@@ -3045,6 +3045,8 @@
     <string name="wortschatz_stichwort">Headword</string>
     <string name="wortschatz_bedeutungen">Meanings (separate with semicolon)</string>
     <string name="wortschatz_wortart">Part of speech</string>
+    <string name="wortschatz_kapitel_kurz">Ch. %1$s</string>
+    <string name="wortschatz_kapitel">Chapter</string>
     <string name="wortschatz_formen">Forms / principal parts</string>
     <string name="wortschatz_verwandtschaften">Related words</string>
     <string name="wortschatz_import_hinweis">Read pages and store them as a dictionary</string>

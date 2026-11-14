@@ -83,7 +83,6 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material.icons.filled.DesktopWindows
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.FitnessCenter
@@ -226,7 +225,6 @@ import com.tabslify.tabs.mediaplayer.MediaTab
 import com.tabslify.tabs.mediaplayer.MediaViewModel
 import com.tabslify.tabs.pendingApkmUri
 import com.tabslify.tabs.school.VocabTab
-import com.tabslify.tabs.school.lexikon.LexikonNavigation
 import com.tabslify.tabs.school.study.StudyNavigation
 import com.tabslify.tabs.virustotal.VirusTotalTabContent
 import io.github.jan.supabase.storage.Storage
@@ -333,11 +331,6 @@ enum class MenuItem(
         "️️🏫️",
         {}
     ),
-    WORTSCHATZ(
-        R.string.wortschatz,
-        "️️🔍",
-        {}
-    ),
     EXPLORE(
         R.string.explore,
         "🗺️",
@@ -409,7 +402,6 @@ val MenuItem.iconVector: ImageVector
         MenuItem.GMAIL -> Icons.Default.Email
         MenuItem.TIKTOK -> Icons.Default.MusicVideo
         MenuItem.Vocabs -> Icons.Default.School
-        MenuItem.WORTSCHATZ -> Icons.Default.Search
         MenuItem.EXPLORE -> Icons.Default.Explore
         MenuItem.CALENDAR -> Icons.Default.CalendarMonth
         MenuItem.REMOTEDESKTOP -> Icons.Default.DesktopWindows
@@ -723,13 +715,6 @@ fun PrivateTabslifyApp(
                         MenuItem.PRIVATE_CLOUD -> MainTabslifyScreen(storage = storage)
 
                         MenuItem.Vocabs -> VocabTab(paddingValues)
-
-                        MenuItem.WORTSCHATZ -> {
-                            LaunchedEffect(Unit) {
-                                LexikonNavigation.openRequested = true
-                                selectedMenuItem = MenuItem.Vocabs
-                            }
-                        }
 
                         MenuItem.MEDIAPLAYERTAB -> MediaTab(
                             contentPadding = paddingValues,

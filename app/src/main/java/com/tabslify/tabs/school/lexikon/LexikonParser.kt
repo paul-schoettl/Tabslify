@@ -64,6 +64,7 @@ fun verschmelzeLexikon(eintraege: List<LexikonEintrag>): List<LexikonEintrag> {
             formen = (vorhanden.formen + eintrag.formen).distinct(),
             verwandtschaften = (vorhanden.verwandtschaften + eintrag.verwandtschaften).distinct(),
             wortart = vorhanden.wortart ?: eintrag.wortart,
+            kapitel = vorhanden.kapitel ?: eintrag.kapitel,
             quelle = vorhanden.quelle ?: eintrag.quelle,
             seite = vorhanden.seite ?: eintrag.seite
         )
@@ -95,6 +96,7 @@ private fun leseEintraege(arr: JSONArray, quelle: String?, seite: Int): List<Lex
                 "verwandt",
                 "herkunft"
             ),
+            kapitel = erstesText(o, "kapitel", "chapter", "kap"),
             quelle = quelleAus(erstesText(o, "quelle", "lernwortschatz", "lektion"), quelle),
             seite = seite
         )

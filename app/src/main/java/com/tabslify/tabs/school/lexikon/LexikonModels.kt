@@ -1,14 +1,7 @@
 package com.tabslify.tabs.school.lexikon
 
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import org.json.JSONArray
 import org.json.JSONObject
-
-object LexikonNavigation {
-    var openRequested by mutableStateOf(false)
-}
 
 enum class WortschatzTyp(val schluessel: String) {
     REGISTER("register"),
@@ -27,6 +20,7 @@ data class LexikonEintrag(
     val wortart: String? = null,
     val formen: List<String> = emptyList(),
     val verwandtschaften: List<String> = emptyList(),
+    val kapitel: String? = null,
     val quelle: String? = null,
     val seite: Int? = null
 ) {
@@ -37,6 +31,7 @@ data class LexikonEintrag(
         if (wortart != null) put("wortart", wortart)
         put("formen", JSONArray(formen))
         put("verwandtschaften", JSONArray(verwandtschaften))
+        if (kapitel != null) put("kapitel", kapitel)
         if (quelle != null) put("quelle", quelle)
         if (seite != null) put("seite", seite)
     }
@@ -49,6 +44,7 @@ data class LexikonEintrag(
             wortart = o.optString("wortart").trim().takeIf { it.isNotEmpty() },
             formen = o.textListe("formen"),
             verwandtschaften = o.textListe("verwandtschaften"),
+            kapitel = o.optString("kapitel").trim().takeIf { it.isNotEmpty() },
             quelle = o.optString("quelle").trim().takeIf { it.isNotEmpty() },
             seite = if (o.has("seite") && !o.isNull("seite")) o.optInt("seite") else null
         )

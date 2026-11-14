@@ -54,6 +54,7 @@ import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
 import com.tabslify.R
 import com.tabslify.core.ui.AccentFill
+import com.tabslify.core.ui.AccentViolet
 import com.tabslify.core.ui.AlertDialogTabslify
 import com.tabslify.core.ui.BgCard
 import com.tabslify.core.ui.BgSurface
@@ -325,6 +326,7 @@ private fun EintragKarte(
         mutableStateOf(eintrag.bedeutungen.joinToString("; "))
     }
     var wortart by remember(eintrag.id, bearbeiten) { mutableStateOf(eintrag.wortart.orEmpty()) }
+    var kapitel by remember(eintrag.id, bearbeiten) { mutableStateOf(eintrag.kapitel.orEmpty()) }
     var formen by remember(eintrag.id, bearbeiten) { mutableStateOf(eintrag.formen.joinToString("; ")) }
     var verwandt by remember(eintrag.id, bearbeiten) {
         mutableStateOf(eintrag.verwandtschaften.joinToString("; "))
@@ -345,6 +347,19 @@ private fun EintragKarte(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f)
             )
+            if (!eintrag.kapitel.isNullOrBlank()) {
+                Text(
+                    stringResource(R.string.wortschatz_kapitel_kurz, eintrag.kapitel!!),
+                    color = AccentViolet,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(AccentFill.copy(alpha = 0.16f))
+                        .padding(horizontal = 7.dp, vertical = 2.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+            }
             if (!bearbeiten) {
                 IconButton(onClick = onBearbeiten) {
                     Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.bearbeiten), tint = TextTertiary, modifier = Modifier.size(18.dp))
@@ -425,6 +440,15 @@ private fun EintragKarte(
                     .padding(top = 6.dp)
             )
             OutlinedTextField(
+                value = kapitel,
+                onValueChange = { kapitel = it },
+                singleLine = true,
+                label = { Text(stringResource(R.string.wortschatz_kapitel)) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 6.dp)
+            )
+            OutlinedTextField(
                 value = formen,
                 onValueChange = { formen = it },
                 label = { Text(stringResource(R.string.wortschatz_formen)) },
@@ -457,6 +481,7 @@ private fun EintragKarte(
                                     stichwort = stichwort.trim().ifEmpty { eintrag.stichwort },
                                     bedeutungen = listeAus(bedeutungen),
                                     wortart = wortart.trim().takeIf { it.isNotEmpty() },
+                                    kapitel = kapitel.trim().takeIf { it.isNotEmpty() },
                                     formen = listeAus(formen),
                                     verwandtschaften = listeAus(verwandt)
                                 )

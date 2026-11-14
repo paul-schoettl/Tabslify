@@ -3692,6 +3692,8 @@
     <string name="wortschatz_stichwort">Stichwort</string>
     <string name="wortschatz_bedeutungen">Bedeutungen (mit Semikolon trennen)</string>
     <string name="wortschatz_wortart">Wortart</string>
+    <string name="wortschatz_kapitel_kurz">Kap. %1$s</string>
+    <string name="wortschatz_kapitel">Kapitel</string>
     <string name="wortschatz_formen">Formen / Stammformen</string>
     <string name="wortschatz_verwandtschaften">Wortverwandtschaften</string>
     <string name="wortschatz_import_hinweis">Seiten einlesen und als Wörterbuch speichern</string>

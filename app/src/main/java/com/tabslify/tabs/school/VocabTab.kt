@@ -132,7 +132,6 @@ import com.tabslify.tabs.school.study.StudySessionViewModel
 import com.tabslify.tabs.school.study.StudyUploadScreen
 import com.tabslify.tabs.school.study.StudyUploadViewModel
 import com.tabslify.tabs.school.lexikon.LexikonImportScreen
-import com.tabslify.tabs.school.lexikon.LexikonNavigation
 import com.tabslify.tabs.school.lexikon.LexikonScreen
 import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.Job
@@ -581,12 +580,6 @@ fun VocabTab(paddingValues: PaddingValues) {
         if (StudyNavigation.openRequested && prvt()) {
             studyPlanViewModel.loadIfNeeded()
             screen = VokabelTabScreen.STUDY_PLAN
-        }
-    }
-    LaunchedEffect(LexikonNavigation.openRequested) {
-        if (LexikonNavigation.openRequested) {
-            LexikonNavigation.openRequested = false
-            screen = VokabelTabScreen.LEXIKON
         }
     }
     LaunchedEffect(screen) {
@@ -1259,13 +1252,20 @@ fun VocabTabContent(
                     }
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier
                             .clip(RoundedCornerShape(16.dp))
                             .background(BgCard)
                             .clickable { onOpenLexikon() }
-                            .padding(horizontal = 18.dp, vertical = 18.dp)
+                            .padding(horizontal = 14.dp, vertical = 18.dp)
                     ) {
                         Text("🔍", fontSize = 20.sp)
+                        Text(
+                            stringResource(R.string.wortschatz),
+                            color = TextSecondary,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
                 }
             }
