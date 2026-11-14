@@ -334,7 +334,7 @@ private fun isImageFile(name: String) =
     }
 
 @Composable
-fun VocabTab(paddingValues: PaddingValues) {
+fun VocabTab(paddingValues: PaddingValues, lexikonToken: String? = null) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("vocab_sets", Context.MODE_PRIVATE) }
     val materialPrefs =
@@ -350,6 +350,7 @@ fun VocabTab(paddingValues: PaddingValues) {
     var studyDay by remember { mutableStateOf<StudyPlanDayDto?>(null) }
 
     var screen by remember { mutableStateOf(VokabelTabScreen.DASHBOARD) }
+    var lexikonFokus by remember { mutableStateOf(0) }
     var bitmap by remember { mutableStateOf<Bitmap?>(null) }
 
     DisposableEffect(Unit) {
@@ -573,6 +574,12 @@ fun VocabTab(paddingValues: PaddingValues) {
         else errorMessage = keineVokabelnErkannt
     }
 
+    LaunchedEffect(lexikonToken) {
+        if (!lexikonToken.isNullOrBlank()) {
+            screen = VokabelTabScreen.LEXIKON
+            lexikonFokus++
+        }
+    }
     LaunchedEffect(Unit) {
         if (prvt()) studyPlanViewModel.loadIfNeeded()
     }
@@ -971,7 +978,8 @@ fun VocabTab(paddingValues: PaddingValues) {
             VokabelTabScreen.LEXIKON -> LexikonScreen(
                 paddingValues = paddingValues,
                 onBack = { screen = VokabelTabScreen.HOME },
-                onImport = { screen = VokabelTabScreen.LEXIKON_IMPORT }
+                onImport = { screen = VokabelTabScreen.LEXIKON_IMPORT },
+                fokusAnfrage = lexikonFokus
             )
 
             VokabelTabScreen.LEXIKON_IMPORT -> LexikonImportScreen(
