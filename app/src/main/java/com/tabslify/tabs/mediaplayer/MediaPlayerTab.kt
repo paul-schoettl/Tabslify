@@ -461,41 +461,19 @@ private fun HomeTab(
     onStatsRefresh: () -> Unit
 ) {
     var showStatsSheet by remember { mutableStateOf(false) }
-    var detailPlaylist by remember {
-        mutableStateOf<Pair<PlaylistSource, List<MediaPlayerService.Song>>?>(
-            null
-        )
-    }
-    // Cache for algorithmic playlist data
-    var cachedDetailPlaylistData by remember {
-        mutableStateOf<Pair<PlaylistSource, List<MediaPlayerService.Song>>?>(
-            null
-        )
-    }
+    var detailPlaylistSourceId by remember { mutableStateOf<String?>(null) }
 
     val activePodcasts = remember(state.episodes) {
         state.episodes.filter { !it.isCompleted && it.savedPositionMs > 0 }
     }
 
     var detailUserPlaylist by remember { mutableStateOf<MediaPlayerService.Playlist?>(null) }
-    // Cache for user playlist data
-    var cachedDetailUserPlaylistData by remember {
-        mutableStateOf<Pair<MediaPlayerService.Playlist, List<MediaPlayerService.Song>>?>(
-            null
-        )
-    }
 
-    val recentSongs = remember(state.songs) {
-        val sessions = MediaAnalyticsManager.getSessions()
-            .filter { it.type == "music" }
-        val lastPlayedMap = sessions
-            .groupBy { it.label }
-            .mapValues { (_, s) -> s.maxOf { it.startedAt } }
-        state.songs
-            .filter { lastPlayedMap.containsKey(it.name) }
-            .sortedByDescending { lastPlayedMap[it.name] ?: 0L }
-            .take(10)
-    }
+    val recentSongs = state.algorithmicPlaylists
+        .find { it.first.id == RecentlyPlayedPlaylist.id }
+        ?.second
+        ?.take(10)
+        ?: emptyList()
 
     AnimatedVisibility(
         visible = showStatsSheet,
@@ -613,8 +591,7 @@ private fun HomeTab(
                                 if (source.id == "favorites") {
                                     MediaPlayerService.toggleFavoritesMode(context)
                                 } else {
-                                    cachedDetailPlaylistData = source to songs
-                                    detailPlaylist = source to songs
+                                    detailPlaylistSourceId = source.id
                                 }
                             }
                         )
@@ -632,7 +609,6 @@ private fun HomeTab(
                 ) {
                     items(state.userPlaylists) { playlist ->
                         val songCount = playlist.items.size
-                        val currentSongs = state.songs.filter { playlist.items.contains(it.path) }
                         Box(
                             modifier = Modifier
                                 .size(160.dp, 200.dp)
@@ -646,7 +622,6 @@ private fun HomeTab(
                                     )
                                 )
                                 .clickable {
-                                    cachedDetailUserPlaylistData = playlist to currentSongs
                                     detailUserPlaylist = playlist
                                 }
                                 .padding(16.dp)
@@ -712,45 +687,31 @@ private fun HomeTab(
         }
     }
 
-    (detailPlaylist ?: cachedDetailPlaylistData)?.let { (source, _) ->
-        if (detailPlaylist != null) {
-            val currentData = state.algorithmicPlaylists.find { it.first.id == source.id }
-            if (currentData != null) {
-                cachedDetailPlaylistData = currentData
-            }
+    detailPlaylistSourceId?.let { sourceId ->
+        val source = AlgorithmicPlaylistRegistry.findById(sourceId)
+        val songs = state.algorithmicPlaylists.find { it.first.id == sourceId }?.second
+        LaunchedEffect(sourceId, songs) {
+            if (source == null || songs.isNullOrEmpty()) detailPlaylistSourceId = null
         }
-        PlaylistDetailSheet(
-            title = stringResource(source.nameRes),
-            icon = source.icon,
-            songs = (detailPlaylist ?: cachedDetailPlaylistData)!!.second,
-            onStart = { onSongClick(it) },
-            onDismiss = {
-                detailPlaylist = null
-                cachedDetailPlaylistData = null
-            },
-            algorithmicSourceId = source.id
-        )
+        if (source != null && !songs.isNullOrEmpty()) {
+            PlaylistDetailSheet(
+                title = stringResource(source.nameRes),
+                icon = source.icon,
+                songs = songs,
+                onStart = { onSongClick(it) },
+                onDismiss = { detailPlaylistSourceId = null },
+                algorithmicSourceId = source.id
+            )
+        }
     }
 
-    // For user playlist: use cached data if available, otherwise new data
-    (detailUserPlaylist?.let { playlist ->
-        val currentSongs = state.songs.filter { playlist.items.contains(it.path) }
-        playlist to currentSongs
-    } ?: cachedDetailUserPlaylistData)?.let { (playlist, songs) ->
-        // Update cache with current state data
-        if (detailUserPlaylist != null) {
-            val currentSongs = state.songs.filter { playlist.items.contains(it.path) }
-            cachedDetailUserPlaylistData = playlist to currentSongs
-        }
+    detailUserPlaylist?.let { playlist ->
         PlaylistDetailSheet(
             title = playlist.name,
             icon = "🎵",
-            songs = songs,
+            songs = state.songs.filter { playlist.items.contains(it.path) },
             onStart = { onSongClick(it) },
-            onDismiss = {
-                detailUserPlaylist = null
-                cachedDetailUserPlaylistData = null
-            }
+            onDismiss = { detailUserPlaylist = null }
         )
     }
 }
@@ -1177,11 +1138,7 @@ private fun MusicTab(
     var showCreateSheet by remember { mutableStateOf(false) }
     var selectedSongs by remember { mutableStateOf<Set<String>>(emptySet()) }
     val context = LocalContext.current
-    var detailPlaylist by remember {
-        mutableStateOf<Pair<PlaylistSource, List<MediaPlayerService.Song>>?>(
-            null
-        )
-    }
+    var detailPlaylistSourceId by remember { mutableStateOf<String?>(null) }
     var detailUserPlaylist by remember { mutableStateOf<MediaPlayerService.Playlist?>(null) }
     var playlistToDelete by remember { mutableStateOf<MediaPlayerService.Playlist?>(null) }
 
@@ -1205,7 +1162,7 @@ private fun MusicTab(
                                     if (source.id == "favorites") {
                                         MediaPlayerService.toggleFavoritesMode(context)
                                     } else {
-                                        detailPlaylist = source to songs
+                                        detailPlaylistSourceId = source.id
                                     }
                                 }
                             )
@@ -1414,15 +1371,22 @@ private fun MusicTab(
         }
     }
 
-    detailPlaylist?.let { (source, songs) ->
-        PlaylistDetailSheet(
-            title = stringResource(source.nameRes),
-            icon = source.icon,
-            songs = songs,
-            onStart = { onSongClick(it) },
-            onDismiss = { detailPlaylist = null },
-            algorithmicSourceId = source.id
-        )
+    detailPlaylistSourceId?.let { sourceId ->
+        val source = AlgorithmicPlaylistRegistry.findById(sourceId)
+        val songs = state.algorithmicPlaylists.find { it.first.id == sourceId }?.second
+        LaunchedEffect(sourceId, songs) {
+            if (source == null || songs.isNullOrEmpty()) detailPlaylistSourceId = null
+        }
+        if (source != null && !songs.isNullOrEmpty()) {
+            PlaylistDetailSheet(
+                title = stringResource(source.nameRes),
+                icon = source.icon,
+                songs = songs,
+                onStart = { onSongClick(it) },
+                onDismiss = { detailPlaylistSourceId = null },
+                algorithmicSourceId = source.id
+            )
+        }
     }
 
     detailUserPlaylist?.let { playlist ->
@@ -2827,7 +2791,7 @@ private fun PlaylistDetailSheet(
                             MediaPlayerService.activateAlgorithmicPlaylist(
                                 context,
                                 algorithmicSourceId,
-                                0
+                                songs.firstOrNull()?.path
                             )
                         } else {
                             songs.firstOrNull()?.let { onStart(it) }
@@ -2873,11 +2837,10 @@ private fun PlaylistDetailSheet(
                             .background(BgCard)
                             .clickable {
                                 if (algorithmicSourceId != null) {
-                                    val idx = songs.indexOf(song)
                                     MediaPlayerService.activateAlgorithmicPlaylist(
                                         context,
                                         algorithmicSourceId,
-                                        idx
+                                        song.path
                                     )
                                 } else {
                                     onStart(song)
@@ -3171,6 +3134,7 @@ data class SearchResults(
 class MediaViewModel(app: Application) : AndroidViewModel(app) {
 
     private var refreshJob: Job? = null
+    private var algJob: Job? = null
     private var taggingJob: Job? = null
     private var taggingAttempted = false
     private val _uiState = MutableStateFlow(MediaUiState(isLoading = true))
@@ -3196,9 +3160,51 @@ class MediaViewModel(app: Application) : AndroidViewModel(app) {
         PodcastShowManager.init(app)
         FavoritesPlaylist.setContext(app)
         viewModelScope.launch {
+            var lastName: String? = null
+            var lastFavorites: String? = null
             MediaPlayerService.nowPlayingSignal.collect {
-                _nowPlaying.value = readNowPlayingFromPrefs()
+                val np = readNowPlayingFromPrefs()
+                _nowPlaying.value = np
+                val name = if (np.mode == "music" && np.isActive) np.title else null
+                val favorites = favoriteFingerprint()
+                if (name != lastName || favorites != lastFavorites) {
+                    lastName = name
+                    lastFavorites = favorites
+                    refreshAlgorithmicPlaylists(name)
+                }
             }
+        }
+    }
+
+    private fun favoriteFingerprint(): String {
+        val prefs = getApplication<Application>()
+            .getSharedPreferences("music_player_prefs", Context.MODE_PRIVATE)
+        return try {
+            prefs.getString("favorite_songs", null) ?: ""
+        } catch (_: ClassCastException) {
+            prefs.getStringSet("favorite_songs", emptySet())?.joinToString("|||") ?: ""
+        }
+    }
+
+    private fun refreshAlgorithmicPlaylists(nowPlayingName: String? = null) {
+        val songs = _uiState.value.songs
+        if (songs.isEmpty()) return
+        algJob?.cancel()
+        algJob = viewModelScope.launch {
+            val nowPlaying = (nowPlayingName ?: readNowPlayingFromPrefs().title).takeIf { it.isNotEmpty() }
+            val seed = System.currentTimeMillis() / 86_400_000L
+            val computed = withContext(Dispatchers.IO) {
+                AlgorithmicPlaylistRegistry.all.map { source ->
+                    source to source.getSongs(
+                        PlaylistInput(
+                            allSongs = songs,
+                            nowPlayingName = nowPlaying,
+                            seed = seed
+                        )
+                    )
+                }.filter { (_, list) -> list.isNotEmpty() }
+            }
+            _uiState.value = _uiState.value.copy(algorithmicPlaylists = computed)
         }
     }
 
@@ -3285,7 +3291,13 @@ class MediaViewModel(app: Application) : AndroidViewModel(app) {
             }
 
             val algPlaylists = AlgorithmicPlaylistRegistry.all.map { source ->
-                source to source.getSongs(songs)
+                source to source.getSongs(
+                    PlaylistInput(
+                        allSongs = songs,
+                        nowPlayingName = readNowPlayingFromPrefs().title.takeIf { it.isNotEmpty() },
+                        seed = System.currentTimeMillis() / 86_400_000L
+                    )
+                )
             }.filter { (_, songs) -> songs.isNotEmpty() }
 
             _uiState.value = _uiState.value.copy(
@@ -3571,6 +3583,12 @@ enum class PlaylistSourceType {
     USER_CREATED
 }
 
+data class PlaylistInput(
+    val allSongs: List<MediaPlayerService.Song>,
+    val nowPlayingName: String? = null,
+    val seed: Long = 0L
+)
+
 interface PlaylistSource {
     val id: String
     val nameRes: Int
@@ -3578,9 +3596,9 @@ interface PlaylistSource {
     val type: PlaylistSourceType
     val icon: String
     val accentColor: Color
-    fun getSongs(
-        allSongs: List<MediaPlayerService.Song>
-    ): List<MediaPlayerService.Song>
+    val refreshWhilePlaying: Boolean
+        get() = true
+    fun getSongs(input: PlaylistInput): List<MediaPlayerService.Song>
 }
 
 
@@ -3591,12 +3609,15 @@ object RecentlyPlayedPlaylist : PlaylistSource {
     override val type = PlaylistSourceType.ALGORITHMIC
     override val icon = "🕐"
     override val accentColor = Accent
-    override fun getSongs(allSongs: List<MediaPlayerService.Song>): List<MediaPlayerService.Song> {
+    override fun getSongs(input: PlaylistInput): List<MediaPlayerService.Song> {
         val lastPlayedMap = MediaAnalyticsManager.getSessions()
             .filter { it.type == "music" }
             .groupBy { it.label }
             .mapValues { (_, s) -> s.maxOf { it.startedAt } }
-        return allSongs
+            .toMutableMap()
+        val nowPlaying = input.nowPlayingName
+        if (!nowPlaying.isNullOrBlank()) lastPlayedMap[nowPlaying] = Long.MAX_VALUE
+        return input.allSongs
             .filter { lastPlayedMap.containsKey(it.name) }
             .sortedByDescending { lastPlayedMap[it.name] ?: 0L }
             .take(20)
@@ -3612,13 +3633,16 @@ object NeverPlayedPlaylist : PlaylistSource {
     override val accentColor = Color(0xFF4CC9FF)
 
     override fun getSongs(
-        allSongs: List<MediaPlayerService.Song>
+        input: PlaylistInput
     ): List<MediaPlayerService.Song> {
         val playedLabels = MediaAnalyticsManager.getSessions()
             .filter { it.type == "music" }
             .map { it.label }
             .toSet()
-        return allSongs.filter { !playedLabels.contains(it.name) }.shuffled().take(30)
+        return input.allSongs
+            .filter { !playedLabels.contains(it.name) }
+            .sortedBy { (it.path + input.seed).hashCode() }
+            .take(30)
     }
 }
 
@@ -3631,13 +3655,13 @@ object MostPlayedPlaylist : PlaylistSource {
     override val accentColor = Color(0xFFB45CFC)
 
     override fun getSongs(
-        allSongs: List<MediaPlayerService.Song>
+        input: PlaylistInput
     ): List<MediaPlayerService.Song> {
         val playCounts = MediaAnalyticsManager.getSessions()
             .filter { it.type == "music" }
             .groupingBy { it.label }
             .eachCount()
-        return allSongs
+        return input.allSongs
             .filter { (playCounts[it.name] ?: 0) > 0 }
             .sortedByDescending { playCounts[it.name] ?: 0 }
             .take(25)
@@ -3652,11 +3676,13 @@ object RecentlyAddedPlaylist : PlaylistSource {
     override val icon = "✨"
     override val accentColor = Color(0xFF4CC9FF)
 
+    override val refreshWhilePlaying = false
+
     override fun getSongs(
-        allSongs: List<MediaPlayerService.Song>
+        input: PlaylistInput
     ): List<MediaPlayerService.Song> {
         val cutoff = System.currentTimeMillis() - 24 * 60 * 60 * 1000L
-        return allSongs
+        return input.allSongs
             .filter { File(it.path).lastModified() >= cutoff }
             .sortedByDescending { File(it.path).lastModified() }
     }
@@ -3703,7 +3729,7 @@ object FavoritesPlaylist : PlaylistSource {
     }
 
     override fun getSongs(
-        allSongs: List<MediaPlayerService.Song>
+        input: PlaylistInput
     ): List<MediaPlayerService.Song> {
         val prefs =
             _appContext?.getSharedPreferences("music_player_prefs", Context.MODE_PRIVATE)
@@ -3720,18 +3746,18 @@ object FavoritesPlaylist : PlaylistSource {
             migrated
         }
 
-        if (allSongs.isNotEmpty()) {
-            val validPaths = allSongs.mapTo(HashSet()) { it.path }
+        if (input.allSongs.isNotEmpty()) {
+            val validPaths = input.allSongs.mapTo(HashSet()) { it.path }
             val pruned = com.tabslify.core.objects.PrefsCleanup.pruneInvalid(favPaths) {
                 validPaths.contains(it)
             }
             if (pruned.size != favPaths.size) {
                 prefs?.edit { putStringSet("favorite_songs", pruned) }
-                return allSongs.filter { pruned.contains(it.path) }
+                return input.allSongs.filter { pruned.contains(it.path) }
             }
         }
 
-        return allSongs.filter { favPaths.contains(it.path) }
+        return input.allSongs.filter { favPaths.contains(it.path) }
     }
 }
 

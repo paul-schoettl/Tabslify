@@ -68,6 +68,7 @@ import com.tabslify.tabs.mediaplayer.AlgorithmicPlaylistRegistry
 import com.tabslify.tabs.mediaplayer.FavoritesPlaylist
 import com.tabslify.tabs.mediaplayer.ListenSession
 import com.tabslify.tabs.mediaplayer.MediaAnalyticsManager
+import com.tabslify.tabs.mediaplayer.PlaylistInput
 import com.tabslify.tabs.mediaplayer.PodcastShowManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -150,6 +151,7 @@ class MediaPlayerService : MediaSessionService() {
         private const val KEY_ACTIVE_ALGORITHMIC_PLAYLIST = "active_algorithmic_playlist_id"
         const val ACTION_ACTIVATE_ALGORITHMIC_PLAYLIST = "com.tabslify.ACTION_ACTIVATE_ALG_PLAYLIST"
         const val EXTRA_PLAYLIST_SOURCE_ID = "PLAYLIST_SOURCE_ID"
+        const val EXTRA_START_PATH = "EXTRA_START_PATH"
 
         const val ACTION_PLAY_ALL_SONGS_AT_INDEX = "com.tabslify.ACTION_PLAY_ALL_SONGS_AT_INDEX"
 
@@ -172,6 +174,18 @@ class MediaPlayerService : MediaSessionService() {
                     action = ACTION_ACTIVATE_ALGORITHMIC_PLAYLIST
                     putExtra(EXTRA_PLAYLIST_SOURCE_ID, sourceId)
                     putExtra(EXTRA_SONG_INDEX, songIndex)
+                }
+            )
+        }
+
+        fun activateAlgorithmicPlaylist(context: Context, sourceId: String, startPath: String?) {
+            ensureServiceIsRunning(context)
+            context.startService(
+                Intent(context, MediaPlayerService::class.java).apply {
+                    action = ACTION_ACTIVATE_ALGORITHMIC_PLAYLIST
+                    putExtra(EXTRA_PLAYLIST_SOURCE_ID, sourceId)
+                    putExtra(EXTRA_SONG_INDEX, 0)
+                    putExtra(EXTRA_START_PATH, startPath)
                 }
             )
         }
@@ -600,7 +614,7 @@ class MediaPlayerService : MediaSessionService() {
         if (activeAlgorithmicPlaylistId != null) {
             val src = AlgorithmicPlaylistRegistry.findById(activeAlgorithmicPlaylistId!!)
             if (src != null) {
-                algorithmicPlaylistSongs = src.getSongs(playlist)
+                algorithmicPlaylistSongs = src.getSongs(PlaylistInput(playlist))
                 if (algorithmicPlaylistSongs.isNotEmpty() && currentSongIndex >= algorithmicPlaylistSongs.size) {
                     currentSongIndex = 0
                     saveMusicState()
@@ -916,7 +930,8 @@ class MediaPlayerService : MediaSessionService() {
             ACTION_ACTIVATE_ALGORITHMIC_PLAYLIST -> {
                 val sourceId = intent.getStringExtra(EXTRA_PLAYLIST_SOURCE_ID)
                 val idx = intent.getIntExtra(EXTRA_SONG_INDEX, 0)
-                if (sourceId != null) activateAlgorithmicPlaylistInternal(sourceId, idx)
+                val startPath = intent.getStringExtra(EXTRA_START_PATH)
+                if (sourceId != null) activateAlgorithmicPlaylistInternal(sourceId, idx, startPath)
             }
 
             "DEACTIVATE_ALGORITHMIC_PLAYLIST" -> {
@@ -1368,6 +1383,7 @@ class MediaPlayerService : MediaSessionService() {
                 currentSongIndex = nextIndex
                 saveMusicState()
                 saveActivePlaylistIndex()
+                if (activeAlgorithmicPlaylistId != null) refreshActiveAlgorithmicQueue()
                 updateNotification()
                 setPlayingFlag(true)
 
@@ -1508,6 +1524,22 @@ class MediaPlayerService : MediaSessionService() {
         }
     }
 
+    private fun refreshActiveAlgorithmicQueue() {
+        val sourceId = activeAlgorithmicPlaylistId ?: return
+        val source = AlgorithmicPlaylistRegistry.findById(sourceId) ?: return
+        if (!source.refreshWhilePlaying) return
+        val old = algorithmicPlaylistSongs
+        if (old.isEmpty()) return
+        val playingPath = old.getOrNull(currentSongIndex)?.path ?: return
+        val fresh = source.getSongs(PlaylistInput(playlist))
+        if (fresh.isEmpty() || fresh.map { it.path } == old.map { it.path }) return
+        val newIdx = fresh.indexOfFirst { it.path == playingPath }
+        if (newIdx < 0) return
+        algorithmicPlaylistSongs = fresh
+        currentSongIndex = newIdx
+        saveMusicState()
+    }
+
     private fun getActivePlaylist(): List<Song> {
         if (activeAlgorithmicPlaylistId != null && algorithmicPlaylistSongs.isNotEmpty())
             return algorithmicPlaylistSongs
@@ -1608,6 +1640,8 @@ class MediaPlayerService : MediaSessionService() {
             return
         }
 
+        if (activeAlgorithmicPlaylistId != null) refreshActiveAlgorithmicQueue()
+        publishStateChange()
         updateNotification()
     }
 
@@ -2884,7 +2918,11 @@ class MediaPlayerService : MediaSessionService() {
         podcastSessionStartedAt = 0L
     }
 
-    private fun activateAlgorithmicPlaylistInternal(sourceId: String, startIndex: Int = 0) {
+    private fun activateAlgorithmicPlaylistInternal(
+        sourceId: String,
+        startIndex: Int = 0,
+        startPath: String? = null
+    ) {
         FavoritesPlaylist.setContext(this)
         MediaAnalyticsManager.init(this)
         val source = AlgorithmicPlaylistRegistry.findById(sourceId) ?: run {
@@ -2896,7 +2934,7 @@ class MediaPlayerService : MediaSessionService() {
             )
             return
         }
-        val songs = source.getSongs(playlist)
+        val songs = source.getSongs(PlaylistInput(playlist))
         if (songs.isEmpty()) {
             showSimpleNotificationExtern(
                 getString(R.string.leer),
@@ -2911,7 +2949,12 @@ class MediaPlayerService : MediaSessionService() {
         activePlaylistId = null
         favoritesMode = false
         saveFavorites()
-        currentSongIndex = startIndex.coerceIn(0, songs.lastIndex)
+        val resolvedIndex = if (startPath != null) {
+            songs.indexOfFirst { it.path == startPath }.takeIf { it >= 0 } ?: 0
+        } else {
+            startIndex.coerceIn(0, songs.lastIndex)
+        }
+        currentSongIndex = resolvedIndex
         ensureMusicMode()
         musicPlayer?.release(); musicPlayer = null
         saveMusicState()
