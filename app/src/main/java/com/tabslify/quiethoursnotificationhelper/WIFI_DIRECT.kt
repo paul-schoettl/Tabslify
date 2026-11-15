@@ -907,7 +907,7 @@ suspend fun callVisionRawJpeg(
                 false
             }
             android.util.Log.i(
-                "LexikonFallback",
+                "LexiconFallback",
                 "isDev=${BuildConfig.IS_DEV} auth=$angemeldet bild=${klein.size}B"
             )
 

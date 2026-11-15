@@ -31,23 +31,19 @@ import java.util.zip.ZipException
 import java.util.zip.ZipFile
 import kotlin.coroutines.resume
 
-/** Art einer im Bundle enthaltenen APK. */
 enum class ApkKind { BASE, ARCH, DENSITY, LANGUAGE, FEATURE, OTHER }
 
-/** Eine einzelne APK innerhalb des .apkm/.apks/.xapk Archivs. */
 data class ApkEntryInfo(
-    val entryName: String,       // Pfad innerhalb des ZIP
-    val fileName: String,        // reiner Dateiname
-    val size: Long,              // entpackte Größe in Bytes
+    val entryName: String,
+    val fileName: String, 
+    val size: Long, 
     val kind: ApkKind,
-    val configValue: String?,    // z. B. "arm64_v8a", "de", "xxhdpi"
-    val recommended: Boolean     // beste Übereinstimmung für dieses Gerät
+    val configValue: String?,
+    val recommended: Boolean
 )
 
-/** Ergebnis der Signaturprüfung gegen eine ggf. bereits installierte App. */
 enum class SignatureState { NOT_INSTALLED, MATCH, MISMATCH, UNKNOWN }
 
-/** Aufbereitete Metadaten eines geparsten Bundles. */
 data class ApkmPackage(
     val sourceName: String,
     val cacheFile: File,
@@ -69,22 +65,16 @@ data class ApkmPackage(
     val infoJsonRaw: String?
 )
 
-/** Fehlerkategorien für gezielte Dialoge. */
 enum class ParseError { CORRUPTED, NO_APKS, UNREADABLE }
 
 class ApkmParseException(val error: ParseError, message: String) : Exception(message)
 
-/** Terminaler Ausgang der Installation. */
 sealed interface InstallOutcome {
     object Success : InstallOutcome
     data class Failure(val statusCode: Int, val message: String?, val isSignatureConflict: Boolean) :
         InstallOutcome
 }
 
-/**
- * Kapselt das Parsen und Installieren von Split-APK Bundles über die [PackageInstaller] Session-API.
- * Die [logs] Liste ist Compose-beobachtbar und speist die "Nerd"-Log-Ansicht.
- */
 class ApkmInstaller(private val context: Context) {
 
     val logs = mutableStateListOf<String>()
@@ -96,16 +86,11 @@ class ApkmInstaller(private val context: Context) {
         Log.i(TAG, message)
     }
 
-    // ---------------------------------------------------------------------------------------------
-    // Schritt 1: Bundle in den Cache kopieren
-    // ---------------------------------------------------------------------------------------------
-
     suspend fun copyToCache(uri: Uri, onProgress: (Long, Long) -> Unit): File {
         val name = queryDisplayName(uri) ?: "bundle_${System.currentTimeMillis()}.apkm"
         log("Kopiere \"$name\" in den Cache…")
         val total = querySize(uri)
         val dir = File(context.cacheDir, "apkm_install").apply { mkdirs() }
-        // Alte Reste aufräumen, damit der Cache nicht vollläuft.
         dir.listFiles()?.forEach { runCatching { it.delete() } }
         val target = File(dir, "source.bundle")
 
@@ -128,10 +113,6 @@ class ApkmInstaller(private val context: Context) {
         log("Kopiert: ${humanSize(target.length())}")
         return target
     }
-
-    // ---------------------------------------------------------------------------------------------
-    // Schritt 2: Bundle parsen
-    // ---------------------------------------------------------------------------------------------
 
     fun parse(cacheFile: File, sourceName: String): ApkmPackage {
         val zip = try {
@@ -159,7 +140,6 @@ class ApkmInstaller(private val context: Context) {
                 runCatching { zf.getInputStream(entry).bufferedReader().use { it.readText() } }.getOrNull()
             }
 
-            // Basis-APK bestimmen und temporär entpacken, um authentische Metadaten zu lesen.
             val baseEntry = apkEntries.firstOrNull { it.name.substringAfterLast('/').equals("base.apk", true) }
                 ?: apkEntries.firstOrNull { !it.name.substringAfterLast('/').startsWith("split", true) }
                 ?: apkEntries.first()
@@ -182,7 +162,6 @@ class ApkmInstaller(private val context: Context) {
                     "Basis-APK konnte nicht gelesen werden – Bundle vermutlich beschädigt."
                 )
             }
-            // Damit loadLabel/loadIcon aus der Archiv-APK funktionieren.
             baseInfo.applicationInfo?.apply {
                 sourceDir = baseApkFile.absolutePath
                 publicSourceDir = baseApkFile.absolutePath
@@ -196,17 +175,14 @@ class ApkmInstaller(private val context: Context) {
             val minSdk = baseInfo.applicationInfo?.minSdkVersion
             val targetSdk = baseInfo.applicationInfo?.targetSdkVersion
 
-            // App-Name: info.json → APK-Label → Paketname
             val jsonName = infoJsonRaw?.let { readJsonAppName(it) }
             val labelName = runCatching {
                 baseInfo.applicationInfo?.loadLabel(pm)?.toString()
             }.getOrNull()?.takeIf { it.isNotBlank() && it != packageName }
             val appName = jsonName ?: labelName ?: packageName
 
-            // Icon: icon.png im Archiv → App-Icon aus Basis-APK
             val icon = loadIcon(zf, baseInfo, pm)
 
-            // Splits klassifizieren + Empfehlungen berechnen
             val deviceAbis = Build.SUPPORTED_ABIS.map { it.replace('-', '_').lowercase() }
             val deviceLangs = deviceLanguages()
             val deviceDensity = context.resources.displayMetrics.densityDpi
@@ -216,7 +192,6 @@ class ApkmInstaller(private val context: Context) {
                 classify(entry, baseEntry, deviceAbis, deviceLangs, deviceBucket)
             }
 
-            // Falls kein Arch-Split exakt passt, den ersten verfügbaren empfehlen (App liefe sonst nicht).
             val archSplits = classified.filter { it.kind == ApkKind.ARCH }
             val hasRecommendedArch = archSplits.any { it.recommended }
             val densitySplits = classified.filter { it.kind == ApkKind.DENSITY }
@@ -284,7 +259,6 @@ class ApkmInstaller(private val context: Context) {
             return ApkEntryInfo(entry.name, fileName, size, ApkKind.BASE, null, recommended = true)
         }
 
-        // split_config.<value>.apk  oder  config.<value>.apk
         val configValue = Regex("(?:split_)?config[._]([a-z0-9_]+)\\.apk", RegexOption.IGNORE_CASE)
             .find(lower)?.groupValues?.getOrNull(1)
 
@@ -299,14 +273,12 @@ class ApkmInstaller(private val context: Context) {
                     recommended = configValue == deviceBucket || configValue == "nodpi"
                 )
                 else -> ApkEntryInfo(
-                    // 2-4 stellige Codes → Sprache
                     entry.name, fileName, size, ApkKind.LANGUAGE, configValue,
                     recommended = deviceLangs.contains(configValue.substringBefore('_'))
                 )
             }
         }
 
-        // split_<feature>.apk (dynamisches Feature-Modul) → standardmäßig mitnehmen
         val featureName = Regex("split_([a-z0-9_]+)\\.apk", RegexOption.IGNORE_CASE)
             .find(lower)?.groupValues?.getOrNull(1)
         if (featureName != null) {
@@ -323,10 +295,6 @@ class ApkmInstaller(private val context: Context) {
             kotlin.math.abs(dpi - deviceDpi)
         }
     }
-
-    // ---------------------------------------------------------------------------------------------
-    // Signaturprüfung
-    // ---------------------------------------------------------------------------------------------
 
     private fun computeSignatureState(newInfo: PackageInfo, packageName: String): SignatureState {
         val installed = runCatching {
@@ -350,15 +318,6 @@ class ApkmInstaller(private val context: Context) {
         }?.toSet() ?: emptySet()
     }
 
-    // ---------------------------------------------------------------------------------------------
-    // Schritt 3: Installation über PackageInstaller-Session
-    // ---------------------------------------------------------------------------------------------
-
-    /**
-     * Schreibt die [selected] APKs in eine Session und committed sie.
-     * Bei [PackageInstaller.STATUS_PENDING_USER_ACTION] wird [onNeedUserAction] mit dem
-     * System-Bestätigungs-Intent aufgerufen. Bei jedem Fehler wird die Session verworfen (Rollback).
-     */
     @SuppressLint("RequestInstallPackagesPolicy")
     suspend fun install(
         pkg: ApkmPackage,
@@ -467,13 +426,8 @@ class ApkmInstaller(private val context: Context) {
             runCatching { context.unregisterReceiver(receiver) }
         }
     }
-
-    // ---------------------------------------------------------------------------------------------
-    // Hilfsfunktionen
-    // ---------------------------------------------------------------------------------------------
-
+    
     private fun loadIcon(zf: ZipFile, baseInfo: PackageInfo, pm: PackageManager): ImageBitmap? {
-        // 1) icon.png / icon.webp direkt aus dem Bundle
         val iconEntry = zf.entries().asSequence().firstOrNull {
             val n = it.name.substringAfterLast('/').lowercase()
             n == "icon.png" || n == "icon.webp" || n == "icon.jpg"
@@ -491,7 +445,6 @@ class ApkmInstaller(private val context: Context) {
                 return bmp.asImageBitmap()
             }
         }
-        // 2) App-Icon aus der Basis-APK rendern
         return runCatching {
             val drawable = baseInfo.applicationInfo?.loadIcon(pm) ?: return null
             val w = drawable.intrinsicWidth.coerceIn(1, 256)

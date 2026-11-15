@@ -131,8 +131,8 @@ import com.tabslify.tabs.school.study.StudySessionScreen
 import com.tabslify.tabs.school.study.StudySessionViewModel
 import com.tabslify.tabs.school.study.StudyUploadScreen
 import com.tabslify.tabs.school.study.StudyUploadViewModel
-import com.tabslify.tabs.school.lexikon.LexikonImportScreen
-import com.tabslify.tabs.school.lexikon.LexikonScreen
+import com.tabslify.tabs.school.lexicon.LexiconImportScreen
+import com.tabslify.tabs.school.lexicon.LexiconScreen
 import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -211,7 +211,7 @@ enum class LernModus { AUSWAHL, TIPPEN, AUFECKEN }
 enum class VokabelTabScreen {
     DASHBOARD, HOME, UPLOAD, REVIEW, LEARN, MATERIALIEN, NOTEN,
     STUDY_PLAN, STUDY_UPLOAD, STUDY_REVIEW, STUDY_DAY, STUDY_SESSION,
-    STUDY_RESULT, STUDY_MATERIAL, LEXIKON, LEXIKON_IMPORT
+    STUDY_RESULT, STUDY_MATERIAL, LEXICON, LEXICON_IMPORT
 }
 
 private val LEITNER_INTERVALLE = intArrayOf(0, 1, 2, 4, 8, 16, 32)
@@ -334,7 +334,7 @@ private fun isImageFile(name: String) =
     }
 
 @Composable
-fun VocabTab(paddingValues: PaddingValues, lexikonToken: String? = null) {
+fun VocabTab(paddingValues: PaddingValues, lexiconToken: String? = null) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("vocab_sets", Context.MODE_PRIVATE) }
     val materialPrefs =
@@ -350,7 +350,7 @@ fun VocabTab(paddingValues: PaddingValues, lexikonToken: String? = null) {
     var studyDay by remember { mutableStateOf<StudyPlanDayDto?>(null) }
 
     var screen by remember { mutableStateOf(VokabelTabScreen.DASHBOARD) }
-    var lexikonFokus by remember { mutableStateOf(0) }
+    var lexiconFocus by remember { mutableStateOf(0) }
     var bitmap by remember { mutableStateOf<Bitmap?>(null) }
 
     DisposableEffect(Unit) {
@@ -574,10 +574,10 @@ fun VocabTab(paddingValues: PaddingValues, lexikonToken: String? = null) {
         else errorMessage = keineVokabelnErkannt
     }
 
-    LaunchedEffect(lexikonToken) {
-        if (!lexikonToken.isNullOrBlank()) {
-            screen = VokabelTabScreen.LEXIKON
-            lexikonFokus++
+    LaunchedEffect(lexiconToken) {
+        if (!lexiconToken.isNullOrBlank()) {
+            screen = VokabelTabScreen.LEXICON
+            lexiconFocus++
         }
     }
     LaunchedEffect(Unit) {
@@ -694,7 +694,7 @@ fun VocabTab(paddingValues: PaddingValues, lexikonToken: String? = null) {
                     savedSets = deleteVokabelSet(prefs, set)
                 },
                 onMergeClick = { showMergeDialog = true },
-                onOpenLexikon = { screen = VokabelTabScreen.LEXIKON },
+                onOpenLexicon = { screen = VokabelTabScreen.LEXICON },
                 onBack = { screen = VokabelTabScreen.DASHBOARD },
                 paddingValues = paddingValues,
                 onOpenMaterial = {
@@ -975,17 +975,17 @@ fun VocabTab(paddingValues: PaddingValues, lexikonToken: String? = null) {
                 paddingValues = paddingValues,
             )
 
-            VokabelTabScreen.LEXIKON -> LexikonScreen(
+            VokabelTabScreen.LEXICON -> LexiconScreen(
                 paddingValues = paddingValues,
                 onBack = { screen = VokabelTabScreen.HOME },
-                onImport = { screen = VokabelTabScreen.LEXIKON_IMPORT },
-                fokusAnfrage = lexikonFokus
+                onImport = { screen = VokabelTabScreen.LEXICON_IMPORT },
+                focusRequest = lexiconFocus
             )
 
-            VokabelTabScreen.LEXIKON_IMPORT -> LexikonImportScreen(
+            VokabelTabScreen.LEXICON_IMPORT -> LexiconImportScreen(
                 paddingValues = paddingValues,
-                onBack = { screen = VokabelTabScreen.LEXIKON },
-                onFertig = { screen = VokabelTabScreen.LEXIKON }
+                onBack = { screen = VokabelTabScreen.LEXICON },
+                onDone = { screen = VokabelTabScreen.LEXICON }
             )
         }
     }
@@ -1192,7 +1192,7 @@ fun VocabTabContent(
     onLearnWithMix: (VokabelSet) -> Unit,
     onDeleteSet: (VokabelSet) -> Unit,
     onMergeClick: () -> Unit = {},
-    onOpenLexikon: () -> Unit = {},
+    onOpenLexicon: () -> Unit = {},
     onBack: () -> Unit,
     paddingValues: PaddingValues,
     onOpenMaterial: (RecentMaterial) -> Unit = {}
@@ -1264,12 +1264,12 @@ fun VocabTabContent(
                         modifier = Modifier
                             .clip(RoundedCornerShape(16.dp))
                             .background(BgCard)
-                            .clickable { onOpenLexikon() }
+                            .clickable { onOpenLexicon() }
                             .padding(horizontal = 14.dp, vertical = 18.dp)
                     ) {
                         Text("🔍", fontSize = 20.sp)
                         Text(
-                            stringResource(R.string.wortschatz),
+                            stringResource(R.string.vocabulary),
                             color = TextSecondary,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold

@@ -280,7 +280,7 @@ fun LandingPageOrApp(
     var reloadKey by remember { mutableIntStateOf(0) }
     realDevice = !getDeviceName().trim().contains("sdk_gphone", ignoreCase = true)
     var landingReloadTrigger by remember { mutableIntStateOf(0) }
-    val startZiel = startTarget?.substringBefore('#')
+    val startTargetName = startTarget?.substringBefore('#')
 
     val appPrefs = remember { context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE) }
     LaunchedEffect(Unit) {
@@ -403,7 +403,7 @@ fun LandingPageOrApp(
 
     LaunchedEffect(startTarget) {
         if (startTarget != null && selectedMenuItem == null) {
-            selectedMenuItem = when (startZiel) {
+            selectedMenuItem = when (startTargetName) {
                 "weather" -> MenuItem.WEATHER
                 "aitab" -> MenuItem.AITAB
                 "ai_questions" -> MenuItem.AITAB
@@ -413,7 +413,7 @@ fun LandingPageOrApp(
                 "virustotal" -> MenuItem.VIRUSTOTAL
                 "mediaplayer" -> MenuItem.MEDIAPLAYERTAB
                 "suggestion" -> MenuItem.SUGGESTION
-                "lexikon" -> MenuItem.Vocabs
+                "lexicon", "lexikon" -> MenuItem.Vocabs
                 else -> null
             }
             if (selectedMenuItem != null &&
@@ -429,7 +429,7 @@ fun LandingPageOrApp(
     }
 
     LaunchedEffect(startTarget) {
-        if (startZiel == "lexikon" && hasLoadedApp) {
+        if ((startTargetName == "lexicon" || startTargetName == "lexikon") && hasLoadedApp) {
             selectedMenuItem = MenuItem.Vocabs
             isLandingShown = false
         }
@@ -558,7 +558,7 @@ fun LandingPageOrApp(
                     "virustotal" -> MenuItem.VIRUSTOTAL
                     "mediaplayer" -> MenuItem.MEDIAPLAYERTAB
                     "suggestion" -> MenuItem.SUGGESTION
-                    "lexikon" -> MenuItem.Vocabs
+                    "lexicon", "lexikon" -> MenuItem.Vocabs
                     else -> null
                 }
             }?.takeIf { it == MenuItem.APKM_INSTALLER || menuItemVisible(it, context) }
@@ -570,7 +570,7 @@ fun LandingPageOrApp(
                             storage = storage,
                             startTarget = null,
                             initialMenuItem = targetMenuItem,
-                            lexikonToken = startTarget?.takeIf { it.startsWith("lexikon") },
+                            lexiconToken = startTarget?.takeIf { it.startsWith("lexicon") || it.startsWith("lexikon") },
                             onMenuClick = { openLanding() },
                             helpVisible = isHelpOpen,
                             onHelpVisibleChange = { isHelpOpen = it },
@@ -627,7 +627,7 @@ fun LandingPageOrApp(
                     storage = storage,
                     startTarget = null,
                     initialMenuItem = item,
-                    lexikonToken = null,
+                    lexiconToken = null,
                     onMenuClick = null,
                     onImmersiveChange = { webImmersive = it }
                 )

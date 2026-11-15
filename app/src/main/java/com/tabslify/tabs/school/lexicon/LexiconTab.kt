@@ -1,4 +1,4 @@
-package com.tabslify.tabs.school.lexikon
+package com.tabslify.tabs.school.lexicon
 
 import android.net.Uri
 import androidx.activity.compose.BackHandler
@@ -78,120 +78,128 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 @Composable
-fun LexikonScreen(
+fun LexiconScreen(
     paddingValues: PaddingValues,
     onBack: () -> Unit,
     onImport: () -> Unit,
-    fokusAnfrage: Int = 0
+    focusRequest: Int = 0
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val sucheFokus = remember { FocusRequester() }
-    val tastatur = LocalSoftwareKeyboardController.current
-    var wortschaetze by remember { mutableStateOf<List<Wortschatz>>(emptyList()) }
-    var geladen by remember { mutableStateOf(false) }
-    var neuLaden by remember { mutableStateOf(0) }
-    var anfrage by remember { mutableStateOf("") }
+    val searchFocus = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
+    var vocabularies by remember { mutableStateOf<List<Vocabulary>>(emptyList()) }
+    var loaded by remember { mutableStateOf(false) }
+    var reloadToken by remember { mutableStateOf(0) }
+    var query by remember { mutableStateOf("") }
     var filter by remember { mutableStateOf<String?>(null) }
-    var bearbeiten by remember { mutableStateOf<String?>(null) }
-    var loeschen by remember { mutableStateOf<Wortschatz?>(null) }
+    var editing by remember { mutableStateOf<String?>(null) }
+    var pendingDelete by remember { mutableStateOf<Vocabulary?>(null) }
 
-    LaunchedEffect(neuLaden) {
-        wortschaetze = withContext(Dispatchers.IO) {
-            LexikonStore.fuehreGrundwortschaetzeZusammen(context)
-            LexikonStore.ladeAlle(context)
+    LaunchedEffect(reloadToken) {
+        vocabularies = withContext(Dispatchers.IO) {
+            LexiconStore.mergeRegisters(context)
+            LexiconStore.loadAll(context)
         }
-        geladen = true
+        loaded = true
     }
 
-    LaunchedEffect(fokusAnfrage) {
-        if (fokusAnfrage > 0) {
+    LaunchedEffect(focusRequest) {
+        if (focusRequest > 0) {
             withFrameNanos { }
-            sucheFokus.requestFocus()
-            tastatur?.show()
+            searchFocus.requestFocus()
+            keyboard?.show()
         }
     }
 
-    val index = remember(wortschaetze) { baueLexikonIndex(wortschaetze) }
-    val gefiltert = remember(index, filter) {
-        if (filter == null) index else index.filter { it.wortschatzId == filter }
+    val index = remember(vocabularies) { buildLexiconIndex(vocabularies) }
+    val filtered = remember(index, filter) {
+        if (filter == null) index else index.filter { it.vocabularyId == filter }
     }
-    val treffer = remember(gefiltert, anfrage) { sucheLexikon(gefiltert, anfrage) }
-    val eintraegeGesamt = wortschaetze.sumOf { it.eintraege.size }
+    val matches = remember(filtered, query) { searchLexicon(filtered, query) }
+    val totalEntries = vocabularies.sumOf { it.entries.size }
 
     BackHandler {
         onBack()
     }
 
-    if (loeschen != null) {
+    if (pendingDelete != null) {
         AlertDialogTabslify(
-            title = stringResource(R.string.wortschatz_loeschen),
-            text = stringResource(R.string.wortschatz_loeschen_text, loeschen!!.name),
+            title = stringResource(R.string.vocabulary_delete),
+            text = stringResource(R.string.vocabulary_delete_text, pendingDelete!!.name),
             onConfirm = {
-                val ziel = loeschen!!
-                loeschen = null
+                val target = pendingDelete!!
+                pendingDelete = null
                 scope.launch {
-                    withContext(Dispatchers.IO) { LexikonStore.loesche(context, ziel.id) }
+                    withContext(Dispatchers.IO) { LexiconStore.delete(context, target.id) }
                     filter = null
-                    neuLaden++
+                    reloadToken++
                 }
             },
-            onDismiss = { loeschen = null }
+            onDismiss = { pendingDelete = null }
         )
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
         SchoolHeader(
-            title = stringResource(R.string.wortschatz),
-            subtitle = if (eintraegeGesamt == 0) stringResource(R.string.wortschatz_leer_hinweis)
-            else stringResource(R.string.wortschatz_eintraege, eintraegeGesamt),
+            title = stringResource(R.string.vocabulary),
+            subtitle = if (totalEntries == 0) stringResource(R.string.vocabulary_empty_hint)
+            else stringResource(R.string.vocabulary_entries, totalEntries),
             onBack = onBack,
             savedSets = emptyList(),
             showDashboard = false,
             paddingValues = paddingValues,
             actions = {
                 IconButton(onClick = onImport) {
-                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.wortschatz_einlesen), tint = TextPrimary)
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = stringResource(R.string.vocabulary_import),
+                        tint = TextPrimary
+                    )
                 }
             }
         )
 
         OutlinedTextField(
-            value = anfrage,
-            onValueChange = { anfrage = it },
+            value = query,
+            onValueChange = { query = it },
             singleLine = true,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
-                .focusRequester(sucheFokus),
-            placeholder = { Text(stringResource(R.string.wortschatz_suchfeld), color = TextTertiary) },
+                .focusRequester(searchFocus),
+            placeholder = { Text(stringResource(R.string.vocabulary_search_hint), color = TextTertiary) },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = TextTertiary) },
             trailingIcon = {
-                if (anfrage.isNotEmpty()) {
-                    IconButton(onClick = { anfrage = "" }) {
-                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.loschen), tint = TextTertiary)
+                if (query.isNotEmpty()) {
+                    IconButton(onClick = { query = "" }) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = stringResource(R.string.loschen),
+                            tint = TextTertiary
+                        )
                     }
                 }
             }
         )
 
-        if (wortschaetze.isNotEmpty()) {
+        if (vocabularies.isNotEmpty()) {
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 item {
-                    FilterMarke(
-                        text = stringResource(R.string.wortschatz_alle),
-                        aktiv = filter == null,
+                    FilterChip(
+                        text = stringResource(R.string.vocabulary_all),
+                        active = filter == null,
                         onClick = { filter = null }
                     )
                 }
-                items(wortschaetze, key = { it.id }) { wortschatz ->
-                    FilterMarke(
-                        text = "${wortschatz.name} (${wortschatz.eintraege.size})",
-                        aktiv = filter == wortschatz.id,
-                        onClick = { filter = if (filter == wortschatz.id) null else wortschatz.id }
+                items(vocabularies, key = { it.id }) { vocabulary ->
+                    FilterChip(
+                        text = "${vocabulary.name} (${vocabulary.entries.size})",
+                        active = filter == vocabulary.id,
+                        onClick = { filter = if (filter == vocabulary.id) null else vocabulary.id }
                     )
                 }
                 if (filter != null) {
@@ -202,13 +210,13 @@ fun LexikonScreen(
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(BgCard)
                                 .clickable {
-                                    loeschen = wortschaetze.firstOrNull { it.id == filter }
+                                    pendingDelete = vocabularies.firstOrNull { it.id == filter }
                                 }
                                 .padding(horizontal = 10.dp, vertical = 8.dp)
                         ) {
                             Icon(
                                 Icons.Default.Delete,
-                                contentDescription = stringResource(R.string.wortschatz_loeschen),
+                                contentDescription = stringResource(R.string.vocabulary_delete),
                                 tint = ErrorSoft,
                                 modifier = Modifier.size(15.dp)
                             )
@@ -221,23 +229,23 @@ fun LexikonScreen(
         }
 
         when {
-            !geladen -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            !loaded -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = AccentFill)
             }
 
-            wortschaetze.isEmpty() -> LeererWortschatz(onImport = onImport)
+            vocabularies.isEmpty() -> EmptyVocabulary(onImport = onImport)
 
-            anfrage.isBlank() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            query.isBlank() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    stringResource(R.string.wortschatz_tipp),
+                    stringResource(R.string.vocabulary_tip),
                     color = TextTertiary,
                     fontSize = 14.sp
                 )
             }
 
-            treffer.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            matches.isEmpty() -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    stringResource(R.string.wortschatz_kein_treffer, anfrage),
+                    stringResource(R.string.vocabulary_no_match, query),
                     color = TextTertiary,
                     fontSize = 14.sp
                 )
@@ -247,22 +255,22 @@ fun LexikonScreen(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(treffer, key = { "${it.zeile.wortschatzId}:${it.zeile.eintrag.id}" }) { eintrag ->
-                    val schluessel = "${eintrag.zeile.wortschatzId}:${eintrag.zeile.eintrag.id}"
-                    EintragKarte(
-                        eintrag = eintrag.zeile.eintrag,
-                        wortschatzName = eintrag.zeile.wortschatzName,
-                        bearbeiten = bearbeiten == schluessel,
-                        onBearbeiten = {
-                            bearbeiten = if (bearbeiten == schluessel) null else schluessel
+                items(matches, key = { "${it.row.vocabularyId}:${it.row.entry.id}" }) { match ->
+                    val key = "${match.row.vocabularyId}:${match.row.entry.id}"
+                    EntryCard(
+                        entry = match.row.entry,
+                        vocabularyName = match.row.vocabularyName,
+                        editing = editing == key,
+                        onToggleEdit = {
+                            editing = if (editing == key) null else key
                         },
-                        onSpeichern = { neu ->
-                            bearbeiten = null
+                        onSave = { updated ->
+                            editing = null
                             scope.launch {
                                 withContext(Dispatchers.IO) {
-                                    LexikonStore.ersetzeEintrag(context, eintrag.zeile.wortschatzId, neu)
+                                    LexiconStore.replaceEntry(context, match.row.vocabularyId, updated)
                                 }
-                                neuLaden++
+                                reloadToken++
                             }
                         }
                     )
@@ -273,7 +281,7 @@ fun LexikonScreen(
 }
 
 @Composable
-private fun LeererWortschatz(onImport: () -> Unit) {
+private fun EmptyVocabulary(onImport: () -> Unit) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -281,13 +289,13 @@ private fun LeererWortschatz(onImport: () -> Unit) {
         ) {
             Text("📚", fontSize = 52.sp)
             Text(
-                stringResource(R.string.wortschatz_leer_titel),
+                stringResource(R.string.vocabulary_empty_title),
                 color = TextPrimary,
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Bold
             )
             Text(
-                stringResource(R.string.wortschatz_leer_text),
+                stringResource(R.string.vocabulary_empty_text),
                 color = TextTertiary,
                 fontSize = 14.sp
             )
@@ -301,7 +309,7 @@ private fun LeererWortschatz(onImport: () -> Unit) {
                     .padding(horizontal = 20.dp, vertical = 12.dp)
             ) {
                 Text(
-                    stringResource(R.string.wortschatz_einlesen),
+                    stringResource(R.string.vocabulary_import),
                     color = OnAccentFill,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold
@@ -312,45 +320,45 @@ private fun LeererWortschatz(onImport: () -> Unit) {
 }
 
 @Composable
-private fun FilterMarke(
+private fun FilterChip(
     text: String,
-    aktiv: Boolean,
+    active: Boolean,
     onClick: () -> Unit
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .clip(RoundedCornerShape(12.dp))
-            .background(if (aktiv) AccentFill else BgCard)
+            .background(if (active) AccentFill else BgCard)
             .clickable { onClick() }
             .padding(horizontal = 12.dp, vertical = 8.dp)
     ) {
         Text(
             text,
-            color = if (aktiv) OnAccentFill else TextSecondary,
+            color = if (active) OnAccentFill else TextSecondary,
             fontSize = 13.sp,
-            fontWeight = if (aktiv) FontWeight.SemiBold else FontWeight.Normal
+            fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal
         )
     }
 }
 
 @Composable
-private fun EintragKarte(
-    eintrag: LexikonEintrag,
-    wortschatzName: String,
-    bearbeiten: Boolean,
-    onBearbeiten: () -> Unit,
-    onSpeichern: (LexikonEintrag) -> Unit
+private fun EntryCard(
+    entry: LexiconEntry,
+    vocabularyName: String,
+    editing: Boolean,
+    onToggleEdit: () -> Unit,
+    onSave: (LexiconEntry) -> Unit
 ) {
-    var stichwort by remember(eintrag.id, bearbeiten) { mutableStateOf(eintrag.stichwort) }
-    var bedeutungen by remember(eintrag.id, bearbeiten) {
-        mutableStateOf(eintrag.bedeutungen.joinToString("; "))
+    var headword by remember(entry.id, editing) { mutableStateOf(entry.headword) }
+    var meanings by remember(entry.id, editing) {
+        mutableStateOf(entry.meanings.joinToString("; "))
     }
-    var wortart by remember(eintrag.id, bearbeiten) { mutableStateOf(eintrag.wortart.orEmpty()) }
-    var kapitel by remember(eintrag.id, bearbeiten) { mutableStateOf(eintrag.kapitel.orEmpty()) }
-    var formen by remember(eintrag.id, bearbeiten) { mutableStateOf(eintrag.formen.joinToString("; ")) }
-    var verwandt by remember(eintrag.id, bearbeiten) {
-        mutableStateOf(eintrag.verwandtschaften.joinToString("; "))
+    var partOfSpeech by remember(entry.id, editing) { mutableStateOf(entry.partOfSpeech.orEmpty()) }
+    var chapter by remember(entry.id, editing) { mutableStateOf(entry.chapter.orEmpty()) }
+    var forms by remember(entry.id, editing) { mutableStateOf(entry.forms.joinToString("; ")) }
+    var relatedWords by remember(entry.id, editing) {
+        mutableStateOf(entry.relatedWords.joinToString("; "))
     }
 
     Column(
@@ -362,15 +370,15 @@ private fun EintragKarte(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                eintrag.stichwort,
+                entry.headword,
                 color = TextPrimary,
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f)
             )
-            if (!eintrag.kapitel.isNullOrBlank()) {
+            if (!entry.chapter.isNullOrBlank()) {
                 Text(
-                    stringResource(R.string.wortschatz_kapitel_kurz, eintrag.kapitel!!),
+                    stringResource(R.string.vocabulary_chapter_short, entry.chapter!!),
                     color = AccentViolet,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -381,20 +389,30 @@ private fun EintragKarte(
                 )
                 Spacer(Modifier.width(8.dp))
             }
-            if (!bearbeiten) {
-                IconButton(onClick = onBearbeiten) {
-                    Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.bearbeiten), tint = TextTertiary, modifier = Modifier.size(18.dp))
+            if (!editing) {
+                IconButton(onClick = onToggleEdit) {
+                    Icon(
+                        Icons.Default.Edit,
+                        contentDescription = stringResource(R.string.bearbeiten),
+                        tint = TextTertiary,
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
             } else {
-                IconButton(onClick = onBearbeiten) {
-                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.abbrechen), tint = TextTertiary, modifier = Modifier.size(18.dp))
+                IconButton(onClick = onToggleEdit) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = stringResource(R.string.abbrechen),
+                        tint = TextTertiary,
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
             }
         }
 
-        if (eintrag.bedeutungen.isNotEmpty()) {
+        if (entry.meanings.isNotEmpty()) {
             Text(
-                eintrag.bedeutungen.joinToString(" · "),
+                entry.meanings.joinToString(" · "),
                 color = TextSecondary,
                 fontSize = 15.sp,
                 modifier = Modifier.padding(top = 2.dp)
@@ -402,8 +420,8 @@ private fun EintragKarte(
         }
 
         val meta = listOfNotNull(
-            eintrag.wortart?.takeIf { it.isNotBlank() },
-            eintrag.formen.joinToString(", ").takeIf { it.isNotBlank() }
+            entry.partOfSpeech?.takeIf { it.isNotBlank() },
+            entry.forms.joinToString(", ").takeIf { it.isNotBlank() }
         ).joinToString(" · ")
         if (meta.isNotEmpty()) {
             Text(
@@ -415,72 +433,72 @@ private fun EintragKarte(
             )
         }
 
-        if (eintrag.verwandtschaften.isNotEmpty()) {
+        if (entry.relatedWords.isNotEmpty()) {
             Text(
-                eintrag.verwandtschaften.joinToString(", "),
+                entry.relatedWords.joinToString(", "),
                 color = TextTertiary,
                 fontSize = 12.sp,
                 modifier = Modifier.padding(top = 3.dp)
             )
         }
 
-        val fussnote = listOfNotNull(eintrag.quelle, wortschatzName).distinct().joinToString(" · ")
-        if (fussnote.isNotBlank()) {
+        val footnote = listOfNotNull(entry.source, vocabularyName).distinct().joinToString(" · ")
+        if (footnote.isNotBlank()) {
             Text(
-                fussnote,
+                footnote,
                 color = TextTertiary,
                 fontSize = 11.sp,
                 modifier = Modifier.padding(top = 6.dp)
             )
         }
 
-        if (bearbeiten) {
+        if (editing) {
             Spacer(Modifier.height(10.dp))
             OutlinedTextField(
-                value = stichwort,
-                onValueChange = { stichwort = it },
+                value = headword,
+                onValueChange = { headword = it },
                 singleLine = true,
-                label = { Text(stringResource(R.string.wortschatz_stichwort)) },
+                label = { Text(stringResource(R.string.vocabulary_headword)) },
                 modifier = Modifier.fillMaxWidth()
             )
             OutlinedTextField(
-                value = bedeutungen,
-                onValueChange = { bedeutungen = it },
-                label = { Text(stringResource(R.string.wortschatz_bedeutungen)) },
+                value = meanings,
+                onValueChange = { meanings = it },
+                label = { Text(stringResource(R.string.vocabulary_meanings)) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 6.dp)
             )
             OutlinedTextField(
-                value = wortart,
-                onValueChange = { wortart = it },
+                value = partOfSpeech,
+                onValueChange = { partOfSpeech = it },
                 singleLine = true,
-                label = { Text(stringResource(R.string.wortschatz_wortart)) },
+                label = { Text(stringResource(R.string.vocabulary_part_of_speech)) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 6.dp)
             )
             OutlinedTextField(
-                value = kapitel,
-                onValueChange = { kapitel = it },
+                value = chapter,
+                onValueChange = { chapter = it },
                 singleLine = true,
-                label = { Text(stringResource(R.string.wortschatz_kapitel)) },
+                label = { Text(stringResource(R.string.vocabulary_chapter)) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 6.dp)
             )
             OutlinedTextField(
-                value = formen,
-                onValueChange = { formen = it },
-                label = { Text(stringResource(R.string.wortschatz_formen)) },
+                value = forms,
+                onValueChange = { forms = it },
+                label = { Text(stringResource(R.string.vocabulary_forms)) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 6.dp)
             )
             OutlinedTextField(
-                value = verwandt,
-                onValueChange = { verwandt = it },
-                label = { Text(stringResource(R.string.wortschatz_verwandtschaften)) },
+                value = relatedWords,
+                onValueChange = { relatedWords = it },
+                label = { Text(stringResource(R.string.vocabulary_related_words)) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 6.dp)
@@ -497,14 +515,14 @@ private fun EintragKarte(
                         .clip(RoundedCornerShape(12.dp))
                         .background(AccentFill)
                         .clickable {
-                            onSpeichern(
-                                eintrag.copy(
-                                    stichwort = stichwort.trim().ifEmpty { eintrag.stichwort },
-                                    bedeutungen = listeAus(bedeutungen),
-                                    wortart = wortart.trim().takeIf { it.isNotEmpty() },
-                                    kapitel = kapitel.trim().takeIf { it.isNotEmpty() },
-                                    formen = listeAus(formen),
-                                    verwandtschaften = listeAus(verwandt)
+                            onSave(
+                                entry.copy(
+                                    headword = headword.trim().ifEmpty { entry.headword },
+                                    meanings = splitList(meanings),
+                                    partOfSpeech = partOfSpeech.trim().takeIf { it.isNotEmpty() },
+                                    chapter = chapter.trim().takeIf { it.isNotEmpty() },
+                                    forms = splitList(forms),
+                                    relatedWords = splitList(relatedWords)
                                 )
                             )
                         }
@@ -522,204 +540,204 @@ private fun EintragKarte(
     }
 }
 
-private fun listeAus(text: String): List<String> = text
+private fun splitList(text: String): List<String> = text
     .split(';', '|')
     .map { it.trim() }
     .filter { it.isNotEmpty() }
 
-private data class SeitenLauf(
+private data class PageRun(
     val index: Int,
-    val eintraege: List<LexikonEintrag>,
-    val quelle: String?,
-    val hinweis: String?
+    val entries: List<LexiconEntry>,
+    val source: String?,
+    val notice: String?
 )
 
 @Composable
-fun LexikonImportScreen(
+fun LexiconImportScreen(
     paddingValues: PaddingValues,
     onBack: () -> Unit,
-    onFertig: (Wortschatz) -> Unit
+    onDone: (Vocabulary) -> Unit
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var seiten by remember { mutableStateOf<List<Uri>>(emptyList()) }
-    var typ by remember { mutableStateOf(WortschatzTyp.REGISTER) }
+    var pages by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    var type by remember { mutableStateOf(VocabularyType.REGISTER) }
     var name by remember { mutableStateOf("") }
-    var laeuft by remember { mutableStateOf(false) }
-    var aktuell by remember { mutableStateOf(0) }
-    var fehler by remember { mutableStateOf<String?>(null) }
-    var fertig by remember { mutableStateOf<Wortschatz?>(null) }
+    var running by remember { mutableStateOf(false) }
+    var currentPage by remember { mutableStateOf(0) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var finished by remember { mutableStateOf<Vocabulary?>(null) }
     var job by remember { mutableStateOf<Job?>(null) }
     var importId by remember { mutableStateOf<String?>(null) }
-    var auffaellig by remember { mutableStateOf<List<String>>(emptyList()) }
-    var kameraDatei by remember { mutableStateOf<File?>(null) }
+    var notices by remember { mutableStateOf<List<String>>(emptyList()) }
+    var cameraFile by remember { mutableStateOf<File?>(null) }
 
-    val auswahlLauncher = rememberLauncherForActivityResult(
+    val pickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.GetMultipleContents()
     ) { uris ->
-        if (uris.isNotEmpty()) seiten = (seiten + uris).distinctBy { it.toString() }
+        if (uris.isNotEmpty()) pages = (pages + uris).distinctBy { it.toString() }
     }
 
-    val kameraLauncher = rememberLauncherForActivityResult(
+    val cameraLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicture()
-    ) { erfolg ->
-        val datei = kameraDatei
-        if (erfolg && datei != null) {
-            seiten = seiten + Uri.fromFile(datei)
+    ) { success ->
+        val file = cameraFile
+        if (success && file != null) {
+            pages = pages + Uri.fromFile(file)
         }
     }
 
-    fun fotoAufnehmen() {
-        val datei = File(context.cacheDir, "lexikon_${System.currentTimeMillis()}.jpg")
-        kameraDatei = datei
-        val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", datei)
-        kameraLauncher.launch(uri)
+    fun takePhoto() {
+        val file = File(context.cacheDir, "lexicon_${System.currentTimeMillis()}.jpg")
+        cameraFile = file
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+        cameraLauncher.launch(uri)
     }
 
-    fun starteImport() {
-        if (seiten.isEmpty() || laeuft) return
-        fehler = null
-        fertig = null
-        auffaellig = emptyList()
-        aktuell = 0
-        laeuft = true
+    fun startImport() {
+        if (pages.isEmpty() || running) return
+        error = null
+        finished = null
+        notices = emptyList()
+        currentPage = 0
+        running = true
         job = scope.launch {
-            val laufId = importId ?: LexikonStore.neuerImportOrdner(context).also { importId = it }
-            val gesammelt = mutableListOf<LexikonEintrag>()
-            val auffaelligkeiten = mutableListOf<String>()
-            var quelle: String? = if (typ == WortschatzTyp.REGISTER) QUELLE_REGISTER else null
-            suspend fun seiteLesen(index: Int, kontext: String?, vorab: ByteArray?): SeitenLauf {
-                val nummer = index + 1
-                var roh = withContext(Dispatchers.IO) {
-                    LexikonStore.ladeRoheSeite(context, laufId, nummer)
+            val runId = importId ?: LexiconStore.newImportDir(context).also { importId = it }
+            val collected = mutableListOf<LexiconEntry>()
+            val collectedNotices = mutableListOf<String>()
+            var source: String? = if (type == VocabularyType.REGISTER) REGISTER_SOURCE else null
+            suspend fun readPage(index: Int, hint: String?, preloaded: ByteArray?): PageRun {
+                val pageNumber = index + 1
+                var raw = withContext(Dispatchers.IO) {
+                    LexiconStore.loadRawPage(context, runId, pageNumber)
                 }
-                var hinweis: String? = null
-                if (roh == null) {
-                    val jpeg = vorab ?: withContext(Dispatchers.IO) {
-                        seiteAlsJpeg(context, seiten[index])
+                var notice: String? = null
+                if (raw == null) {
+                    val jpeg = preloaded ?: withContext(Dispatchers.IO) {
+                        pageAsJpeg(context, pages[index])
                     }
                     if (jpeg == null) {
-                        roh = ""
-                        hinweis = "Seite $nummer: Bild nicht lesbar"
+                        raw = ""
+                        notice = "Seite $pageNumber: Bild nicht lesbar"
                     } else {
                         val text = try {
-                            ocrLexikonSeite(context, jpeg, nummer, kontext) { }
+                            ocrLexiconPage(context, jpeg, pageNumber, hint) { }
                         } catch (e: CancellationException) {
                             throw e
                         } catch (e: Exception) {
-                            hinweis = "Seite $nummer: ${e.localizedMessage ?: "OCR-Fehler"}"
+                            notice = "Seite $pageNumber: ${e.localizedMessage ?: "OCR-Fehler"}"
                             ""
                         }
                         if (text.isNotBlank()) {
                             withContext(Dispatchers.IO) {
-                                LexikonStore.speichereRoheSeite(context, laufId, nummer, text)
+                                LexiconStore.saveRawPage(context, runId, pageNumber, text)
                             }
                         }
-                        roh = text
+                        raw = text
                     }
                 }
-                val inhalt = roh
-                val ergebnis = if (inhalt.isNullOrBlank()) {
-                    LexikonSeitenErgebnis(emptyList(), kontext, "", "leer")
+                val content = raw
+                val result = if (content.isNullOrBlank()) {
+                    LexiconPageResult(emptyList(), hint, "", "leer")
                 } else {
-                    parseLexikonSeite(inhalt, nummer, kontext)
+                    parseLexiconPage(content, pageNumber, hint)
                 }
-                if (hinweis == null && ergebnis.leer) {
-                    hinweis = "Seite $nummer: keine Einträge (${ergebnis.fehler ?: "leer"})"
+                if (notice == null && result.isEmpty) {
+                    notice = "Seite $pageNumber: keine Einträge (${result.error ?: "leer"})"
                 }
-                return SeitenLauf(index, ergebnis.eintraege, ergebnis.quelle, hinweis)
+                return PageRun(index, result.entries, result.source, notice)
             }
 
-            fun uebernimm(lauf: SeitenLauf) {
-                lauf.hinweis?.let { auffaelligkeiten += it }
-                gesammelt += lauf.eintraege
-                if (!lauf.quelle.isNullOrBlank()) quelle = lauf.quelle
+            fun applyRun(run: PageRun) {
+                run.notice?.let { collectedNotices += it }
+                collected += run.entries
+                if (!run.source.isNullOrBlank()) source = run.source
             }
 
             try {
-                if (typ == WortschatzTyp.REGISTER) {
-                    val bilder = HashMap<Int, ByteArray>()
-                    seiten.forEachIndexed { index, uri ->
-                        val gecacht = withContext(Dispatchers.IO) {
-                            LexikonStore.ladeRoheSeite(context, laufId, index + 1)
+                if (type == VocabularyType.REGISTER) {
+                    val images = HashMap<Int, ByteArray>()
+                    pages.forEachIndexed { index, uri ->
+                        val cached = withContext(Dispatchers.IO) {
+                            LexiconStore.loadRawPage(context, runId, index + 1)
                         }
-                        if (gecacht == null) {
-                            val jpeg = withContext(Dispatchers.IO) { seiteAlsJpeg(context, uri) }
-                            if (jpeg != null) bilder[index] = jpeg
+                        if (cached == null) {
+                            val jpeg = withContext(Dispatchers.IO) { pageAsJpeg(context, uri) }
+                            if (jpeg != null) images[index] = jpeg
                         }
                     }
-                    var erledigt = 0
-                    seiten.indices
+                    var done = 0
+                    pages.indices
                         .map { index ->
                             async {
-                                seiteLesen(index, QUELLE_REGISTER, bilder[index]).also {
-                                    erledigt++
-                                    aktuell = erledigt
+                                readPage(index, REGISTER_SOURCE, images[index]).also {
+                                    done++
+                                    currentPage = done
                                 }
                             }
                         }
                         .awaitAll()
                         .sortedBy { it.index }
-                        .forEach(::uebernimm)
+                        .forEach(::applyRun)
                 } else {
-                    seiten.forEachIndexed { index, _ ->
-                        uebernimm(seiteLesen(index, quelle, null))
-                        aktuell = index + 1
+                    pages.forEachIndexed { index, _ ->
+                        applyRun(readPage(index, source, null))
+                        currentPage = index + 1
                     }
                 }
-                val eintraege = verschmelzeLexikon(gesammelt)
-                if (eintraege.isEmpty()) {
-                    fehler = context.getString(R.string.wortschatz_import_leer)
+                val entries = mergeLexicon(collected)
+                if (entries.isEmpty()) {
+                    error = context.getString(R.string.vocabulary_import_empty)
                     return@launch
                 }
-                val bestand = if (typ == WortschatzTyp.REGISTER) {
+                val existing = if (type == VocabularyType.REGISTER) {
                     withContext(Dispatchers.IO) {
-                        LexikonStore.ladeAlle(context).filter { it.typ == WortschatzTyp.REGISTER }
+                        LexiconStore.loadAll(context).filter { it.type == VocabularyType.REGISTER }
                     }
                 } else {
                     emptyList()
                 }
-                val vorhanden = bestand.minByOrNull { it.angelegt }
-                val wortschatz = Wortschatz(
-                    id = vorhanden?.id ?: LexikonStore.neuerWortschatzId(),
-                    name = if (typ == WortschatzTyp.REGISTER) {
-                        context.getString(R.string.wortschatz_grundwortschatz)
+                val previous = existing.minByOrNull { it.createdAt }
+                val vocabulary = Vocabulary(
+                    id = previous?.id ?: LexiconStore.newVocabularyId(),
+                    name = if (type == VocabularyType.REGISTER) {
+                        context.getString(R.string.vocabulary_register)
                     } else {
-                        name.trim().ifEmpty { context.getString(R.string.wortschatz_lernwortschatz) }
+                        name.trim().ifEmpty { context.getString(R.string.vocabulary_lesson) }
                     },
-                    typ = typ,
-                    angelegt = vorhanden?.angelegt ?: System.currentTimeMillis(),
-                    eintraege = verschmelzeLexikon(
-                        bestand.flatMap { it.eintraege } + eintraege
+                    type = type,
+                    createdAt = previous?.createdAt ?: System.currentTimeMillis(),
+                    entries = mergeLexicon(
+                        existing.flatMap { it.entries } + entries
                     ),
-                    auffaelligkeiten = (bestand.flatMap { it.auffaelligkeiten } + auffaelligkeiten).distinct()
+                    notices = (existing.flatMap { it.notices } + collectedNotices).distinct()
                 )
                 withContext(Dispatchers.IO) {
-                    LexikonStore.speichere(context, wortschatz)
-                    bestand.filter { it.id != wortschatz.id }.forEach { LexikonStore.loesche(context, it.id) }
+                    LexiconStore.save(context, vocabulary)
+                    existing.filter { it.id != vocabulary.id }.forEach { LexiconStore.delete(context, it.id) }
                 }
                 importId = null
-                fertig = wortschatz
+                finished = vocabulary
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                fehler = e.localizedMessage
+                error = e.localizedMessage
             } finally {
-                auffaellig = auffaelligkeiten.toList()
-                laeuft = false
+                notices = collectedNotices.toList()
+                running = false
             }
         }
     }
 
-    BackHandler(enabled = !laeuft) {
+    BackHandler(enabled = !running) {
         onBack()
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
         SchoolHeader(
-            title = stringResource(R.string.wortschatz_einlesen),
-            subtitle = stringResource(R.string.wortschatz_import_hinweis),
-            onBack = if (laeuft) null else onBack,
+            title = stringResource(R.string.vocabulary_import),
+            subtitle = stringResource(R.string.vocabulary_import_hint),
+            onBack = if (running) null else onBack,
             savedSets = emptyList(),
             showDashboard = false,
             paddingValues = paddingValues
@@ -737,13 +755,13 @@ fun LexikonImportScreen(
                         modifier = Modifier
                             .clip(RoundedCornerShape(14.dp))
                             .background(AccentFill)
-                            .clickable(enabled = !laeuft) { auswahlLauncher.launch("image/*") }
+                            .clickable(enabled = !running) { pickerLauncher.launch("image/*") }
                             .padding(horizontal = 14.dp, vertical = 12.dp)
                     ) {
                         Text("🖼️", fontSize = 16.sp)
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            stringResource(R.string.wortschatz_seiten_waehlen),
+                            stringResource(R.string.vocabulary_choose_pages),
                             color = OnAccentFill,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold
@@ -754,13 +772,13 @@ fun LexikonImportScreen(
                         modifier = Modifier
                             .clip(RoundedCornerShape(14.dp))
                             .background(BgCard)
-                            .clickable(enabled = !laeuft) { fotoAufnehmen() }
+                            .clickable(enabled = !running) { takePhoto() }
                             .padding(horizontal = 14.dp, vertical = 12.dp)
                     ) {
                         Text("📷", fontSize = 16.sp)
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            stringResource(R.string.wortschatz_foto),
+                            stringResource(R.string.vocabulary_photo),
                             color = TextSecondary,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold
@@ -769,11 +787,11 @@ fun LexikonImportScreen(
                 }
             }
 
-            if (seiten.isNotEmpty()) {
+            if (pages.isNotEmpty()) {
                 item {
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(seiten, key = { it.toString() }) { uri ->
-                            val pos = seiten.indexOf(uri) + 1
+                        items(pages, key = { it.toString() }) { uri ->
+                            val position = pages.indexOf(uri) + 1
                             Box {
                                 AsyncImage(
                                     model = uri,
@@ -785,7 +803,7 @@ fun LexikonImportScreen(
                                         .background(BgSurface)
                                 )
                                 Text(
-                                    pos.toString(),
+                                    position.toString(),
                                     color = OnAccentFill,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
@@ -795,9 +813,9 @@ fun LexikonImportScreen(
                                         .background(AccentFill.copy(alpha = 0.9f))
                                         .padding(horizontal = 6.dp, vertical = 1.dp)
                                 )
-                                if (!laeuft) {
+                                if (!running) {
                                     IconButton(
-                                        onClick = { seiten = seiten - uri; importId = null },
+                                        onClick = { pages = pages - uri; importId = null },
                                         modifier = Modifier
                                             .align(Alignment.TopEnd)
                                             .size(22.dp)
@@ -818,34 +836,34 @@ fun LexikonImportScreen(
 
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterMarke(
-                        text = stringResource(R.string.wortschatz_grundwortschatz),
-                        aktiv = typ == WortschatzTyp.REGISTER,
-                        onClick = { typ = WortschatzTyp.REGISTER }
+                    FilterChip(
+                        text = stringResource(R.string.vocabulary_register),
+                        active = type == VocabularyType.REGISTER,
+                        onClick = { type = VocabularyType.REGISTER }
                     )
-                    FilterMarke(
-                        text = stringResource(R.string.wortschatz_lernwortschatz),
-                        aktiv = typ == WortschatzTyp.LERNWORTSCHATZ,
-                        onClick = { typ = WortschatzTyp.LERNWORTSCHATZ }
+                    FilterChip(
+                        text = stringResource(R.string.vocabulary_lesson),
+                        active = type == VocabularyType.LESSON,
+                        onClick = { type = VocabularyType.LESSON }
                     )
                 }
             }
 
-            if (typ == WortschatzTyp.LERNWORTSCHATZ) {
+            if (type == VocabularyType.LESSON) {
                 item {
                     OutlinedTextField(
                         value = name,
                         onValueChange = { name = it },
                         singleLine = true,
-                        enabled = !laeuft,
-                        label = { Text(stringResource(R.string.wortschatz_name)) },
+                        enabled = !running,
+                        label = { Text(stringResource(R.string.vocabulary_name)) },
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
             } else {
                 item {
                     Text(
-                        stringResource(R.string.wortschatz_grundwortschatz_info),
+                        stringResource(R.string.vocabulary_register_info),
                         color = TextTertiary,
                         fontSize = 13.sp
                     )
@@ -858,7 +876,7 @@ fun LexikonImportScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        stringResource(R.string.wortschatz_seiten_anzahl, seiten.size),
+                        stringResource(R.string.vocabulary_page_count, pages.size),
                         color = TextSecondary,
                         fontSize = 13.sp,
                         modifier = Modifier.weight(1f)
@@ -867,13 +885,13 @@ fun LexikonImportScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .clip(RoundedCornerShape(12.dp))
-                            .background(if (seiten.isEmpty() || laeuft) BgSurface else AccentFill)
-                            .clickable(enabled = seiten.isNotEmpty() && !laeuft) { starteImport() }
+                            .background(if (pages.isEmpty() || running) BgSurface else AccentFill)
+                            .clickable(enabled = pages.isNotEmpty() && !running) { startImport() }
                             .padding(horizontal = 16.dp, vertical = 10.dp)
                     ) {
                         Text(
-                            stringResource(R.string.wortschatz_starten),
-                            color = if (seiten.isEmpty() || laeuft) TextTertiary else OnAccentFill,
+                            stringResource(R.string.vocabulary_start),
+                            color = if (pages.isEmpty() || running) TextTertiary else OnAccentFill,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -881,7 +899,7 @@ fun LexikonImportScreen(
                 }
             }
 
-            if (laeuft) {
+            if (running) {
                 item {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -893,7 +911,7 @@ fun LexikonImportScreen(
                             strokeWidth = 2.dp
                         )
                         Text(
-                            stringResource(R.string.wortschatz_fortschritt, aktuell, seiten.size),
+                            stringResource(R.string.vocabulary_progress, currentPage, pages.size),
                             color = TextSecondary,
                             fontSize = 13.sp
                         )
@@ -901,27 +919,27 @@ fun LexikonImportScreen(
                 }
             }
 
-            if (laeuft) {
+            if (running) {
                 item {
                     Text(
-                        stringResource(R.string.wortschatz_abbrechen),
+                        stringResource(R.string.vocabulary_cancel),
                         color = ErrorSoft,
                         fontSize = 13.sp,
                         modifier = Modifier.clickable {
                             job?.cancel()
-                            laeuft = false
+                            running = false
                         }
                     )
                 }
             }
 
-            fehler?.let { meldung ->
+            error?.let { message ->
                 item {
-                    Text(meldung, color = ErrorSoft, fontSize = 13.sp)
+                    Text(message, color = ErrorSoft, fontSize = 13.sp)
                 }
             }
 
-            if (auffaellig.isNotEmpty() && !laeuft) {
+            if (notices.isNotEmpty() && !running) {
                 item {
                     Column(
                         modifier = Modifier
@@ -932,19 +950,19 @@ fun LexikonImportScreen(
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            stringResource(R.string.wortschatz_auffaelligkeiten),
+                            stringResource(R.string.vocabulary_notices),
                             color = TextSecondary,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold
                         )
-                        auffaellig.forEach { hinweis ->
-                            Text(hinweis, color = TextTertiary, fontSize = 12.sp)
+                        notices.forEach { notice ->
+                            Text(notice, color = TextTertiary, fontSize = 12.sp)
                         }
                     }
                 }
             }
 
-            fertig?.let { wortschatz ->
+            finished?.let { vocabulary ->
                 item {
                     Column(
                         modifier = Modifier
@@ -955,13 +973,13 @@ fun LexikonImportScreen(
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Text(
-                            stringResource(R.string.wortschatz_fertig),
+                            stringResource(R.string.vocabulary_finished),
                             color = TextPrimary,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            stringResource(R.string.wortschatz_fertig_text, wortschatz.eintraege.size),
+                            stringResource(R.string.vocabulary_finished_text, vocabulary.entries.size),
                             color = TextSecondary,
                             fontSize = 13.sp
                         )
@@ -975,18 +993,27 @@ fun LexikonImportScreen(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(12.dp))
                                     .background(AccentFill)
-                                    .clickable { onFertig(wortschatz) }
+                                    .clickable { onDone(vocabulary) }
                                     .padding(horizontal = 16.dp, vertical = 10.dp)
                             ) {
                                 Text(
-                                    stringResource(R.string.wortschatz_oeffnen),
+                                    stringResource(R.string.vocabulary_open),
                                     color = OnAccentFill,
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }
-                            IconButton(onClick = { fehler = null; fertig = null; seiten = emptyList(); importId = null }) {
-                                Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.loschen), tint = TextTertiary)
+                            IconButton(onClick = {
+                                error = null
+                                finished = null
+                                pages = emptyList()
+                                importId = null
+                            }) {
+                                Icon(
+                                    Icons.Default.Delete,
+                                    contentDescription = stringResource(R.string.loschen),
+                                    tint = TextTertiary
+                                )
                             }
                         }
                     }

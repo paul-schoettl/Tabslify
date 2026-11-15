@@ -7,13 +7,13 @@ import android.service.quicksettings.TileService
 import com.tabslify.R
 import com.tabslify.core.activities.MainActivity
 
-class LexikonTileService : TileService() {
+class LexiconTileService : TileService() {
 
     override fun onStartListening() {
         super.onStartListening()
         qsTile?.apply {
             state = Tile.STATE_INACTIVE
-            label = getString(R.string.wortschatz)
+            label = getString(R.string.vocabulary)
             updateTile()
         }
     }
@@ -22,7 +22,7 @@ class LexikonTileService : TileService() {
         super.onClick()
         val intent = Intent(this, MainActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            putExtra("target", "lexikon#" + System.currentTimeMillis())
+            putExtra("target", "lexicon#" + System.currentTimeMillis())
         }
         val pending = PendingIntent.getActivity(
             this,
