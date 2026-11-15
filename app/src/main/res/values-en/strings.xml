@@ -1396,11 +1396,17 @@
     <string name="fitness_kamera_dialog_text">This tab counts your push-ups using the camera. The images are processed exclusively on the device and are neither stored nor uploaded.</string>
     <string name="fitness_kamera_verweigert">The push-up counter cannot work without camera access.</string>
     <string name="fitness_tipp_titel">TIP</string>
-    <string name="fitness_tipp_text">It works most accurately with the phone placed sideways about two metres away. Head-on works too – just keep your shoulders, hips and hands in frame.</string>
+    <string name="fitness_tipp_text">Counting is most reliable with the phone placed sideways or at an angle about two to three metres away. In a directly head-on view the depth motion cannot always be measured safely; the app will then show a camera hint.</string>
     <string name="fitness_verstanden">Got it</string>
     <string name="fitness_rep_minus">Remove one rep</string>
     <string name="fitness_position_suche">Find the plank position – straighten your arms, hands under your shoulders.</string>
     <string name="fitness_keine_haltung">No push-up position detected – keep your body horizontal, hands on the floor.</string>
+    <string name="fitness_haende_nicht_abgestuetzt">Keep your hands still and planted on the floor.</string>
+    <string name="fitness_stuetzpunkte_fehlen">Hands and either knees or feet must be visible for the support plane.</string>
+    <string name="fitness_kamera_winkel">This angle cannot be measured reliably – place the phone more to the side.</string>
+    <string name="fitness_signal_schwach">Body tracking is unstable – move closer or improve the lighting.</string>
+    <string name="fitness_tracking_unruhig">Tracking is briefly unstable – hold your position.</string>
+    <string name="fitness_kamera_bewegt">Camera moved – detecting your position again.</string>
     <string name="fitness_strecken">Straighten your arms to start.</string>
     <string name="fitness_result_title">Correct push-ups</string>
     <string tools:ignore="PluralsCandidate" name="fitness_result_detected">%1$d detected · %2$s</string>
@@ -1413,7 +1419,7 @@
     <string name="fitness_result_increase">More reps</string>
     <string name="fitness_result_apply">Apply</string>
     <string name="fitness_result_cancel">Cancel</string>
-    <string name="so_bedienst_du_den_pushup">How to use the push-up counter:\n\n1. Place the phone sideways so you are fully in frame (shoulders, hips, knees and feet).\n2. Tap “Start”, get into the plank position and hold it for 3 seconds for calibration.\n3. A rep only counts after a real descent with an amplitude of at least 30°.\n4. The camera button switches between the front and rear camera, the figure icon hides the skeleton.\n5. “Stop” ends the set; in the result dialog you can delete wrongly detected reps or set the value manually.</string>
+    <string name="so_bedienst_du_den_pushup">How to use the push-up counter:\n\n1. Place the phone sideways or at an angle so your shoulders, hands, hips and feet are in frame.\n2. Tap “Start” and get into the support position. Detection starts automatically once your arms and hands are tracked reliably.\n3. A rep counts only after a real descent with sufficient depth and a controlled return to the top; movements that are too shallow are ignored.\n4. The camera button switches between the front and rear camera, the figure icon hides the skeleton.\n5. “Stop” ends the set; in the result dialog you can delete wrongly detected reps or set the value manually.</string>
     <string name="fitness_nav_dashboard">Today</string>
     <string name="fitness_nav_exercises">Exercises</string>
     <string name="fitness_nav_workout">Workout</string>
@@ -3060,6 +3066,7 @@
     <string name="wortschatz_fortschritt">Page %1$d of %2$d</string>
     <string name="wortschatz_abbrechen">Cancel</string>
     <string name="wortschatz_import_leer">No entries were recognised.</string>
+    <string name="wortschatz_grundwortschatz_info">There is only one basic vocabulary – new pages are added to it.</string>
     <string name="wortschatz_grundwortschatz">Basic vocabulary</string>
     <string name="wortschatz_lernwortschatz">Lesson vocabulary</string>
     <string name="wortschatz_fertig">Dictionary saved</string>

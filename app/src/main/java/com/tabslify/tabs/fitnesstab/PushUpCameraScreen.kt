@@ -11,8 +11,15 @@ import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -21,15 +28,24 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.tabslify.BuildConfig
+import com.tabslify.core.ui.AccentSoft
 import com.tabslify.core.ui.BgDeep
+import com.tabslify.core.ui.TextPrimary
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.concurrent.Executors
@@ -180,5 +196,79 @@ fun PushUpCameraScreen(vm: FitnessViewModel) {
         }
 
         PushUpHud(vm = vm, modifier = Modifier.fillMaxSize())
+
+        if (BuildConfig.IS_DEV) {
+            Column(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .statusBarsPadding()
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalAlignment = Alignment.End
+            ) {
+                DebugChip(
+                    label = if (vm.useV3) "V3" else "V2",
+                    active = vm.useV3,
+                    enabled = !vm.isRunning,
+                    onClick = { vm.toggleV3() }
+                )
+                DebugChip(
+                    label = vm.capturePreset.name,
+                    active = false,
+                    enabled = !vm.captureActive,
+                    onClick = { vm.cycleCapturePreset() }
+                )
+                DebugChip(
+                    label = if (vm.captureActive) "REC ON" else "REC",
+                    active = vm.captureActive,
+                    enabled = true,
+                    onClick = { vm.toggleCapture() }
+                )
+                vm.captureError?.let {
+                    Text(
+                        text = it,
+                        color = Color(0xFFFF6B6B),
+                        fontSize = 9.sp
+                    )
+                }
+                vm.captureId?.let {
+                    Text(
+                        text = it.takeLast(15),
+                        color = Color.White.copy(alpha = 0.55f),
+                        fontSize = 9.sp
+                    )
+                }
+                if (vm.useV3 && vm.debugSignalLine.isNotEmpty()) {
+                    Text(
+                        text = vm.debugSignalLine,
+                        color = Color.White.copy(alpha = 0.65f),
+                        fontSize = 9.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DebugChip(
+    label: String,
+    active: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(50))
+            .background(if (active) AccentSoft else BgDeep.copy(alpha = 0.82f))
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 7.dp)
+    ) {
+        Text(
+            text = label,
+            color = if (enabled) TextPrimary else Color.White.copy(alpha = 0.35f),
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold
+        )
     }
 }

@@ -2099,11 +2099,17 @@
     <string name="fitness_kamera_dialog_text">Dieser Tab zählt deine Push-ups per Kamera. Die Bilder werden ausschließlich auf dem Gerät verarbeitet und weder gespeichert noch hochgeladen.</string> <!-- app/src/main/java/com/tabslify/tabs/fitnesstab/FitnessTab.kt -->
     <string name="fitness_kamera_verweigert">Ohne Kamerazugriff kann der Push-up-Zähler nicht arbeiten.</string> <!-- app/src/main/java/com/tabslify/tabs/fitnesstab/FitnessTab.kt -->
     <string name="fitness_tipp_titel">TIPP</string> <!-- app/src/main/java/com/tabslify/tabs/fitnesstab/PushUpControls.kt -->
-    <string name="fitness_tipp_text">Am genauesten wird es, wenn das Handy seitlich etwa zwei Meter entfernt steht. Frontal geht auch – wichtig ist nur, dass Schultern, Hüfte und Hände im Bild bleiben.</string> <!-- app/src/main/java/com/tabslify/tabs/fitnesstab/PushUpControls.kt -->
+    <string name="fitness_tipp_text">Am zuverlässigsten zählt es, wenn das Handy seitlich oder schräg etwa zwei bis drei Meter entfernt steht. Direkt frontal kann die Tiefenbewegung nicht immer sicher erkannt werden; dann zeigt dir die App einen Kamerahinweis.</string> <!-- app/src/main/java/com/tabslify/tabs/fitnesstab/PushUpControls.kt -->
     <string name="fitness_verstanden">Verstanden</string> <!-- app/src/main/java/com/tabslify/tabs/fitnesstab/PushUpControls.kt -->
     <string name="fitness_rep_minus">Wiederholung abziehen</string>
     <string name="fitness_position_suche">Such die Stützposition – Arme strecken, Hände unter die Schultern.</string> <!-- app/src/main/java/com/tabslify/tabs/fitnesstab/PushUpControls.kt -->
     <string name="fitness_keine_haltung">Keine Liegestützhaltung erkannt – Körper waagerecht, Hände auf dem Boden.</string> <!-- app/src/main/java/com/tabslify/tabs/fitnesstab/PushUpControls.kt -->
+    <string name="fitness_haende_nicht_abgestuetzt">Hände ruhig auf dem Boden abstützen.</string> <!-- app/src/main/java/com/tabslify/tabs/fitnesstab/PushUpControls.kt -->
+    <string name="fitness_stuetzpunkte_fehlen">Hände sowie Knie oder Füße müssen für die Stützebene im Bild sein.</string> <!-- app/src/main/java/com/tabslify/tabs/fitnesstab/PushUpControls.kt -->
+    <string name="fitness_kamera_winkel">Aus diesem Winkel nicht zuverlässig messbar – Handy seitlicher aufstellen.</string> <!-- app/src/main/java/com/tabslify/tabs/fitnesstab/PushUpControls.kt -->
+    <string name="fitness_signal_schwach">Körper wird nicht stabil erkannt – näher herangehen oder besser ausleuchten.</string> <!-- app/src/main/java/com/tabslify/tabs/fitnesstab/PushUpControls.kt -->
+    <string name="fitness_tracking_unruhig">Erkennung kurz instabil – Position halten.</string> <!-- app/src/main/java/com/tabslify/tabs/fitnesstab/PushUpControls.kt -->
+    <string name="fitness_kamera_bewegt">Kamera bewegt – Position wird neu erkannt.</string> <!-- app/src/main/java/com/tabslify/tabs/fitnesstab/PushUpControls.kt -->
     <string name="fitness_strecken">Arme ganz strecken, dann geht\'s los.</string> <!-- app/src/main/java/com/tabslify/tabs/fitnesstab/FitnessViewModel.kt -->
     <string name="fitness_result_title">Push-ups korrigieren</string>
     <string tools:ignore="PluralsCandidate" name="fitness_result_detected">%1$d erkannt · %2$s</string>
@@ -2116,7 +2122,7 @@
     <string name="fitness_result_increase">Mehr Wiederholungen</string>
     <string name="fitness_result_apply">Übernehmen</string>
     <string name="fitness_result_cancel">Abbrechen</string>
-    <string name="so_bedienst_du_den_pushup">So bedienst du den Push-up-Zähler:\n\n1. Stell das Handy seitlich auf, sodass du komplett im Bild bist (Schultern, Hüfte, Knie und Füße).\n2. Tippe auf „Start“, nimm die Stützposition ein und halte sie 3 Sekunden für die Kalibrierung.\n3. Der Zähler erkennt jede Wiederholung erst nach einem echten Absenken und einer Mindestamplitude von 30°.\n4. Über die Kamera-Taste wechselst du zwischen Front- und Rückkamera, über das Figuren-Symbol blendest du das Skelett aus.\n5. „Stopp“ beendet den Satz; im Ergebnisdialog kannst du falsch erkannte Wiederholungen löschen oder den Wert manuell setzen.</string> <!-- app/src/main/java/com/tabslify/core/objects/Config.kt -->
+    <string name="so_bedienst_du_den_pushup">So bedienst du den Push-up-Zähler:\n\n1. Stell das Handy seitlich oder schräg auf, sodass Schultern, Hände, Hüfte und Füße im Bild sind.\n2. Tippe auf „Start“ und nimm die Stützposition ein. Die Erkennung startet automatisch, sobald Arme und Hände stabil erkannt werden.\n3. Eine Wiederholung zählt erst nach einem echten Absenken mit ausreichender Tiefe und einer kontrollierten Rückkehr nach oben; zu flache Bewegungen werden nicht gezählt.\n4. Über die Kamera-Taste wechselst du zwischen Front- und Rückkamera, über das Figuren-Symbol blendest du das Skelett aus.\n5. „Stopp“ beendet den Satz; im Ergebnisdialog kannst du falsch erkannte Wiederholungen löschen oder den Wert manuell setzen.</string> <!-- app/src/main/java/com/tabslify/core/objects/Config.kt -->
 
     <string name="fitness_nav_dashboard">Heute</string>
     <string name="fitness_nav_exercises">Übungen</string>
@@ -3707,6 +3713,7 @@
     <string name="wortschatz_fortschritt">Seite %1$d von %2$d</string>
     <string name="wortschatz_abbrechen">Abbrechen</string>
     <string name="wortschatz_import_leer">Es wurden keine Einträge erkannt.</string>
+    <string name="wortschatz_grundwortschatz_info">Es gibt nur einen Grundwortschatz – neue Seiten werden zu ihm hinzugefügt.</string>
     <string name="wortschatz_grundwortschatz">Grundwortschatz</string>
     <string name="wortschatz_lernwortschatz">Lernwortschatz</string>
     <string name="wortschatz_fertig">Wörterbuch gespeichert</string>

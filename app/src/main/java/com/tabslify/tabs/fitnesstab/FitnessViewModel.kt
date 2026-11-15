@@ -14,6 +14,7 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.core.content.edit
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.tabslify.BuildConfig
 import com.tabslify.R
 import com.tabslify.tabs.fitnesstab.data.BIKE_MODE_AUTO
 import com.tabslify.tabs.fitnesstab.data.BikeModeOverrides
@@ -46,7 +47,20 @@ private const val PREFS_NAME = "fitness_pushups"
 private const val KEY_BEST = "best_reps"
 private const val KEY_SEEN_HINT = "seen_pushup_hint"
 
-enum class TrackingIssue { NONE, NO_BODY, ARMS_HIDDEN, NOT_IN_POSITION, CALIBRATING }
+enum class TrackingIssue {
+    NONE,
+    NO_BODY,
+    ARMS_HIDDEN,
+    NOT_IN_POSITION,
+    SUPPORT_HIDDEN,
+    CALIBRATING,
+    HANDS_NOT_PLANTED,
+    EXTEND_ARMS,
+    CAMERA_ANGLE,
+    LOW_SIGNAL_QUALITY,
+    TRACKING_UNSTABLE,
+    CAMERA_MOVED
+}
 
 enum class FitnessScreen { DASHBOARD, EXERCISES, WORKOUT, BIKE, HISTORY }
 
@@ -67,6 +81,11 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
     private val prefs = application.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     private val counter = PushUpCounter()
     private val extractor = PushUpSignalExtractor()
+    private val counterV3 = PushUpCounterV3()
+    private val extractorV3 = PushUpSignalExtractorV3()
+    private var gravitySource: PushUpGravitySource? = null
+    private var captureRecorder: PushUpCaptureRecorder? = null
+    private val gravityBumpDetector = GravityBumpDetector()
     private var timerJob: Job? = null
     private var sessionStartedAtMs = 0L
     private var sessionStartedAtElapsedMs = 0L
@@ -121,6 +140,27 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
     var showSkeleton by mutableStateOf(true)
 
     var useFrontCamera by mutableStateOf(true)
+
+    var useV3 by mutableStateOf(BuildConfig.IS_DEV)
+        private set
+
+    var debugSignalLine by mutableStateOf("")
+        private set
+
+    var captureActive by mutableStateOf(false)
+        private set
+
+    var captureId by mutableStateOf<String?>(null)
+        private set
+
+    var captureError by mutableStateOf<String?>(null)
+        private set
+
+    var capturePresetIndex by mutableIntStateOf(0)
+        private set
+
+    val capturePreset: PushUpCapturePreset
+        get() = PUSH_UP_CAPTURE_PRESETS[capturePresetIndex.coerceIn(0, PUSH_UP_CAPTURE_PRESETS.lastIndex)]
 
     var showHint by mutableStateOf(!prefs.getBoolean(KEY_SEEN_HINT, false))
         private set
@@ -515,6 +555,11 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             timerJob = null
             workoutTimerJob?.cancel()
             workoutTimerJob = null
+            if (captureActive) {
+                captureRecorder?.event("screen_exit", "reps=$reps")
+                captureRecorder?.stop()
+                captureActive = false
+            }
         } else if (screen == FitnessScreen.WORKOUT) {
             if (isRunning && timerJob == null) {
                 timerJob = viewModelScope.launch {
@@ -728,6 +773,10 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
     fun startSession() {
         counter.reset()
         extractor.reset()
+        counterV3.reset()
+        extractorV3.reset()
+        gravityBumpDetector.reset()
+        debugSignalLine = ""
         lostFrames = 0
         lastRepAtMs = 0L
         reps = 0
@@ -740,6 +789,9 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         sessionStartedAtMs = System.currentTimeMillis()
         sessionStartedAtElapsedMs = SystemClock.elapsedRealtime()
         isRunning = true
+        if (captureActive) {
+            captureRecorder?.event("session_start", "engine=${if (useV3) "v3" else "v2"}")
+        }
         timerJob?.cancel()
         timerJob = viewModelScope.launch {
             while (isRunning) {
@@ -758,6 +810,7 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         formHintRes = null
         pushUpBestBeforeSession = personalBest
         isNewRecord = false
+        if (captureActive) captureRecorder?.event("session_end", "reps=$reps")
         if (wasRunning) {
             val session = saveSessionFromPushUps()
             if (session != null) openPushUpEditor(session, fromHistory = false)
@@ -781,15 +834,98 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         formHintRes = null
         pushUpEditor = null
         editingPushUpSession = null
+        counterV3.reset()
+        extractorV3.reset()
+        gravityBumpDetector.reset()
+        debugSignalLine = ""
     }
 
     fun switchCamera() {
         useFrontCamera = !useFrontCamera
+        counter.reset()
+        extractor.reset()
+        counterV3.reset()
+        extractorV3.reset()
+        gravityBumpDetector.reset()
+    }
+
+    fun toggleV3() {
+        if (isRunning) return
+        useV3 = !useV3
+        resetDetectors(preserveCount = false)
+    }
+
+    fun toggleCapture() {
+        if (!BuildConfig.IS_DEV) return
+        if (captureActive) {
+            captureRecorder?.event("session_stop", "reps=$reps")
+            captureRecorder?.stop()
+            captureActive = false
+            captureError = null
+        } else {
+            val source = gravitySource ?: PushUpGravitySource(getApplication()).also {
+                gravitySource = it
+            }
+            val recorder = captureRecorder ?: PushUpCaptureRecorder(getApplication(), source).also {
+                captureRecorder = it
+            }
+            val started = recorder.start(capturePreset.label)
+            captureId = started
+            captureActive = started != null
+            captureError = if (started == null) "Aufnahme konnte nicht gestartet werden" else null
+        }
+    }
+
+    fun cycleCapturePreset() {
+        if (!BuildConfig.IS_DEV || captureActive) return
+        capturePresetIndex = (capturePresetIndex + 1) % PUSH_UP_CAPTURE_PRESETS.size
+    }
+
+    private fun resetDetectors(preserveCount: Boolean) {
+        if (!preserveCount) {
+            counter.reset()
+            counterV3.reset()
+        } else {
+            counterV3.onPoseLost()
+        }
+        extractor.reset()
+        extractorV3.reset()
+        gravityBumpDetector.reset()
+        debugSignalLine = ""
+        lostFrames = 0
     }
 
     fun onPoseFrame(newFrame: PoseFrame) {
         frame = newFrame
-        val now = SystemClock.elapsedRealtime()
+        if (captureActive) {
+            val recorder = captureRecorder
+            recorder?.record(newFrame)
+            if (recorder == null || !recorder.isRecording()) {
+                captureActive = false
+                captureError = "Aufnahme abgebrochen"
+            }
+        }
+        if (useV3) {
+            if (consumeGravityBump()) {
+                counterV3.onPoseLost()
+                extractorV3.reset()
+            }
+            onPoseFrameV3(newFrame)
+        } else {
+            onPoseFrameLegacy(newFrame)
+        }
+    }
+
+    private fun consumeGravityBump(): Boolean {
+        val source = gravitySource ?: PushUpGravitySource(getApplication()).also {
+            gravitySource = it
+        }
+        val sample = source.latest ?: return false
+        return gravityBumpDetector.update(sample.x, sample.y, sample.z)
+    }
+
+    private fun onPoseFrameLegacy(newFrame: PoseFrame) {
+        val now = newFrame.timestampMs
         val (imageLandmarks, worldLandmarks) = newFrame.toLandmark3Lists()
         val signals = extractor.analyze(
             image = imageLandmarks,
@@ -844,6 +980,9 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
             reps++
             detectedRepTimes.add(now - sessionStartedAtElapsedMs)
             lastRepAtMs = now
+            if (captureActive) {
+                captureRecorder?.event("rep", "index=${rep.index} angle=${rep.depthAngle}")
+            }
         }
 
         trackingIssue = when {
@@ -857,6 +996,111 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         formHintRes = resolveHint(signals)
     }
 
+    private fun onPoseFrameV3(newFrame: PoseFrame) {
+        val now = newFrame.timestampMs
+        val (imageLandmarks, worldLandmarks) = newFrame.toLandmark3Lists()
+        val signals = extractorV3.analyze(
+            image = imageLandmarks,
+            world = worldLandmarks,
+            imageWidth = newFrame.imageWidth,
+            imageHeight = newFrame.imageHeight,
+            timestampMs = now
+        )
+        poseDetected = signals.hasBody
+        debugSignalLine = buildDebugLine(signals)
+
+        if (!signals.hasBody) {
+            lostFrames++
+            if (lostFrames >= LOST_FRAME_GRACE) {
+                counterV3.onPoseLost()
+                phase = PushUpPhase.UNKNOWN
+                trackingIssue = TrackingIssue.NO_BODY
+            }
+            return
+        }
+        lostFrames = 0
+
+        if (!isRunning) {
+            if (signals.armAngle.isFinite()) elbowAngle = signals.armAngle.roundToInt()
+            trackingIssue = mapIssue(signals.issue, counterV3.calibrated)
+            return
+        }
+
+        val sample = PushUpSampleV3(
+            timestampMs = now,
+            armAngle = signals.armAngle,
+            angleQuality = signals.armAngleQuality,
+            angleSource = signals.armAngleSource,
+            heightRatio = signals.heightRatio,
+            heightQuality = signals.heightQuality,
+            torsoInclination = signals.torsoInclination,
+            torsoQuality = signals.torsoQuality,
+            supportValid = signals.supportValid,
+            supportConfidence = signals.supportConfidence,
+            wristStable = signals.wristStable,
+            viewUsable = signals.viewUsable,
+            postureSupported = signals.postureSupported,
+            sceneChanged = signals.sceneChanged,
+            sideChanged = signals.sideChanged,
+            issue = signals.issue
+        )
+        val rep = counterV3.submit(sample)
+        phase = counterV3.phase
+        if (counterV3.smoothedAngle.isFinite()) elbowAngle = counterV3.smoothedAngle.roundToInt()
+
+        if (rep != null) {
+            reps++
+            detectedRepTimes.add(now - sessionStartedAtElapsedMs)
+            lastRepAtMs = now
+            if (captureActive) {
+                captureRecorder?.event("rep_v3", "index=${rep.index} angle=${rep.depthAngle} state=${counterV3.stateName}")
+            }
+        }
+
+        val effectiveIssue = when {
+            counterV3.issue != PushUpBlockReason.NONE -> counterV3.issue
+            signals.issue != PushUpBlockReason.NONE -> signals.issue
+            else -> PushUpBlockReason.NONE
+        }
+        trackingIssue = mapIssue(effectiveIssue, counterV3.calibrated)
+        formHintRes = resolveHintV3(signals)
+    }
+
+    private fun buildDebugLine(signals: PushUpFrameSignalsV3): String {
+        val angle = if (signals.armAngle.isFinite()) signals.armAngle.roundToInt().toString() else "-"
+        val torso = if (signals.torsoInclination.isFinite()) {
+            signals.torsoInclination.roundToInt().toString()
+        } else {
+            "-"
+        }
+        val height = if (signals.heightRatio.isFinite()) {
+            "${(signals.heightRatio * 100f).roundToInt()}%"
+        } else {
+            "-"
+        }
+        val quality = (signals.armAngleQuality * 100f).roundToInt()
+        val hip = if (signals.hipSupportRatio.isFinite()) {
+            "${(signals.hipSupportRatio * 100f).roundToInt()}%"
+        } else {
+            "-"
+        }
+        return "a=$angle i=$torso h=$height hip=$hip q=$quality ${signals.viewClass.name} ${counterV3.stateName}"
+    }
+
+    private fun mapIssue(issue: PushUpBlockReason, calibrated: Boolean): TrackingIssue = when (issue) {
+        PushUpBlockReason.NONE -> if (calibrated) TrackingIssue.NONE else TrackingIssue.CALIBRATING
+        PushUpBlockReason.NO_BODY -> TrackingIssue.NO_BODY
+        PushUpBlockReason.ARMS_HIDDEN -> TrackingIssue.ARMS_HIDDEN
+        PushUpBlockReason.NOT_IN_POSITION -> TrackingIssue.NOT_IN_POSITION
+        PushUpBlockReason.SUPPORT_HIDDEN -> TrackingIssue.SUPPORT_HIDDEN
+        PushUpBlockReason.HANDS_NOT_PLANTED -> TrackingIssue.HANDS_NOT_PLANTED
+        PushUpBlockReason.EXTEND_ARMS -> TrackingIssue.EXTEND_ARMS
+        PushUpBlockReason.CAMERA_ANGLE -> TrackingIssue.CAMERA_ANGLE
+        PushUpBlockReason.LOW_SIGNAL_QUALITY -> TrackingIssue.LOW_SIGNAL_QUALITY
+        PushUpBlockReason.TRACKING_UNSTABLE -> TrackingIssue.TRACKING_UNSTABLE
+        PushUpBlockReason.CAMERA_MOVED -> TrackingIssue.CAMERA_MOVED
+    }
+
     private fun resolveHint(signals: PushUpSignals): Int? {
         if (!signals.hipAngle.isNaN() && signals.hipAngle < 152f) {
             return R.string.fitness_form_huefte
@@ -866,10 +1110,24 @@ class FitnessViewModel(application: Application) : AndroidViewModel(application)
         return null
     }
 
+    private fun resolveHintV3(signals: PushUpFrameSignalsV3): Int? {
+        if (signals.hipAngle.isFinite() && signals.hipAngle < 152f) {
+            return R.string.fitness_form_huefte
+        }
+        if (counterV3.needsTopHint) return R.string.fitness_strecken
+        if (counterV3.feedback == PushUpFeedback.TOO_SHALLOW) return R.string.fitness_form_tiefer
+        return null
+    }
+
     override fun onCleared() {
         timerJob?.cancel()
         workoutTimerJob?.cancel()
         restTimerJob?.cancel()
+        if (captureActive) {
+            captureRecorder?.stop()
+            captureActive = false
+        }
+        gravitySource?.close()
     }
 
     companion object {

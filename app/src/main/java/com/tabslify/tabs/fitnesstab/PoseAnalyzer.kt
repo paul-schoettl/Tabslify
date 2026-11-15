@@ -20,7 +20,17 @@ data class PoseFrame(
     val landmarks: List<NormalizedLandmark>,
     val worldLandmarks: List<Landmark>,
     val imageWidth: Int,
-    val imageHeight: Int
+    val imageHeight: Int,
+    val timestampMs: Long,
+    val frontCamera: Boolean,
+    val rotationDegrees: Int
+)
+
+private data class InFlightPoseFrame(
+    val bitmap: Bitmap,
+    val timestampMs: Long,
+    val frontCamera: Boolean,
+    val rotationDegrees: Int
 )
 
 fun PoseFrame.toLandmark3Lists(): Pair<List<Landmark3>, List<Landmark3>> {
@@ -58,7 +68,7 @@ class PoseAnalyzer(
     private var lastTimestampMs = 0L
     private var closed = false
 
-    private val inFlightBitmaps = java.util.ArrayDeque<Bitmap>()
+    private val inFlightFrames = java.util.ArrayDeque<InFlightPoseFrame>()
 
     init {
         landmarker = createLandmarker(context, Delegate.GPU)
@@ -87,22 +97,26 @@ class PoseAnalyzer(
     }.getOrNull()
 
     private fun publish(result: PoseLandmarkerResult, input: MPImage) {
-        val bmp = synchronized(inFlightBitmaps) { inFlightBitmaps.pollFirst() }
+        val inFlight = synchronized(inFlightFrames) { inFlightFrames.pollFirst() }
         if (closed) {
             runCatching { input.close() }
-            bmp?.let { if (!it.isRecycled) it.recycle() }
+            inFlight?.bitmap?.let { if (!it.isRecycled) it.recycle() }
             return
         }
+        val timestamp = inFlight?.timestampMs ?: SystemClock.elapsedRealtime()
         onFrame(
             PoseFrame(
                 landmarks = result.landmarks().firstOrNull().orEmpty(),
                 worldLandmarks = result.worldLandmarks().firstOrNull().orEmpty(),
                 imageWidth = input.width,
-                imageHeight = input.height
+                imageHeight = input.height,
+                timestampMs = timestamp,
+                frontCamera = inFlight?.frontCamera ?: isFrontCamera,
+                rotationDegrees = inFlight?.rotationDegrees ?: 0
             )
         )
         runCatching { input.close() }
-        bmp?.let { if (!it.isRecycled) it.recycle() }
+        inFlight?.bitmap?.let { if (!it.isRecycled) it.recycle() }
     }
 
     override fun analyze(imageProxy: ImageProxy) {
@@ -114,10 +128,11 @@ class PoseAnalyzer(
 
         var bitmap: Bitmap? = null
         var raw: Bitmap? = null
+        val rotationDegrees = imageProxy.imageInfo.rotationDegrees
         try {
             raw = imageProxy.toBitmap()
             val matrix = Matrix().apply {
-                postRotate(imageProxy.imageInfo.rotationDegrees.toFloat())
+                postRotate(rotationDegrees.toFloat())
                 if (isFrontCamera) postScale(-1f, 1f, raw.width / 2f, raw.height / 2f)
             }
             bitmap = Bitmap.createBitmap(raw, 0, 0, raw.width, raw.height, matrix, true)
@@ -130,13 +145,25 @@ class PoseAnalyzer(
 
         val rotated = bitmap ?: return
 
-        val timestamp = SystemClock.uptimeMillis().coerceAtLeast(lastTimestampMs + 1)
+        val timestamp = SystemClock.elapsedRealtime().coerceAtLeast(lastTimestampMs + 1)
         lastTimestampMs = timestamp
+        val capturedFrontCamera = isFrontCamera
 
-        synchronized(inFlightBitmaps) { inFlightBitmaps.addLast(rotated) }
+        synchronized(inFlightFrames) {
+            inFlightFrames.addLast(
+                InFlightPoseFrame(
+                    bitmap = rotated,
+                    timestampMs = timestamp,
+                    frontCamera = capturedFrontCamera,
+                    rotationDegrees = rotationDegrees
+                )
+            )
+        }
         runCatching { detector.detectAsync(BitmapImageBuilder(rotated).build(), timestamp) }
             .onFailure {
-                val failed = synchronized(inFlightBitmaps) { inFlightBitmaps.remove(rotated) }
+                val failed = synchronized(inFlightFrames) {
+                    inFlightFrames.removeAll { it.bitmap === rotated }
+                }
                 if (failed) rotated.recycle()
                 onFailure(it)
             }
@@ -146,9 +173,9 @@ class PoseAnalyzer(
         closed = true
         runCatching { landmarker?.close() }
         landmarker = null
-        synchronized(inFlightBitmaps) {
-            while (inFlightBitmaps.isNotEmpty()) {
-                inFlightBitmaps.pollFirst()?.let { if (!it.isRecycled) it.recycle() }
+        synchronized(inFlightFrames) {
+            while (inFlightFrames.isNotEmpty()) {
+                inFlightFrames.pollFirst()?.bitmap?.let { if (!it.isRecycled) it.recycle() }
             }
         }
     }

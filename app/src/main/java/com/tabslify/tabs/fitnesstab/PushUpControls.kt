@@ -50,6 +50,27 @@ fun StatusLine(vm: FitnessViewModel) {
         vm.errorMessage != null -> vm.errorMessage
         vm.trackingIssue == TrackingIssue.NO_BODY -> stringResource(R.string.fitness_kein_korper)
         vm.trackingIssue == TrackingIssue.ARMS_HIDDEN -> stringResource(R.string.fitness_arme_verdeckt)
+        vm.isRunning && vm.trackingIssue == TrackingIssue.CAMERA_ANGLE ->
+            stringResource(R.string.fitness_kamera_winkel)
+
+        vm.isRunning && vm.trackingIssue == TrackingIssue.LOW_SIGNAL_QUALITY ->
+            stringResource(R.string.fitness_signal_schwach)
+
+        vm.isRunning && vm.trackingIssue == TrackingIssue.TRACKING_UNSTABLE ->
+            stringResource(R.string.fitness_tracking_unruhig)
+
+        vm.isRunning && vm.trackingIssue == TrackingIssue.CAMERA_MOVED ->
+            stringResource(R.string.fitness_kamera_bewegt)
+
+        vm.isRunning && vm.trackingIssue == TrackingIssue.SUPPORT_HIDDEN ->
+            stringResource(R.string.fitness_stuetzpunkte_fehlen)
+
+        vm.isRunning && vm.trackingIssue == TrackingIssue.HANDS_NOT_PLANTED ->
+            stringResource(R.string.fitness_haende_nicht_abgestuetzt)
+
+        vm.isRunning && vm.trackingIssue == TrackingIssue.EXTEND_ARMS ->
+            stringResource(R.string.fitness_strecken)
+
         vm.isRunning && vm.trackingIssue == TrackingIssue.NOT_IN_POSITION ->
             stringResource(R.string.fitness_keine_haltung)
 
