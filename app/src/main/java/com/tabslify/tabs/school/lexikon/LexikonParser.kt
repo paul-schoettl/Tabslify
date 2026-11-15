@@ -30,6 +30,9 @@ fun parseLexikonSeite(roh: String, seite: Int, fallbackQuelle: String?): Lexikon
             val arr = o.optJSONArray("eintraege")
                 ?: o.optJSONArray("entries")
                 ?: o.optJSONArray("vokabeln")
+                ?: o.optJSONArray("data")
+                ?: o.optJSONArray("items")
+                ?: o.optJSONArray("liste")
             if (arr != null) {
                 val quelle = quelleAus(
                     o.optText("quelle") ?: o.optText("lernwortschatz") ?: o.optText("lektion"),
@@ -39,10 +42,20 @@ fun parseLexikonSeite(roh: String, seite: Int, fallbackQuelle: String?): Lexikon
             }
         }
         val arr = bereich(bereinigt, '[', ']')?.let(::JSONArray)
-            ?: return LexikonSeitenErgebnis(emptyList(), fallbackQuelle, roh, "kein JSON-Array gefunden")
+            ?: return LexikonSeitenErgebnis(
+                emptyList(),
+                fallbackQuelle,
+                roh,
+                "kein JSON gefunden: ${vorschau(bereinigt)}"
+            )
         LexikonSeitenErgebnis(leseEintraege(arr, fallbackQuelle, seite), fallbackQuelle, roh, null)
     } catch (e: Exception) {
-        LexikonSeitenErgebnis(emptyList(), fallbackQuelle, roh, e.message ?: "Parse-Fehler")
+        LexikonSeitenErgebnis(
+            emptyList(),
+            fallbackQuelle,
+            roh,
+            "Parse-Fehler (${e.message ?: "unbekannt"}): ${vorschau(bereinigt)}"
+        )
     }
 }
 
@@ -72,6 +85,9 @@ fun verschmelzeLexikon(eintraege: List<LexikonEintrag>): List<LexikonEintrag> {
     return gruppen.values.mapIndexed { index, eintrag -> eintrag.copy(id = index) }
 }
 
+private fun vorschau(text: String): String =
+    text.replace(Regex("\\s+"), " ").trim().take(120)
+
 private fun bereich(text: String, start: Char, ende: Char): String? {
     val von = text.indexOf(start)
     val bis = text.lastIndexOf(ende)
@@ -81,20 +97,48 @@ private fun bereich(text: String, start: Char, ende: Char): String? {
 private fun leseEintraege(arr: JSONArray, quelle: String?, seite: Int): List<LexikonEintrag> =
     (0 until arr.length()).mapNotNull { index ->
         val o = arr.optJSONObject(index) ?: return@mapNotNull null
-        val stichwort = erstesText(o, "stichwort", "latein", "lemma", "wort")
-            ?: return@mapNotNull null
+        val stichwort = erstesText(
+            o,
+            "stichwort",
+            "latein",
+            "lateinisch",
+            "lemma",
+            "wort",
+            "headword",
+            "vokabel"
+        ) ?: return@mapNotNull null
         LexikonEintrag(
             id = index,
             stichwort = stichwort,
-            bedeutungen = erstesListe(o, "bedeutungen", "bedeutung", "deutsch", "uebersetzung"),
-            wortart = erstesText(o, "wortart", "pos"),
-            formen = erstesListe(o, "formen", "stammformen", "genitiv", "genus"),
+            bedeutungen = erstesListe(
+                o,
+                "bedeutungen",
+                "bedeutung",
+                "deutsch",
+                "uebersetzung",
+                "übersetzung",
+                "meanings",
+                "meaning",
+                "translation"
+            ),
+            wortart = erstesText(o, "wortart", "pos", "partofspeech", "part_of_speech"),
+            formen = erstesListe(
+                o,
+                "formen",
+                "stammformen",
+                "genitiv",
+                "genus",
+                "forms",
+                "principal_parts"
+            ),
             verwandtschaften = erstesListe(
                 o,
                 "verwandtschaften",
                 "wortverwandtschaften",
                 "verwandt",
-                "herkunft"
+                "herkunft",
+                "related",
+                "related_words"
             ),
             kapitel = erstesText(o, "kapitel", "chapter", "kap"),
             quelle = quelleAus(erstesText(o, "quelle", "lernwortschatz", "lektion"), quelle),

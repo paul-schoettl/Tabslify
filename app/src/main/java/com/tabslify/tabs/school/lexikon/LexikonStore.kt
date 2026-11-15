@@ -1,6 +1,7 @@
 package com.tabslify.tabs.school.lexikon
 
 import android.content.Context
+import com.tabslify.R
 import org.json.JSONArray
 import java.io.File
 
@@ -75,6 +76,20 @@ object LexikonStore {
         )
         speichere(context, neu)
         return neu
+    }
+
+    fun fuehreGrundwortschaetzeZusammen(context: Context): List<WortschatzMeta> {
+        val register = ladeAlle(context).filter { it.typ == WortschatzTyp.REGISTER }
+        if (register.size < 2) return ladeIndex(context)
+        val ziel = register.minBy { it.angelegt }
+        val vereint = ziel.copy(
+            name = context.getString(R.string.wortschatz_grundwortschatz),
+            eintraege = verschmelzeLexikon(register.flatMap { it.eintraege }),
+            auffaelligkeiten = register.flatMap { it.auffaelligkeiten }.distinct()
+        )
+        speichere(context, vereint)
+        register.filter { it.id != vereint.id }.forEach { dateiFuer(context, it.id).delete() }
+        return synchronisiereIndex(context)
     }
 
     fun benenne(context: Context, wortschatzId: String, name: String): Wortschatz? {

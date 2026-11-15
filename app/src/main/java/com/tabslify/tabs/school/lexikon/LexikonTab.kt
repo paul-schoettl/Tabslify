@@ -68,9 +68,11 @@ import com.tabslify.core.ui.TextPrimary
 import com.tabslify.core.ui.TextSecondary
 import com.tabslify.core.ui.TextTertiary
 import com.tabslify.tabs.school.SchoolHeader
-import com.tabslify.tabs.school.uriToBitmap
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -95,7 +97,10 @@ fun LexikonScreen(
     var loeschen by remember { mutableStateOf<Wortschatz?>(null) }
 
     LaunchedEffect(neuLaden) {
-        wortschaetze = withContext(Dispatchers.IO) { LexikonStore.ladeAlle(context) }
+        wortschaetze = withContext(Dispatchers.IO) {
+            LexikonStore.fuehreGrundwortschaetzeZusammen(context)
+            LexikonStore.ladeAlle(context)
+        }
         geladen = true
     }
 
@@ -522,6 +527,13 @@ private fun listeAus(text: String): List<String> = text
     .map { it.trim() }
     .filter { it.isNotEmpty() }
 
+private data class SeitenLauf(
+    val index: Int,
+    val eintraege: List<LexikonEintrag>,
+    val quelle: String?,
+    val hinweis: String?
+)
+
 @Composable
 fun LexikonImportScreen(
     paddingValues: PaddingValues,
@@ -539,6 +551,7 @@ fun LexikonImportScreen(
     var fertig by remember { mutableStateOf<Wortschatz?>(null) }
     var job by remember { mutableStateOf<Job?>(null) }
     var importId by remember { mutableStateOf<String?>(null) }
+    var auffaellig by remember { mutableStateOf<List<String>>(emptyList()) }
     var kameraDatei by remember { mutableStateOf<File?>(null) }
 
     val auswahlLauncher = rememberLauncherForActivityResult(
@@ -567,6 +580,7 @@ fun LexikonImportScreen(
         if (seiten.isEmpty() || laeuft) return
         fehler = null
         fertig = null
+        auffaellig = emptyList()
         aktuell = 0
         laeuft = true
         job = scope.launch {
@@ -574,64 +588,124 @@ fun LexikonImportScreen(
             val gesammelt = mutableListOf<LexikonEintrag>()
             val auffaelligkeiten = mutableListOf<String>()
             var quelle: String? = if (typ == WortschatzTyp.REGISTER) QUELLE_REGISTER else null
-            try {
-                seiten.forEachIndexed { index, uri ->
-                    var roh = withContext(Dispatchers.IO) {
-                        LexikonStore.ladeRoheSeite(context, laufId, index + 1)
+            suspend fun seiteLesen(index: Int, kontext: String?, vorab: ByteArray?): SeitenLauf {
+                val nummer = index + 1
+                var roh = withContext(Dispatchers.IO) {
+                    LexikonStore.ladeRoheSeite(context, laufId, nummer)
+                }
+                var hinweis: String? = null
+                if (roh == null) {
+                    val jpeg = vorab ?: withContext(Dispatchers.IO) {
+                        seiteAlsJpeg(context, seiten[index])
                     }
-                    if (roh == null) {
-                        val bmp = withContext(Dispatchers.IO) { uriToBitmap(context, uri) }
-                        if (bmp == null) {
-                            auffaelligkeiten += "Seite ${index + 1}: Bild nicht lesbar"
-                        } else {
-                            val text = try {
-                                ocrLexikonSeite(context, bmp, index + 1, quelle) { }
-                            } catch (e: Exception) {
-                                auffaelligkeiten += "Seite ${index + 1}: ${e.localizedMessage ?: "OCR-Fehler"}"
-                                ""
-                            } finally {
-                                bmp.recycle()
+                    if (jpeg == null) {
+                        roh = ""
+                        hinweis = "Seite $nummer: Bild nicht lesbar"
+                    } else {
+                        val text = try {
+                            ocrLexikonSeite(context, jpeg, nummer, kontext) { }
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            hinweis = "Seite $nummer: ${e.localizedMessage ?: "OCR-Fehler"}"
+                            ""
+                        }
+                        if (text.isNotBlank()) {
+                            withContext(Dispatchers.IO) {
+                                LexikonStore.speichereRoheSeite(context, laufId, nummer, text)
                             }
-                            if (text.isNotBlank()) {
-                                withContext(Dispatchers.IO) {
-                                    LexikonStore.speichereRoheSeite(context, laufId, index + 1, text)
+                        }
+                        roh = text
+                    }
+                }
+                val inhalt = roh
+                val ergebnis = if (inhalt.isNullOrBlank()) {
+                    LexikonSeitenErgebnis(emptyList(), kontext, "", "leer")
+                } else {
+                    parseLexikonSeite(inhalt, nummer, kontext)
+                }
+                if (hinweis == null && ergebnis.leer) {
+                    hinweis = "Seite $nummer: keine Einträge (${ergebnis.fehler ?: "leer"})"
+                }
+                return SeitenLauf(index, ergebnis.eintraege, ergebnis.quelle, hinweis)
+            }
+
+            fun uebernimm(lauf: SeitenLauf) {
+                lauf.hinweis?.let { auffaelligkeiten += it }
+                gesammelt += lauf.eintraege
+                if (!lauf.quelle.isNullOrBlank()) quelle = lauf.quelle
+            }
+
+            try {
+                if (typ == WortschatzTyp.REGISTER) {
+                    val bilder = HashMap<Int, ByteArray>()
+                    seiten.forEachIndexed { index, uri ->
+                        val gecacht = withContext(Dispatchers.IO) {
+                            LexikonStore.ladeRoheSeite(context, laufId, index + 1)
+                        }
+                        if (gecacht == null) {
+                            val jpeg = withContext(Dispatchers.IO) { seiteAlsJpeg(context, uri) }
+                            if (jpeg != null) bilder[index] = jpeg
+                        }
+                    }
+                    var erledigt = 0
+                    seiten.indices
+                        .map { index ->
+                            async {
+                                seiteLesen(index, QUELLE_REGISTER, bilder[index]).also {
+                                    erledigt++
+                                    aktuell = erledigt
                                 }
                             }
-                            roh = text
                         }
+                        .awaitAll()
+                        .sortedBy { it.index }
+                        .forEach(::uebernimm)
+                } else {
+                    seiten.forEachIndexed { index, _ ->
+                        uebernimm(seiteLesen(index, quelle, null))
+                        aktuell = index + 1
                     }
-                    val inhalt = roh
-                    if (!inhalt.isNullOrBlank()) {
-                        val ergebnis = parseLexikonSeite(inhalt, index + 1, quelle)
-                        if (!ergebnis.quelle.isNullOrBlank()) quelle = ergebnis.quelle
-                        if (ergebnis.leer) {
-                            auffaelligkeiten += "Seite ${index + 1}: keine Einträge (${ergebnis.fehler ?: "leer"})"
-                        }
-                        gesammelt += ergebnis.eintraege
-                    }
-                    aktuell = index + 1
                 }
                 val eintraege = verschmelzeLexikon(gesammelt)
                 if (eintraege.isEmpty()) {
                     fehler = context.getString(R.string.wortschatz_import_leer)
                     return@launch
                 }
+                val bestand = if (typ == WortschatzTyp.REGISTER) {
+                    withContext(Dispatchers.IO) {
+                        LexikonStore.ladeAlle(context).filter { it.typ == WortschatzTyp.REGISTER }
+                    }
+                } else {
+                    emptyList()
+                }
+                val vorhanden = bestand.minByOrNull { it.angelegt }
                 val wortschatz = Wortschatz(
-                    id = LexikonStore.neuerWortschatzId(),
-                    name = name.trim().ifEmpty {
-                        if (typ == WortschatzTyp.REGISTER) context.getString(R.string.wortschatz_grundwortschatz)
-                        else context.getString(R.string.wortschatz_lernwortschatz)
+                    id = vorhanden?.id ?: LexikonStore.neuerWortschatzId(),
+                    name = if (typ == WortschatzTyp.REGISTER) {
+                        context.getString(R.string.wortschatz_grundwortschatz)
+                    } else {
+                        name.trim().ifEmpty { context.getString(R.string.wortschatz_lernwortschatz) }
                     },
                     typ = typ,
-                    eintraege = eintraege,
-                    auffaelligkeiten = auffaelligkeiten
+                    angelegt = vorhanden?.angelegt ?: System.currentTimeMillis(),
+                    eintraege = verschmelzeLexikon(
+                        bestand.flatMap { it.eintraege } + eintraege
+                    ),
+                    auffaelligkeiten = (bestand.flatMap { it.auffaelligkeiten } + auffaelligkeiten).distinct()
                 )
-                withContext(Dispatchers.IO) { LexikonStore.speichere(context, wortschatz) }
+                withContext(Dispatchers.IO) {
+                    LexikonStore.speichere(context, wortschatz)
+                    bestand.filter { it.id != wortschatz.id }.forEach { LexikonStore.loesche(context, it.id) }
+                }
                 importId = null
                 fertig = wortschatz
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 fehler = e.localizedMessage
             } finally {
+                auffaellig = auffaelligkeiten.toList()
                 laeuft = false
             }
         }
@@ -757,15 +831,25 @@ fun LexikonImportScreen(
                 }
             }
 
-            item {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    singleLine = true,
-                    enabled = !laeuft,
-                    label = { Text(stringResource(R.string.wortschatz_name)) },
-                    modifier = Modifier.fillMaxWidth()
-                )
+            if (typ == WortschatzTyp.LERNWORTSCHATZ) {
+                item {
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        singleLine = true,
+                        enabled = !laeuft,
+                        label = { Text(stringResource(R.string.wortschatz_name)) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            } else {
+                item {
+                    Text(
+                        stringResource(R.string.wortschatz_grundwortschatz_info),
+                        color = TextTertiary,
+                        fontSize = 13.sp
+                    )
+                }
             }
 
             item {
@@ -837,6 +921,29 @@ fun LexikonImportScreen(
                 }
             }
 
+            if (auffaellig.isNotEmpty() && !laeuft) {
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(BgCard)
+                            .padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            stringResource(R.string.wortschatz_auffaelligkeiten),
+                            color = TextSecondary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        auffaellig.forEach { hinweis ->
+                            Text(hinweis, color = TextTertiary, fontSize = 12.sp)
+                        }
+                    }
+                }
+            }
+
             fertig?.let { wortschatz ->
                 item {
                     Column(
@@ -858,17 +965,6 @@ fun LexikonImportScreen(
                             color = TextSecondary,
                             fontSize = 13.sp
                         )
-                        if (wortschatz.auffaelligkeiten.isNotEmpty()) {
-                            Text(
-                                stringResource(R.string.wortschatz_auffaelligkeiten),
-                                color = TextSecondary,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            wortschatz.auffaelligkeiten.forEach { hinweis ->
-                                Text(hinweis, color = TextTertiary, fontSize = 12.sp)
-                            }
-                        }
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(10.dp),

@@ -37,8 +37,10 @@ import android.provider.ContactsContract
 import android.provider.MediaStore
 import android.provider.Settings
 import android.telephony.TelephonyManager
+import com.tabslify.BuildConfig
 import com.tabslify.R
 import com.tabslify.core.logging.Log
+import io.github.jan.supabase.auth.auth
 import android.view.Gravity
 import android.view.WindowManager
 import android.widget.Toast
@@ -846,6 +848,171 @@ private fun todosToJsonArray(todos: List<TodoItem>): JSONArray = JSONArray().app
 }
 
 
+suspend fun callVisionRawJpeg(
+    context: Context,
+    jpeg: ByteArray,
+    prompt: String,
+    systemPrompt: String,
+    target: AiTarget,
+    onProgress: (String) -> Unit
+): String {
+    val sb = StringBuilder()
+    if (getPreferredAiProvider(context, "vision") == "nvidia") {
+        val base64Pic = android.util.Base64.encodeToString(jpeg, android.util.Base64.NO_WRAP)
+        val ans = sendAiRequest(
+            context = context,
+            history = emptyList(),
+            userMessage = prompt,
+            target = target,
+            model = "meta/llama-3.2-90b-vision-instruct",
+            pic = base64Pic,
+            provider = AiProvider.NVIDIA,
+            onToken = { chunk ->
+                sb.append(chunk)
+                Handler(Looper.getMainLooper()).post {
+                    onProgress(sb.toString())
+                }
+            }
+        )
+        if (sb.isEmpty()) sb.append(ans.orEmpty())
+    } else {
+        try {
+            val model = Firebase.ai(backend = GenerativeBackend.googleAI())
+                .generativeModel(Config.DEF_GEMINI)
+            val inhalt = content {
+                inlineData(jpeg, "image/jpeg")
+                text("$systemPrompt\n\n$prompt")
+            }
+            model.generateContentStream(inhalt).collect { chunk ->
+                val delta = chunk.text ?: ""
+                if (delta.isNotEmpty()) {
+                    sb.append(delta)
+                    withContext(Dispatchers.Main) { onProgress(sb.toString()) }
+                }
+            }
+            if (istKontingentMeldung(sb.toString())) {
+                throw IllegalStateException("Gemini-Kontingent erreicht: " + sb.toString().take(160))
+            }
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
+            logError("vision_gemini", e)
+            if (!BuildConfig.IS_DEV) throw e
+            sb.setLength(0)
+            val base64Pic = android.util.Base64.encodeToString(jpeg, android.util.Base64.NO_WRAP)
+            val klein = verkleinerteJpeg(jpeg, 1280, 80)
+            val base64Klein = android.util.Base64.encodeToString(klein, android.util.Base64.NO_WRAP)
+            val angemeldet = try {
+                Config.ensureAuthSession()
+            } catch (z: Exception) {
+                false
+            }
+            android.util.Log.i(
+                "LexikonFallback",
+                "isDev=${BuildConfig.IS_DEV} auth=$angemeldet bild=${klein.size}B"
+            )
+
+            val nvidiaAntwort = try {
+                sendAiRequest(
+                    context = context,
+                    userMessage = prompt,
+                    target = target,
+                    model = "meta/llama-3.2-90b-vision-instruct",
+                    pic = base64Pic,
+                    provider = AiProvider.NVIDIA,
+                    systemPrompt = systemPrompt,
+                    maxTokens = 2048,
+                    onToken = { }
+                )
+            } catch (z: Exception) {
+                if (z is kotlinx.coroutines.CancellationException) throw z
+                logError("vision_nvidia", z)
+                null
+            }
+
+            var ans: String? = null
+            if (!istBrauchbar(nvidiaAntwort) && angemeldet) {
+                repeat(2) { versuch ->
+                    if (!istBrauchbar(ans)) {
+                        if (versuch > 0) delay(1500)
+                        ans = try {
+                            sendCommandCodeMessage(
+                                context = context,
+                                userMessage = prompt,
+                                systemPrompt = systemPrompt,
+                                model = COMMANDCODE_DEFAULT_MODEL,
+                                pic = base64Klein,
+                                maxTokens = 0,
+                                reasoningEffort = "medium",
+                                directTimeoutMs = 180_000
+                            )
+                        } catch (z: Exception) {
+                            if (z is kotlinx.coroutines.CancellationException) throw z
+                            logError("vision_commandcode", z)
+                            null
+                        }
+                    }
+                }
+            }
+
+            val nutzbar = listOfNotNull(nvidiaAntwort, ans)
+                .firstOrNull { istBrauchbar(it) }
+            if (nutzbar != null) {
+                sb.setLength(0)
+                sb.append(nutzbar)
+            } else {
+                throw IllegalStateException(
+                    "Gemini: ${e.message.orEmpty().take(70)} | CommandCode: ${ans.orEmpty().take(70).ifBlank { "leer" }} | NVIDIA: ${nvidiaAntwort.orEmpty().take(70).ifBlank { "leer" }}"
+                )
+            }
+        }
+    }
+    return sb.toString()
+}
+
+
+private fun istBrauchbar(antwort: String?): Boolean {
+    if (antwort.isNullOrBlank()) return false
+    val text = antwort.trim()
+    if (text.startsWith("[!ERROR]")) return false
+    if (text == "Response was 200 OK but empty.") return false
+    if (text == "Stream returned 200 OK but was empty.") return false
+    return text.contains('{') || text.contains('[')
+}
+
+private fun verkleinerteJpeg(jpeg: ByteArray, maxPx: Int, qualitaet: Int): ByteArray {
+    val original = android.graphics.BitmapFactory.decodeByteArray(jpeg, 0, jpeg.size)
+        ?: return jpeg
+    var skaliert: android.graphics.Bitmap? = null
+    return try {
+        val groesste = maxOf(original.width, original.height)
+        skaliert = if (groesste <= maxPx) {
+            original
+        } else {
+            android.graphics.Bitmap.createScaledBitmap(
+                original,
+                (original.width * maxPx / groesste).coerceAtLeast(1),
+                (original.height * maxPx / groesste).coerceAtLeast(1),
+                true
+            )
+        }
+        java.io.ByteArrayOutputStream().use { aus ->
+            skaliert!!.compress(android.graphics.Bitmap.CompressFormat.JPEG, qualitaet, aus)
+            aus.toByteArray()
+        }
+    } finally {
+        if (skaliert != null && skaliert !== original) skaliert!!.recycle()
+        original.recycle()
+    }
+}
+
+private fun istKontingentMeldung(text: String): Boolean {
+    val klein = text.lowercase()
+    return klein.contains("exceeded your current quota") ||
+        klein.contains("resource_exhausted") ||
+        klein.contains("quota exceeded") ||
+        klein.contains("insufficient_quota")
+}
+
 suspend fun callVisionRaw(
     context: Context,
     bmp: Bitmap,
@@ -863,42 +1030,12 @@ suspend fun callVisionRaw(
 
     val scaledBmp = bmp.scaleForApi(maxPx)
 
-    try {
-        val sb = StringBuilder()
-        if (getPreferredAiProvider(context, "vision") == "nvidia") {
-            val base64Pic = java.io.ByteArrayOutputStream().use { bos ->
-                scaledBmp.compress(Bitmap.CompressFormat.JPEG, 90, bos)
-                android.util.Base64.encodeToString(bos.toByteArray(), android.util.Base64.NO_WRAP)
-            }
-            val ans = sendAiRequest(
-                context = context,
-                history = emptyList(),
-                userMessage = prompt,
-                target = target,
-                model = "meta/llama-3.2-90b-vision-instruct",
-                pic = base64Pic,
-                provider = AiProvider.NVIDIA,
-                onToken = { chunk ->
-                    sb.append(chunk)
-                    Handler(Looper.getMainLooper()).post {
-                        onProgress(sb.toString())
-                    }
-                }
-            )
-            if (sb.isEmpty()) sb.append(ans.orEmpty())
-        } else {
-            val model = Firebase.ai(backend = GenerativeBackend.googleAI())
-                .generativeModel(Config.DEF_GEMINI)
-            model.generateContentStream(content { image(scaledBmp); text("$systemPrompt\n\n$prompt") })
-                .collect { chunk ->
-                    val delta = chunk.text ?: ""
-                    if (delta.isNotEmpty()) {
-                        sb.append(delta)
-                        withContext(Dispatchers.Main) { onProgress(sb.toString()) }
-                    }
-                }
+    return try {
+        val jpeg = java.io.ByteArrayOutputStream().use { bos ->
+            scaledBmp.compress(Bitmap.CompressFormat.JPEG, 90, bos)
+            bos.toByteArray()
         }
-        return sb.toString()
+        callVisionRawJpeg(context, jpeg, prompt, systemPrompt, target, onProgress)
     } finally {
         if (scaledBmp !== bmp) scaledBmp.recycle()
     }
