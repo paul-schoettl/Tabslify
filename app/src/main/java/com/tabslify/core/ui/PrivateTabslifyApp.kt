@@ -715,7 +715,7 @@ fun PrivateTabslifyApp(
 
                         MenuItem.PRIVATE_CLOUD -> MainTabslifyScreen(storage = storage)
 
-                        MenuItem.Vocabs -> VocabTab(paddingValues, lexiconToken)
+                        MenuItem.Vocabs -> VocabTab(paddingValues, lexiconToken, viewModel)
 
                         MenuItem.MEDIAPLAYERTAB -> MediaTab(
                             contentPadding = paddingValues,
@@ -1047,7 +1047,7 @@ fun formatFileSize(sizeBytes: Long): String {
     val gb = stringResource(R.string.dateigrose_2f_gb)
     val mb = stringResource(R.string.dateigrose_2f_mb)
     val kb = stringResource(R.string.dateigrose_1f_kb)
-    
+
     return when {
         sizeBytes >= 1_000_000_000 -> gb.format(sizeBytes / 1_000_000_000.0)
         sizeBytes >= 1_000_000 -> mb.format(sizeBytes / 1_000_000.0)
@@ -1059,7 +1059,7 @@ fun formatFileSize(sizeBytes: Long): String {
 @Composable
 fun MainTabslifyScreen(storage: Storage) {
     val context = LocalContext.current
-    
+
     val forbiddenMsg = stringResource(R.string.forbidden)
     val fehlerBeimLadenMsg = stringResource(R.string.fehler_beim_laden)
     val geloeschtMsg = stringResource(R.string.geloscht)
@@ -1071,7 +1071,7 @@ fun MainTabslifyScreen(storage: Storage) {
     val fehlerMsgTemplate = stringResource(R.string.fehler_msg)
     val dateiGespeichertMsg = stringResource(R.string.datei_gespeichert)
     val listeAktualisiertMsg = stringResource(R.string.liste_aktualisiert)
-    
+
     if (!prvt()) {
         Toast.makeText(context, forbiddenMsg, Toast.LENGTH_SHORT).show()
         return
