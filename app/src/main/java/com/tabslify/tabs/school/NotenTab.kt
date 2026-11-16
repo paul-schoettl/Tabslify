@@ -33,11 +33,13 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -221,6 +223,7 @@ private fun gruppenEmoji(gruppe: NotenGruppe): String = when (gruppe) {
 @Composable
 fun NotenScreen(
     onBack: () -> Unit,
+    registerBack: RegisterTabBack? = null,
     paddingValues: PaddingValues
 ) {
     val context = LocalContext.current
@@ -245,11 +248,18 @@ fun NotenScreen(
 
     val aktuellesFach = faecher.firstOrNull { it.name == auswahl }
 
-    BackHandler {
+    val backAction = rememberUpdatedState<() -> Unit>({
         if (aktuellesFach != null) {
             auswahl = null
             filter = null
         } else onBack()
+    })
+    LaunchedEffect(registerBack) {
+        registerBack?.invoke(true) { backAction.value() }
+    }
+
+    BackHandler {
+        backAction.value()
     }
 
     if (zeigeFachDialog) {

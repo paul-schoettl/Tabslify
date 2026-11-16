@@ -39,6 +39,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -67,6 +68,7 @@ import com.tabslify.core.ui.OnAccentFill
 import com.tabslify.core.ui.TextPrimary
 import com.tabslify.core.ui.TextSecondary
 import com.tabslify.core.ui.TextTertiary
+import com.tabslify.tabs.school.RegisterTabBack
 import com.tabslify.tabs.school.SchoolHeader
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -556,7 +558,8 @@ private data class PageRun(
 fun LexiconImportScreen(
     paddingValues: PaddingValues,
     onBack: () -> Unit,
-    onDone: (Vocabulary) -> Unit
+    onDone: (Vocabulary) -> Unit,
+    registerBack: RegisterTabBack? = null
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -729,8 +732,13 @@ fun LexiconImportScreen(
         }
     }
 
+    val backAction = rememberUpdatedState<() -> Unit> { onBack }
+    LaunchedEffect(registerBack, running) {
+        registerBack?.invoke(!running) { backAction.value() }
+    }
+
     BackHandler(enabled = !running) {
-        onBack()
+        backAction.value()
     }
 
     Column(modifier = Modifier.fillMaxSize()) {

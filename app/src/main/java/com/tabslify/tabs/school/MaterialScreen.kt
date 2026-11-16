@@ -71,6 +71,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -138,6 +139,7 @@ data class AiSummaryState(
 fun MaterialienScreen(
     onBack: () -> Unit,
     onOpenSet: (VokabelSet) -> Unit = {},
+    registerBack: RegisterTabBack? = null,
     paddingValues: PaddingValues,
     initialSubject: String? = null,
     initialFile: String? = null
@@ -293,13 +295,20 @@ fun MaterialienScreen(
         }
     }
 
-    BackHandler {
+    val backAction = rememberUpdatedState<() -> Unit>({
         when {
             showFullscreenSummary -> showFullscreenSummary = false
             selectedFile != null -> selectedFile = null
             selectedSubject != null -> selectedSubject = null
             else -> onBack()
         }
+    })
+    LaunchedEffect(registerBack) {
+        registerBack?.invoke(true) { backAction.value() }
+    }
+
+    BackHandler {
+        backAction.value()
     }
 
     val filePicker = rememberLauncherForActivityResult(

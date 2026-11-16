@@ -1430,6 +1430,7 @@
     <string name="keine_daten_verfugbar">Keine Daten verfügbar</string> <!-- app/src/main/java/com/tabslify/tabs/WeatherTab.kt:629 -->
     <string name="zuruck_zur_ubersicht">Zurück zur Übersicht</string> <!-- app/src/main/java/com/tabslify/tabs/WeatherTab.kt:771 | VocabTab.kt:1809 -->
     <string name="du_hast_einen_tag_geoffnet">Du hast einen Tag geöffnet. Wische vom linken Rand nach rechts – oder nutze die Zurück-Geste deines Handys – um wieder zur Wetter-Übersicht zu gelangen.</string> <!-- app/src/main/java/com/tabslify/tabs/WeatherTab.kt:778 -->
+    <string name="schule_zurueck_hinweis">Du hast einen Bereich der Schule geöffnet. Wische vom linken Rand nach rechts – oder nutze die Zurück-Geste deines Handys – um eine Ebene zurückzugehen.</string>
     <string name="gefuhlt">Gefühlt</string> <!-- app/src/main/java/com/tabslify/tabs/WeatherTab.kt:856 | WeatherTab.kt:1073 -->
     <string name="tag">Ø Tag</string> <!-- app/src/main/java/com/tabslify/tabs/WeatherTab.kt:857 -->
     <string name="vorschau">Vorschau</string> <!-- app/src/main/java/com/tabslify/tabs/WeatherTab.kt:866 -->

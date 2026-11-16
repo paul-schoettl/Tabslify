@@ -70,6 +70,7 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -98,12 +99,14 @@ import androidx.core.content.FileProvider
 import androidx.core.content.edit
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.tabslify.R
+import com.tabslify.core.TabNavigationViewModel
 import com.tabslify.core.objects.Config
 import com.tabslify.core.objects.prvt
 import com.tabslify.core.ui.AccentFill
 import com.tabslify.core.ui.AccentViolet
 import com.tabslify.core.ui.AccentVioletDim
 import com.tabslify.core.ui.AlertDialogTabslify
+import com.tabslify.core.ui.BackHintOverlay
 import com.tabslify.core.ui.BgCard
 import com.tabslify.core.ui.BgSurface
 import com.tabslify.core.ui.ErrorSoft
@@ -113,6 +116,8 @@ import com.tabslify.core.ui.OnAccentFillMuted
 import com.tabslify.core.ui.TextPrimary
 import com.tabslify.core.ui.TextSecondary
 import com.tabslify.core.ui.TextTertiary
+import com.tabslify.core.ui.hasSeenBackHint
+import com.tabslify.core.ui.markBackHintSeen
 import com.tabslify.quiethoursnotificationhelper.AiTarget
 import com.tabslify.quiethoursnotificationhelper.callNvidiaVisionApi
 import com.tabslify.quiethoursnotificationhelper.flashcardVokabelnFlow
@@ -213,6 +218,8 @@ enum class VokabelTabScreen {
     STUDY_PLAN, STUDY_UPLOAD, STUDY_REVIEW, STUDY_DAY, STUDY_SESSION,
     STUDY_RESULT, STUDY_MATERIAL, LEXICON, LEXICON_IMPORT
 }
+
+typealias RegisterTabBack = (Boolean, () -> Unit) -> Unit
 
 private val LEITNER_INTERVALLE = intArrayOf(0, 1, 2, 4, 8, 16, 32)
 
@@ -334,7 +341,11 @@ private fun isImageFile(name: String) =
     }
 
 @Composable
-fun VocabTab(paddingValues: PaddingValues, lexiconToken: String? = null) {
+fun VocabTab(
+    paddingValues: PaddingValues,
+    lexiconToken: String? = null,
+    navViewModel: TabNavigationViewModel = viewModel()
+) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("vocab_sets", Context.MODE_PRIVATE) }
     val materialPrefs =
@@ -350,6 +361,15 @@ fun VocabTab(paddingValues: PaddingValues, lexiconToken: String? = null) {
     var studyDay by remember { mutableStateOf<StudyPlanDayDto?>(null) }
 
     var screen by remember { mutableStateOf(VokabelTabScreen.DASHBOARD) }
+    val showBackHint = remember { mutableStateOf(false) }
+    val navigationState by navViewModel.navigationState.collectAsState()
+    val registerBack: RegisterTabBack = remember(navViewModel) {
+        { enabled: Boolean, action: () -> Unit ->
+            navViewModel.updateBackState(enabled) {
+                if (showBackHint.value) showBackHint.value = false else action()
+            }
+        }
+    }
     var lexiconFocus by remember { mutableStateOf(0) }
     var bitmap by remember { mutableStateOf<Bitmap?>(null) }
 
@@ -613,6 +633,74 @@ fun VocabTab(paddingValues: PaddingValues, lexiconToken: String? = null) {
         }
     }
 
+    LaunchedEffect(screen) {
+        val target: (() -> Unit)? = when (screen) {
+            VokabelTabScreen.DASHBOARD -> null
+
+            VokabelTabScreen.REVIEW -> ({
+                screen = if (activeSet != null) VokabelTabScreen.LEARN
+                else VokabelTabScreen.UPLOAD
+            })
+
+            VokabelTabScreen.LEARN -> ({
+                screen = lernZurueck
+                activeSet = null
+            })
+
+            VokabelTabScreen.MATERIALIEN -> ({
+                selectedMaterialSubject = null
+                selectedMaterialFile = null
+                screen = VokabelTabScreen.DASHBOARD
+            })
+
+            VokabelTabScreen.NOTEN -> ({ screen = VokabelTabScreen.DASHBOARD })
+
+            VokabelTabScreen.LEXICON_IMPORT -> ({ screen = VokabelTabScreen.LEXICON })
+
+            VokabelTabScreen.HOME,
+            VokabelTabScreen.STUDY_REVIEW -> ({ screen = VokabelTabScreen.DASHBOARD })
+
+            VokabelTabScreen.UPLOAD,
+            VokabelTabScreen.LEXICON -> ({ screen = VokabelTabScreen.HOME })
+
+            VokabelTabScreen.STUDY_PLAN -> ({
+                StudyNavigation.openRequested = false
+                screen = VokabelTabScreen.DASHBOARD
+            })
+
+            VokabelTabScreen.STUDY_UPLOAD,
+            VokabelTabScreen.STUDY_DAY,
+            VokabelTabScreen.STUDY_MATERIAL -> ({ screen = VokabelTabScreen.STUDY_PLAN })
+
+            VokabelTabScreen.STUDY_SESSION -> ({
+                studySessionViewModel.reset()
+                screen = VokabelTabScreen.STUDY_DAY
+            })
+
+            VokabelTabScreen.STUDY_RESULT -> ({
+                StudyNavigation.openRequested = false
+                studyPlanViewModel.loadLatest()
+                screen = VokabelTabScreen.STUDY_PLAN
+            })
+        }
+        registerBack(target != null, target ?: {})
+    }
+
+    LaunchedEffect(screen) {
+        if (screen != VokabelTabScreen.DASHBOARD && !hasSeenBackHint(context)) {
+            showBackHint.value = true
+            markBackHintSeen(context)
+        }
+    }
+
+    BackHandler(enabled = navigationState.canNavigateBack) {
+        navViewModel.triggerBack()
+    }
+
+    DisposableEffect(Unit) {
+        onDispose { navViewModel.reset() }
+    }
+
     Crossfade(
         targetState = screen,
         label = "tab_transition"
@@ -781,6 +869,7 @@ fun VocabTab(paddingValues: PaddingValues, lexiconToken: String? = null) {
                         if (activeSet != null) VokabelTabScreen.LEARN else VokabelTabScreen.UPLOAD
                 },
                 checkExist = activeSet != null,
+                registerBack = registerBack,
                 onCancelExtraction = if (isExtracting) {
                     {
                         extractionJob?.cancel()
@@ -815,6 +904,7 @@ fun VocabTab(paddingValues: PaddingValues, lexiconToken: String? = null) {
                         showSaveDialog = true
                     }
                 },
+                registerBack = registerBack,
                 paddingValues = paddingValues
             )
 
@@ -825,6 +915,7 @@ fun VocabTab(paddingValues: PaddingValues, lexiconToken: String? = null) {
                     screen = VokabelTabScreen.DASHBOARD
                 },
                 onOpenSet = { set -> openSetAndUpdateLastUsed(set) },
+                registerBack = registerBack,
                 paddingValues = paddingValues,
                 initialSubject = selectedMaterialSubject,
                 initialFile = selectedMaterialFile
@@ -834,6 +925,7 @@ fun VocabTab(paddingValues: PaddingValues, lexiconToken: String? = null) {
                 onBack = {
                     screen = VokabelTabScreen.DASHBOARD
                 },
+                registerBack = registerBack,
                 paddingValues = paddingValues
             )
 
@@ -984,10 +1076,18 @@ fun VocabTab(paddingValues: PaddingValues, lexiconToken: String? = null) {
 
             VokabelTabScreen.LEXICON_IMPORT -> LexiconImportScreen(
                 paddingValues = paddingValues,
+                registerBack = registerBack,
                 onBack = { screen = VokabelTabScreen.LEXICON },
                 onDone = { screen = VokabelTabScreen.LEXICON }
             )
         }
+    }
+
+    if (showBackHint.value) {
+        BackHintOverlay(
+            body = stringResource(R.string.schule_zurueck_hinweis),
+            onDismiss = { showBackHint.value = false }
+        )
     }
 }
 
@@ -1864,6 +1964,7 @@ fun ReviewScreen(
     onBack: () -> Unit,
     checkExist: Boolean = true,
     onCancelExtraction: (() -> Unit)? = null,
+    registerBack: RegisterTabBack? = null,
     paddingValues: PaddingValues
 ) {
     var currentVokabeln by remember { mutableStateOf(vokabeln) }
@@ -1977,12 +2078,20 @@ fun ReviewScreen(
         )
     }
 
-    BackHandler {
+    val backAction = rememberUpdatedState<() -> Unit>({
         when {
+            editingId != null -> editingId = null
             isExtracting -> showCancelDialog = true
             fromScan && currentVokabeln.isNotEmpty() -> showDiscardDialog = true
             else -> onBack()
         }
+    })
+    LaunchedEffect(registerBack) {
+        registerBack?.invoke(true) { backAction.value() }
+    }
+
+    BackHandler {
+        backAction.value()
     }
 
     Column(
@@ -2210,6 +2319,7 @@ fun LearnScreen(
     onVokabelnUpdated: ((List<Vokabel>) -> Unit)? = null,
     onRenameRequest: () -> Unit = {},
     gewichten: Boolean = false,
+    registerBack: RegisterTabBack? = null,
     paddingValues: PaddingValues
 ) {
     val context = LocalContext.current
@@ -2423,6 +2533,11 @@ fun LearnScreen(
             delay(1100.milliseconds)
             feedback = null
         }
+    }
+
+    val backAction = rememberUpdatedState<() -> Unit> { handleBack() }
+    LaunchedEffect(registerBack, setToReview) {
+        if (!setToReview) registerBack?.invoke(true) { backAction.value() }
     }
 
     BackHandler {
@@ -3043,6 +3158,7 @@ fun LearnScreen(
         Box(Modifier.fillMaxSize()) {
             ReviewScreen(
                 vokabeln = basis.map { it.vokabel },
+                registerBack = registerBack,
                 onBack = { setToReview = false },
                 onVokabelnChanged = { neu ->
                     val alteSetIds = basis.map { it.setId }

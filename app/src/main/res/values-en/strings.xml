@@ -825,6 +825,7 @@
     <string name="keine_daten_verfugbar">No data available</string>
     <string name="zuruck_zur_ubersicht">Back to overview</string>
     <string name="du_hast_einen_tag_geoffnet">You have opened a day. Swipe from the left edge to the right – or use your phone\'s back gesture – to return to the weather overview.</string>
+    <string name="schule_zurueck_hinweis">You have opened a school area. Swipe from the left edge to the right – or use your phone\'s back gesture – to go back one level.</string>
     <string name="gefuhlt">Feels like</string>
     <string name="tag">Ø Day</string>
     <string name="vorschau">Preview</string>

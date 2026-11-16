@@ -1,6 +1,7 @@
 package com.tabslify.core.ui
 
 import android.content.Context
+import androidx.activity.compose.BackHandler
 import androidx.core.content.edit
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -57,7 +58,13 @@ fun markBackHintSeen(context: Context) {
 }
 
 @Composable
-fun BackHintOverlay(onDismiss: () -> Unit) {
+fun BackHintOverlay(
+    onDismiss: () -> Unit,
+    title: String = stringResource(R.string.zuruck_zur_ubersicht),
+    body: String = stringResource(R.string.du_hast_einen_tag_geoffnet)
+) {
+    BackHandler { onDismiss() }
+
     val infinite = rememberInfiniteTransition(label = "backhint")
     val swipe by infinite.animateFloat(
         initialValue = 0f,
@@ -160,14 +167,14 @@ fun BackHintOverlay(onDismiss: () -> Unit) {
                 }
                 Spacer(Modifier.height(16.dp))
                 Text(
-                    stringResource(R.string.zuruck_zur_ubersicht),
+                    title,
                     color = Color(0xFFF7F1EC),
                     fontSize = 23.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(Modifier.height(10.dp))
                 Text(
-                    stringResource(R.string.du_hast_einen_tag_geoffnet),
+                    body,
                     color = Color(0xA8FFFFFF),
                     fontSize = 15.sp,
                     lineHeight = 22.sp
