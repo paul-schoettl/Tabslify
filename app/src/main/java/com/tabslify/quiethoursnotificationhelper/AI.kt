@@ -41,7 +41,7 @@ enum class AiTarget {
     HeiseQa,
     MusicSummary,
     Vision,
-    VisionLexikon,
+    VisionLexicon,
     SongHashtags,
     ChargingPrediction,
     TextAction
@@ -100,7 +100,7 @@ fun aiSystemPrompt(target: AiTarget): String = when (target) {
         Du extrahierst Vokabeln aus einem Bild. Es gibt ZWEI Spalten: Latein links, Deutsch rechts. Jede Zeile ist ein Vokabelpaar. Ordne jedes lateinische Wort dem deutschen Wort auf derselben vertikalen Position zu. Ignoriere Seitenzahlen (z. B. "116") und wiederholte oder doppelte Blöcke am unteren Rand. Antworte ausschließlich mit einem JSON-Array der Form [{"latein":"...","deutsch":"..."}], ohne Markdown, ohne Erklärung.
     """.trimIndent()
 
-    AiTarget.VisionLexikon -> """
+    AiTarget.VisionLexicon -> """
         Du liest eine Seite aus einem Vokabelverzeichnis (Latein nach Deutsch) ein und gibst die Einträge als JSON zurück.
         Aufbau der Seite:
         - Grundwortschatz-Register: alle Angaben stehen nebeneinander in einer Zeile (Latein | Deutsch | Wortverwandtschaften, teils zusätzlich Wortart, Genitiv, Stammformen).
@@ -112,11 +112,12 @@ fun aiSystemPrompt(target: AiTarget): String = when (target) {
         - "bedeutungen" ist ein Array der deutschen Bedeutungen, eine Bedeutung pro Element, ohne Kursiv-Zusätze.
         - "formen" enthält den Genitiv und das Genus bei Substantiven bzw. die Stammformen bei Verben, jeweils als eigenes Element.
         - "verwandtschaften" enthält die dritte Spalte (Wortverwandtschaften), falls vorhanden.
+        - Am Zeilenende steht die Kapitelnummer (im Buch oft rot hervorgehoben). Übernimm sie ohne Zusatz in "kapitel" (z. B. "12" oder "7a").
         - "wortart" nur wenn im Buch angegeben (Substantiv, Verb, Adjektiv, Adverb, Präposition).
         - Ignoriere Überschriften, Seitenzahlen, Kolumnentitel, Trennstriche und Wiederholungen am Seitenrand.
         - Mehrzeilige Einträge gehören zusammen.
         Antworte ausschließlich mit JSON, ohne Markdown, ohne Erklärung:
-        {"quelle":"Lernwortschatz 12 oder Grundwortschatz","eintraege":[{"stichwort":"...","bedeutungen":["..."],"wortart":"...","formen":["..."],"verwandtschaften":["..."]}]}
+        {"quelle":"Lernwortschatz 12 oder Grundwortschatz","eintraege":[{"stichwort":"...","bedeutungen":["..."],"wortart":"...","formen":["..."],"verwandtschaften":["..."],"kapitel":"12"}]}
     """.trimIndent()
 
     AiTarget.SongHashtags -> """
@@ -308,7 +309,9 @@ private suspend fun sendChatCompletionsMessage(
     directUrl: String? = null,
     directApiKey: String? = null,
     directHeaders: Map<String, String> = emptyMap(),
-    directTimeoutMs: Int = 60_000
+    directTimeoutMs: Int = 60_000,
+    maxTokens: Int = 1024,
+    reasoningEffort: String? = null
 ): String? {
     val messages = buildChatCompletionsMessages(history, userMessage, pic, systemPrompt)
 
@@ -316,7 +319,8 @@ private suspend fun sendChatCompletionsMessage(
         put("model", model)
         put("messages", messages)
         put("temperature", 0.3)
-        put("max_tokens", 1024)
+        if (maxTokens > 0) put("max_tokens", maxTokens)
+        if (!reasoningEffort.isNullOrBlank()) put("reasoning_effort", reasoningEffort)
         put("stream", onToken != null)
     }
 
@@ -353,7 +357,7 @@ private suspend fun sendChatCompletionsMessage(
                     logTag,
                     "$logTag request failed with code ${connection.responseCode}: $errorText"
                 )
-                
+
                 val message = proxyErrorMessage(errorText)
                 if (message != null) return@withContext "[!ERROR] $message"
 
@@ -377,7 +381,7 @@ private suspend fun sendChatCompletionsMessage(
                                 } else err as? String ?: err.toString()
                                 break
                             }
-                            
+
                             val delta = jsonObj
                                 .getJSONArray("choices")
                                 .getJSONObject(0)
@@ -394,11 +398,16 @@ private suspend fun sendChatCompletionsMessage(
                 if (apiError != null) return@withContext "[!ERROR] $apiError"
                 sb.toString().ifBlank { "Stream returned 200 OK but was empty." }
             } else {
-                val response = JSONObject(connection.inputStream.bufferedReader().readText())
+                val nachricht = JSONObject(connection.inputStream.bufferedReader().readText())
                     .getJSONArray("choices").getJSONObject(0)
-                    .getJSONObject("message").getString("content").trim()
-                    .ifBlank { "Response was 200 OK but empty." }
-                response
+                    .getJSONObject("message")
+                val inhalt = nachricht.optString("content", "").trim()
+                if (inhalt.isNotEmpty()) {
+                    inhalt
+                } else {
+                    nachricht.optString("reasoning_content", "").trim()
+                        .ifBlank { "Response was 200 OK but empty." }
+                }
             }
         } catch (e: SocketTimeoutException) {
             Log.w(logTag, "$logTag Zeitueberschreitung beim Warten auf die Antwort: ${e.message}")
@@ -446,6 +455,10 @@ suspend fun sendCommandCodeMessage(
     history: List<ChatMessage> = emptyList(),
     systemPrompt: String,
     model: String = COMMANDCODE_DEFAULT_MODEL,
+    pic: String? = null,
+    maxTokens: Int = 1024,
+    reasoningEffort: String? = null,
+    directTimeoutMs: Int = 60_000,
     onToken: ((String) -> Unit)? = null
 ): String? {
     if (!Config.ensureAuthSession()) return "[!ERROR] Supabase login missing"
@@ -461,7 +474,11 @@ suspend fun sendCommandCodeMessage(
         apiKeyName = "commandcode",
         logTag = "CommandCode",
         systemPrompt = systemPrompt,
+        pic = pic,
         onToken = onToken,
+        maxTokens = maxTokens,
+        reasoningEffort = reasoningEffort,
+        directTimeoutMs = directTimeoutMs,
         directUrl = "${Config.SUPABASE_URL}/functions/v1/$COMMANDCODE_PROXY_FUNCTION",
         directApiKey = accessToken,
         directHeaders = if (commandCodeKey.isEmpty()) emptyMap() else mapOf("x-api-key" to commandCodeKey)
@@ -479,7 +496,8 @@ suspend fun sendAiRequest(
     serviceKey: String = "default",
     model: String? = null,
     onToken: ((String) -> Unit)? = null,
-    systemPrompt: String? = null
+    systemPrompt: String? = null,
+    maxTokens: Int = 1024
 ): String? {
     val resolvedProvider = provider ?: when (getPreferredAiProvider(context, serviceKey)) {
         "nvidia" -> AiProvider.NVIDIA
@@ -502,7 +520,8 @@ suspend fun sendAiRequest(
                 logTag = "Nvidia",
                 systemPrompt = resolvedSystemPrompt,
                 pic = pic,
-                onToken = onToken
+                onToken = onToken,
+                maxTokens = maxTokens
             )
         }
 
@@ -522,7 +541,8 @@ suspend fun sendAiRequest(
             history = history,
             systemPrompt = resolvedSystemPrompt,
             model = model ?: COMMANDCODE_DEFAULT_MODEL,
-            onToken = onToken
+            onToken = onToken,
+            maxTokens = maxTokens
         )
 
         AiProvider.GEMINI -> {
