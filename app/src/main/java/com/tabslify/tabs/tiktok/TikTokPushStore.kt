@@ -19,6 +19,10 @@ object TikTokPushStore {
     private const val ORIGIN = "origin"
     private const val REPORTED = "reported"
     private const val REPORTED_LIMIT = 300
+    private const val REMEMBERED_KEYS = "remembered_keys"
+    private const val REMEMBERED_NAME = "remembered_name_"
+    private const val REMEMBERED_TEXT = "remembered_text_"
+    private const val REMEMBERED_LIMIT = 100
 
     fun origin(context: Context): String {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -36,6 +40,38 @@ object TikTokPushStore {
     fun conversation(context: Context, convId: String): TikTokConversation? =
         runCatching { TikTokDmClient.currentConversation(convId) }.getOrNull()
 
+    fun remember(context: Context, convId: String, name: String, text: String) {
+        if (convId.isEmpty()) return
+        val cleanText = text.trim()
+        if (name.isBlank() && cleanText.isBlank()) return
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val keys = prefs.getStringSet(REMEMBERED_KEYS, emptySet()).orEmpty().toMutableSet()
+        if (keys.size >= REMEMBERED_LIMIT && convId !in keys) {
+            val oldest = keys.first()
+            keys.remove(oldest)
+            prefs.edit {
+                remove("$REMEMBERED_NAME$oldest")
+                remove("$REMEMBERED_TEXT$oldest")
+            }
+        }
+        keys.add(convId)
+        prefs.edit {
+            putStringSet(REMEMBERED_KEYS, keys)
+            if (name.isNotBlank()) putString("$REMEMBERED_NAME$convId", name)
+            if (cleanText.isNotBlank()) putString("$REMEMBERED_TEXT$convId", cleanText.take(300))
+        }
+    }
+
+    fun rememberedName(context: Context, convId: String): String =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getString("$REMEMBERED_NAME$convId", null)
+            .orEmpty()
+
+    fun rememberedText(context: Context, convId: String): String =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getString("$REMEMBERED_TEXT$convId", null)
+            .orEmpty()
+
     suspend fun report(
         context: Context,
         convId: String,
@@ -46,6 +82,7 @@ object TikTokPushStore {
         val marker = "$convId|${text.take(40)}"
         if (isReported(context, marker)) return@withContext
         markReported(context, marker)
+        remember(context, convId, name, text)
         val payload = buildJsonObject {
             put("conv_id", convId)
             put("peer_id", peerId)

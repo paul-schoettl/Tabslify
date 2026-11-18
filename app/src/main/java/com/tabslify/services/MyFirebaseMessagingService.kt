@@ -29,6 +29,7 @@ import com.tabslify.tabs.tiktok.TIKTOK_PUSH_CHANNEL_ID
 import com.tabslify.tabs.tiktok.TIKTOK_PUSH_TAG
 import com.tabslify.tabs.tiktok.TIKTOK_PUSH_TARGET
 import com.tabslify.tabs.tiktok.TIKTOK_PUSH_TOPIC
+import com.tabslify.tabs.tiktok.TikTokDmClient
 import com.tabslify.tabs.tiktok.TikTokPushStore
 import com.tabslify.tabs.tiktok.tiktokPushNotificationId
 import kotlinx.coroutines.launch
@@ -131,13 +132,52 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         val convId = data["conv_id"].orEmpty()
         if (convId.isEmpty()) return
         if (TikTokPushStore.isOwnReport(appContext, data["origin"].orEmpty())) return
+        val pushTitle = data["title"]?.takeIf { it.isNotEmpty() }
+            ?: data["name"]?.takeIf { it.isNotEmpty() }
+        val pushBody = data["body"]?.takeIf { it.isNotEmpty() }
+            ?: data["text"]?.takeIf { it.isNotEmpty() }
         val conversation = TikTokPushStore.conversation(appContext, convId)
-        val title = data["title"]?.takeIf { it.isNotEmpty() }
+        val title = pushTitle
             ?: conversation?.name?.takeIf { it.isNotEmpty() }
+            ?: TikTokPushStore.rememberedName(appContext, convId).takeIf { it.isNotEmpty() }
             ?: "TikTok"
-        val body = data["body"]?.takeIf { it.isNotEmpty() }
+        val body = pushBody
             ?: conversation?.lastMessage?.takeIf { it.isNotEmpty() }
+            ?: TikTokPushStore.rememberedText(appContext, convId).takeIf { it.isNotEmpty() }
             ?: "Neue Nachricht"
+        if (pushTitle != null || pushBody != null) {
+            TikTokPushStore.remember(appContext, convId, pushTitle.orEmpty(), pushBody.orEmpty())
+        }
+        postTikTokNotification(appContext, convId, title, body)
+        if (pushBody == null) {
+            Tabslify.serviceScope.launch {
+                try {
+                    TikTokDmClient.load(appContext)
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.w("FCM", "TikTok-Nachladen fehlgeschlagen: ${e.message}")
+                    return@launch
+                }
+                val fresh = TikTokPushStore.conversation(appContext, convId) ?: return@launch
+                val freshTitle = fresh.name.takeIf { it.isNotEmpty() }
+                    ?: TikTokPushStore.rememberedName(appContext, convId).takeIf { it.isNotEmpty() }
+                    ?: return@launch
+                val freshBody = fresh.lastMessage.takeIf { it.isNotEmpty() }
+                    ?: TikTokPushStore.rememberedText(appContext, convId).takeIf { it.isNotEmpty() }
+                    ?: return@launch
+                TikTokPushStore.remember(appContext, convId, freshTitle, freshBody)
+                postTikTokNotification(appContext, convId, freshTitle, freshBody)
+            }
+        }
+    }
+
+    private fun postTikTokNotification(
+        appContext: android.content.Context,
+        convId: String,
+        title: String,
+        body: String
+    ) {
         val intentBase = Intent(appContext, MainActivity::class.java)
         intentBase.action = Intent.ACTION_VIEW
         intentBase.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -150,7 +190,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             intentBase,
             PendingIntent.FLAG_IMMUTABLE
         )
-        val notification = NotificationCompat.Builder(appContext, TIKTOK_PUSH_CHANNEL_ID)
+        val builder = NotificationCompat.Builder(appContext, TIKTOK_PUSH_CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle(title)
             .setContentText(body)
@@ -158,8 +198,8 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             .setGroup("SSN").setSilent(false)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
-            .build()
-        tNotify(appContext, tiktokPushNotificationId(convId), notification, TIKTOK_PUSH_TAG)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+        tNotify(appContext, tiktokPushNotificationId(convId), builder.build(), TIKTOK_PUSH_TAG)
     }
 
     private fun handleAiNotify(data: Map<String, String>) {
