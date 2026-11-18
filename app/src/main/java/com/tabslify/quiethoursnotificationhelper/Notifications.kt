@@ -25,7 +25,6 @@ import com.tabslify.services.QuietHoursNotificationService
 import com.tabslify.services.QuietHoursNotificationService.Companion.ACTION_CHANGE_END
 import com.tabslify.services.QuietHoursNotificationService.Companion.ACTION_CONTENT_INTENT
 import com.tabslify.services.QuietHoursNotificationService.Companion.ACTION_EXECUTE_COMMAND
-import com.tabslify.services.QuietHoursNotificationService.Companion.ACTION_HIDE_MONITOR_NOTIFICATION
 import com.tabslify.services.QuietHoursNotificationService.Companion.ACTION_MONITOR_NOTIFICATION_DISMISSED
 import com.tabslify.services.QuietHoursNotificationService.Companion.ACTION_SYNC_LAPTOP
 import com.tabslify.services.QuietHoursNotificationService.Companion.AI_NOTIFY_CHANNEL_ID
@@ -366,10 +365,11 @@ fun createNotification(context: Context): Notification {
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     )
 
-    val hideBase = Intent(context, QuietHoursNotificationService::class.java)
-    hideBase.action = ACTION_HIDE_MONITOR_NOTIFICATION
-    hideBase.setPackage(context.packageName)
-    val hidePendingIntent = PendingIntent.getService(
+    val hideBase = Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+    hideBase.putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+    hideBase.putExtra(Settings.EXTRA_CHANNEL_ID, MONITOR_CHANNEL_ID)
+    hideBase.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    val hidePendingIntent = PendingIntent.getActivity(
         context,
         1201,
         hideBase,

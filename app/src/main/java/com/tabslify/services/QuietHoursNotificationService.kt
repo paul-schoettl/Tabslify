@@ -111,7 +111,6 @@ import com.tabslify.quiethoursnotificationhelper.createNotification
 import com.tabslify.quiethoursnotificationhelper.createNotificationChannel
 import com.tabslify.quiethoursnotificationhelper.deleteGalleryImage
 import com.tabslify.quiethoursnotificationhelper.ensureReadyForConnect
-import com.tabslify.quiethoursnotificationhelper.isQuietHoursNow
 import com.tabslify.quiethoursnotificationhelper.loadGalleryImages
 import com.tabslify.quiethoursnotificationhelper.markMessageAsRead
 import com.tabslify.quiethoursnotificationhelper.markReadReceiver
@@ -212,13 +211,13 @@ class QuietHoursNotificationService : Service() {
 
         const val ACTION_MONITOR_NOTIFICATION_DISMISSED =
             "com.tabslify.ACTION_MONITOR_NOTIFICATION_DISMISSED"
-        const val ACTION_HIDE_MONITOR_NOTIFICATION =
-            "com.tabslify.ACTION_HIDE_MONITOR_NOTIFICATION"
         const val EXTRA_NOTIFICATION_ID = "notification_id"
-        const val MONITOR_MAX_REPROMPTS = 3
-        private const val KEY_MONITOR_REPROMPT_PERIOD = "monitor_reprompt_period"
-        private const val KEY_MONITOR_REPROMPT_COUNT = "monitor_reprompt_count"
-        private const val KEY_MONITOR_HIDDEN_UNTIL = "monitor_hidden_until"
+        private const val KEY_MONITOR_LAST_REPOST = "monitor_last_repost_elapsed"
+        private const val KEY_MONITOR_LEGACY_CLEANED = "monitor_legacy_state_cleaned"
+        private const val KEY_MONITOR_LEGACY_HIDDEN_UNTIL = "monitor_hidden_until"
+        private const val KEY_MONITOR_LEGACY_REPROMPT_COUNT = "monitor_reprompt_count"
+        private const val KEY_MONITOR_LEGACY_REPROMPT_PERIOD = "monitor_reprompt_period"
+        private const val MONITOR_REPOST_MIN_INTERVAL_MS = 2_000L
 
         private val WHATSAPP_PACKAGES = setOf("com.whatsapp", "com.whatsapp.w4b")
         private val TELEGRAM_PACKAGES =
@@ -451,32 +450,15 @@ class QuietHoursNotificationService : Service() {
                     prefs.getBoolean("service_qhns", true)
         }
 
-        private fun isMonitorHidden(context: Context): Boolean {
+        private fun clearLegacyRepostState(context: Context) {
             val prefs = context.getSharedPreferences("quiet_hours_prefs", Context.MODE_PRIVATE)
-            return System.currentTimeMillis() < prefs.getLong(KEY_MONITOR_HIDDEN_UNTIL, 0L)
-        }
-
-        private fun nextQuietHoursChangeMillis(context: Context): Long {
-            val prefs = context.getSharedPreferences("quiet_hours_prefs", Context.MODE_PRIVATE)
-            val quietStart = prefs.getString("quiet_hours_start", null)?.toIntOrNull() ?: 7
-            val quietEnd = prefs.getString("quiet_hours_end", null)?.toIntOrNull() ?: 21
-            val now = Calendar.getInstance()
-            val hour = now.get(Calendar.HOUR_OF_DAY)
-            val quietNow = if (quietStart <= quietEnd) {
-                hour in quietStart..<quietEnd
-            } else {
-                hour !in quietEnd..<quietStart
+            if (prefs.getBoolean(KEY_MONITOR_LEGACY_CLEANED, false)) return
+            prefs.edit {
+                remove(KEY_MONITOR_LEGACY_HIDDEN_UNTIL)
+                remove(KEY_MONITOR_LEGACY_REPROMPT_COUNT)
+                remove(KEY_MONITOR_LEGACY_REPROMPT_PERIOD)
+                putBoolean(KEY_MONITOR_LEGACY_CLEANED, true)
             }
-            val next = (now.clone() as Calendar).apply {
-                set(Calendar.MINUTE, 0)
-                set(Calendar.SECOND, 0)
-                set(Calendar.MILLISECOND, 0)
-                set(Calendar.HOUR_OF_DAY, if (quietNow) quietEnd else quietStart)
-            }
-            if (next.timeInMillis <= now.timeInMillis) {
-                next.add(Calendar.DAY_OF_YEAR, 1)
-            }
-            return next.timeInMillis
         }
 
         fun startService(context: Context) {
@@ -689,8 +671,7 @@ class QuietHoursNotificationService : Service() {
         }
     }
 
-    private fun ensureMonitorNotification(force: Boolean = false) {
-        if (!force && isMonitorHidden(this)) return
+    private fun ensureMonitorNotification() {
         if (getSystemService(NotificationManager::class.java)
                 .getNotificationChannel(MONITOR_CHANNEL_ID) == null
         ) {
@@ -706,52 +687,24 @@ class QuietHoursNotificationService : Service() {
     private fun handleMonitorNotificationDismissed() {
         if (!isEnabled(this)) return
         val prefs = getSharedPreferences("quiet_hours_prefs", MODE_PRIVATE)
-        if (isMonitorHidden(this)) return
-        if (!isQuietHoursNow(this)) {
-            prefs.edit {
-                putLong(KEY_MONITOR_HIDDEN_UNTIL, nextQuietHoursChangeMillis(this@QuietHoursNotificationService))
-            }
-            return
-        }
-        val period = nextQuietHoursChangeMillis(this)
-        val storedPeriod = prefs.getLong(KEY_MONITOR_REPROMPT_PERIOD, 0L)
-        val count = if (storedPeriod == period) {
-            prefs.getInt(KEY_MONITOR_REPROMPT_COUNT, 0)
-        } else {
-            0
-        }
-        if (count >= MONITOR_MAX_REPROMPTS) {
-            prefs.edit { putLong(KEY_MONITOR_HIDDEN_UNTIL, period) }
-            Log.i("QuietHoursService", "Monitor-Notification bleibt ausgeblendet bis $period")
-            return
-        }
-        prefs.edit {
-            putLong(KEY_MONITOR_REPROMPT_PERIOD, period)
-            putInt(KEY_MONITOR_REPROMPT_COUNT, count + 1)
-        }
-        Log.i("QuietHoursService", "Monitor-Notification erneut gepostet (${count + 1}/$MONITOR_MAX_REPROMPTS)")
-        ensureMonitorNotification(force = true)
-    }
+        val now = SystemClock.elapsedRealtime()
+        val lastRepost = prefs.getLong(KEY_MONITOR_LAST_REPOST, 0L)
 
-    private fun hideMonitorNotification() {
-        val prefs = getSharedPreferences("quiet_hours_prefs", MODE_PRIVATE)
-        val hiddenUntil = nextQuietHoursChangeMillis(this)
-        prefs.edit {
-            putLong(KEY_MONITOR_HIDDEN_UNTIL, hiddenUntil)
-            putInt(KEY_MONITOR_REPROMPT_COUNT, 0)
+        fun repost() {
+            prefs.edit { putLong(KEY_MONITOR_LAST_REPOST, SystemClock.elapsedRealtime()) }
+            Log.i("QuietHoursService", "Monitor-Notification erneut gepostet")
+            ensureMonitorNotification()
         }
-        Log.i("QuietHoursService", "Monitor-Notification ausgeblendet bis $hiddenUntil")
-        try {
-            startActivity(
-                Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).apply {
-                    putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
-                    putExtra(Settings.EXTRA_CHANNEL_ID, MONITOR_CHANNEL_ID)
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-            )
-        } catch (e: Exception) {
-            reportServiceError("hideMonitorNotification:channelSettings", e)
+
+        val waitMs = MONITOR_REPOST_MIN_INTERVAL_MS - (now - lastRepost)
+        if (lastRepost != 0L && waitMs > 0L) {
+            Log.i("QuietHoursService", "Monitor-Notification Repost in ${waitMs}ms")
+            handler.postDelayed({
+                if (isEnabled(this) && canNotify(this)) repost()
+            }, waitMs)
+            return
         }
+        repost()
     }
 
     override fun onCreate() {
@@ -772,8 +725,9 @@ class QuietHoursNotificationService : Service() {
         requestIgnoreBatteryOptimizations(this)
         Config.init(this)
         sharedPreferences = getSharedPreferences("quiet_hours_prefs", MODE_PRIVATE)
+        clearLegacyRepostState(this)
 
-        ensureMonitorNotification(force = true)
+        ensureMonitorNotification()
 
         try {
             sharedPreferences?.registerOnSharedPreferenceChangeListener(prefChangeListener)
@@ -880,7 +834,7 @@ class QuietHoursNotificationService : Service() {
             return START_NOT_STICKY
         }
         if (intent?.action == null) {
-            ensureMonitorNotification(force = true)
+            ensureMonitorNotification()
         }
         return try {
             when (intent?.action) {
@@ -896,11 +850,6 @@ class QuietHoursNotificationService : Service() {
 
                 ACTION_MONITOR_NOTIFICATION_DISMISSED -> {
                     handleMonitorNotificationDismissed()
-                    START_STICKY
-                }
-
-                ACTION_HIDE_MONITOR_NOTIFICATION -> {
-                    hideMonitorNotification()
                     START_STICKY
                 }
 
@@ -1462,6 +1411,7 @@ class QuietHoursNotificationService : Service() {
         super.onTaskRemoved(rootIntent)
 
         if (isEnabled(this)) {
+            if (canNotify(this)) ensureMonitorNotification()
             scheduleRestart(2)
             scheduleWatchdog(this)
         }

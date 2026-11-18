@@ -10,6 +10,7 @@ import com.tabslify.core.logging.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.RemoteInput
 import com.tabslify.R
+import com.tabslify.BuildConfig
 import com.tabslify.core.functions.ExactAlarms
 import com.tabslify.core.objects.Config.BLOCKED_MESSAGES
 import com.tabslify.core.objects.Config.NOTIFICATION_PORT
@@ -38,15 +39,60 @@ data class WhatsAppMessage(
     val timestamp: Long
 )
 
-private fun StatusBarNotification.isGroupSummary(): Boolean =
-    (notification.flags and android.app.Notification.FLAG_GROUP_SUMMARY) != 0
+private data class NotificationContent(val title: String, val text: String)
 
-private fun StatusBarNotification.hasContent(): Boolean {
-    val extras = notification.extras
-    val title = extras.getCharSequence("android.title")?.toString().orEmpty()
-    val text = extras.getCharSequence("android.text")?.toString().orEmpty()
-    return title.isNotBlank() || text.isNotBlank()
+private const val AUTOGROUP_SUMMARY_FLAG = 0x00000400
+
+private fun StatusBarNotification.isGroupSummary(): Boolean {
+    val flags = notification.flags
+    return (flags and android.app.Notification.FLAG_GROUP_SUMMARY) != 0 ||
+        (flags and AUTOGROUP_SUMMARY_FLAG) != 0
 }
+
+private fun contentOf(notification: android.app.Notification): NotificationContent {
+    val extras = notification.extras
+    val style = runCatching {
+        NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(notification)
+    }.getOrNull()
+    val conversationTitle = style?.conversationTitle?.toString().orEmpty()
+    val latest = style?.messages?.lastOrNull { it.text?.isNotBlank() == true }
+    val styleSender = latest?.person?.name?.toString().orEmpty()
+    val styleText = latest?.text?.toString().orEmpty()
+
+    val title = conversationTitle
+        .ifEmpty { extras.getCharSequence(android.app.Notification.EXTRA_CONVERSATION_TITLE)?.toString().orEmpty() }
+        .ifEmpty { styleSender }
+        .ifEmpty { extras.getCharSequence(android.app.Notification.EXTRA_TITLE)?.toString().orEmpty() }
+
+    val lines = extras.getCharSequenceArray(android.app.Notification.EXTRA_TEXT_LINES)
+        .orEmpty()
+        .mapNotNull { it?.toString()?.takeIf { line -> line.isNotBlank() } }
+    val joinedLines = lines.takeLast(2).joinToString("\n")
+
+    var text = styleText
+    if (text.isBlank()) {
+        text = extras.getCharSequence(android.app.Notification.EXTRA_BIG_TEXT)?.toString().orEmpty()
+    }
+    if (text.isBlank()) {
+        text = extras.getCharSequence(android.app.Notification.EXTRA_TEXT)?.toString().orEmpty()
+    }
+    if (text.isBlank() && joinedLines.isNotEmpty()) {
+        text = joinedLines
+    }
+    if (text.isBlank()) {
+        text = extras.getCharSequence(android.app.Notification.EXTRA_SUMMARY_TEXT)?.toString().orEmpty()
+    }
+    if (text.isBlank()) {
+        text = extras.getCharSequence(android.app.Notification.EXTRA_SUB_TEXT)?.toString().orEmpty()
+    }
+    if (conversationTitle.isNotEmpty() && styleSender.isNotEmpty() && styleSender != conversationTitle) {
+        text = "$styleSender: $text"
+    }
+    return NotificationContent(title, text)
+}
+
+private fun StatusBarNotification.hasText(): Boolean =
+    contentOf(notification).text.isNotBlank()
 
 private const val BLOCKED_WINDOW_MS = 10 * 60_000L
 
@@ -134,7 +180,8 @@ class WhatsAppNotificationListener : NotificationListenerService() {
 
         fun cancelExternalNotificationByKey(key: String): Boolean {
             val svc = instance?.get() ?: return false
-            return !svc.listenerConnected && try {
+            if (!svc.listenerConnected) return false
+            return try {
                 val exists = svc.activeNotifications?.any { it.key == key } == true
                 if (exists) {
                     svc.cancelNotification(key)
@@ -186,10 +233,9 @@ class WhatsAppNotificationListener : NotificationListenerService() {
 
             val jsonArray = org.json.JSONArray()
             val relevant = notifications
-                .filter { it.packageName != "com.paluss1122.tabslify" && it.packageName != "com.paluss1122.tabslify.private" && it.packageName != "com.android.systemui" }
-
+                .filter { it.packageName != BuildConfig.APPLICATION_ID && it.packageName != "com.android.systemui" }
             val packagesWithChildren = relevant
-                .filter { !it.isGroupSummary() && it.hasContent() }
+                .filter { !it.isGroupSummary() && it.hasText() }
                 .map { it.packageName }
                 .toSet()
 
@@ -197,9 +243,9 @@ class WhatsAppNotificationListener : NotificationListenerService() {
                 .filter { !(it.isGroupSummary() && it.packageName in packagesWithChildren) }
                 .sortedByDescending { it.postTime }
                 .forEach { sbn ->
-                    val extras = sbn.notification.extras
-                    val title = extras.getCharSequence("android.title")?.toString() ?: ""
-                    val text = extras.getCharSequence("android.text")?.toString() ?: ""
+                    val content = contentOf(sbn.notification)
+                    val title = content.title
+                    val text = content.text
                     if (title.isBlank() && text.isBlank()) return@forEach
                     if (isForwardNoise(title, text)) return@forEach
 
@@ -265,7 +311,7 @@ class WhatsAppNotificationListener : NotificationListenerService() {
         try {
             super.onNotificationPosted(sbn)
 
-            if (sbn.packageName != "com.example.tabslify" && sbn.packageName != "com.android.systemui") {
+            if (sbn.packageName != BuildConfig.APPLICATION_ID && sbn.packageName != "com.android.systemui") {
                 if (listenerConnected) {
                     try {
                         activeNotifications?.let {
@@ -286,9 +332,9 @@ class WhatsAppNotificationListener : NotificationListenerService() {
             if (!isSupportedApp(sbn.packageName)) return
 
             val notification = sbn.notification
-            val extras = notification.extras
-            val title = extras.getString(android.app.Notification.EXTRA_TITLE) ?: ""
-            val text = extras.getCharSequence(android.app.Notification.EXTRA_TEXT)?.toString() ?: ""
+            val content = contentOf(notification)
+            val title = content.title
+            val text = content.text
 
             if (handleBlockedSender(sbn, title, text)) return
 
@@ -390,7 +436,7 @@ class WhatsAppNotificationListener : NotificationListenerService() {
         try {
             super.onNotificationRemoved(sbn)
 
-            if (sbn.packageName != "com.example.tabslify" &&
+            if (sbn.packageName != BuildConfig.APPLICATION_ID &&
                 sbn.packageName != "com.android.systemui" &&
                 sbn.packageName != "com.google.android.gms.supervision" &&
                 sbn.packageName != "com.spotify.music"
@@ -413,9 +459,9 @@ class WhatsAppNotificationListener : NotificationListenerService() {
             }
 
             if (isSupportedApp(sbn.packageName)) {
-                val title = sbn.notification.extras.getString(android.app.Notification.EXTRA_TITLE)
-                title?.let {
-                    val key = keyFor(sbn.packageName, it)
+                val title = contentOf(sbn.notification).title
+                if (title.isNotBlank()) {
+                    val key = keyFor(sbn.packageName, title)
                     replyActions.remove(key)
                     messagesByContact.remove(key)
                 }
