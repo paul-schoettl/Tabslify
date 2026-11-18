@@ -83,6 +83,8 @@ import java.util.UUID
 import com.tabslify.core.ui.Accent
 import com.tabslify.core.ui.ErrorRed
 import com.tabslify.core.ui.SuccessGreen
+import com.tabslify.tabs.notes.NoteLinkPreviewSection
+import com.tabslify.tabs.notes.extractUrls
 
 sealed class NoteType {
     data class Text(val content: String) : NoteType()
@@ -734,6 +736,23 @@ fun EditNoteDialog(
                         }
                     }
                 }
+            }
+
+            val linkUrls = remember(textContent, checklistItems) {
+                if (note.type is NoteType.Text) {
+                    extractUrls(textContent)
+                } else {
+                    extractUrls(checklistItems.joinToString("\n") { it.text })
+                }
+            }
+
+            if (linkUrls.isNotEmpty()) {
+                NoteLinkPreviewSection(
+                    urls = linkUrls,
+                    textColor = titleColor,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
             }
 
             Button(

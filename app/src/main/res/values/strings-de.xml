@@ -3721,4 +3721,7 @@
     <string name="vocabulary_finished_text">%1$d Einträge übernommen.</string>
     <string name="vocabulary_notices">Auffällige Seiten</string>
     <string name="vocabulary_open">Öffnen</string>
+    <string name="link_vorschau_laden">Vorschau wird geladen …</string>
+    <string name="link_vorschau_nicht_verfugbar">Keine Vorschau verfügbar</string>
+    <string name="link_offnen">Link öffnen</string>
 </resources>
