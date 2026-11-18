@@ -104,6 +104,12 @@ jobs:
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v4
+      env:
+        # Overlay-base databases require build-mode "none"; Kotlin needs a real
+        # build, so overlay can never apply here. Declaring the mode explicitly
+        # turns the per-run "Cannot build an overlay-base database" warning
+        # annotation into a plain info log.
+        CODEQL_OVERLAY_DATABASE_MODE: none
       with:
         languages: ${{ matrix.language }}
         build-mode: ${{ matrix.build-mode }}
