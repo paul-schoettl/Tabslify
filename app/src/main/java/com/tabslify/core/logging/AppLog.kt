@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Build
 import android.util.Log as AndroidLog
 import com.tabslify.BuildConfig
+import com.tabslify.core.objects.prvt
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import java.time.Instant
@@ -47,6 +48,12 @@ object AppLog {
             if (initialized) return
             store = AppLogStore(context.applicationContext)
             initialized = true
+        }
+        if (prvt()) {
+            runCatching { AppLogUploadWorker.schedule(context.applicationContext) }
+            runCatching { AppLogUploadWorker.enqueueNow(context.applicationContext) }
+        } else if (BuildConfig.IS_DEV) {
+            runCatching { AppLogUploadWorker.cancel(context.applicationContext) }
         }
     }
 
