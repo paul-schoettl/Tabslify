@@ -365,14 +365,14 @@ fun createNotification(context: Context): Notification {
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     )
 
-    val hideBase = Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
-    hideBase.putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-    hideBase.putExtra(Settings.EXTRA_CHANNEL_ID, MONITOR_CHANNEL_ID)
-    hideBase.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    val channelSettingsBase = Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS)
+    channelSettingsBase.putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+    channelSettingsBase.putExtra(Settings.EXTRA_CHANNEL_ID, MONITOR_CHANNEL_ID)
+    channelSettingsBase.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     val hidePendingIntent = PendingIntent.getActivity(
         context,
         1201,
-        hideBase,
+        channelSettingsBase,
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     )
 

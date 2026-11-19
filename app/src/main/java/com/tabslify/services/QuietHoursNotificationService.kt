@@ -700,7 +700,7 @@ class QuietHoursNotificationService : Service() {
         if (lastRepost != 0L && waitMs > 0L) {
             Log.i("QuietHoursService", "Monitor-Notification Repost in ${waitMs}ms")
             handler.postDelayed({
-                if (isEnabled(this) && canNotify(this)) repost()
+                if (isEnabled(this)) repost()
             }, waitMs)
             return
         }
@@ -1411,7 +1411,7 @@ class QuietHoursNotificationService : Service() {
         super.onTaskRemoved(rootIntent)
 
         if (isEnabled(this)) {
-            if (canNotify(this)) ensureMonitorNotification()
+            ensureMonitorNotification()
             scheduleRestart(2)
             scheduleWatchdog(this)
         }
