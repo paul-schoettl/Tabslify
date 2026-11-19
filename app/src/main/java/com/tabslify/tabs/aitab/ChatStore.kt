@@ -15,6 +15,9 @@ data class StoredChat(
     val updatedAt: Long = 0L,
     val mode: String = "Nvidia",
     val model: String = "",
+    val materialKey: String = "",
+    val materialLabel: String = "",
+    val contextText: String = "",
     val messages: List<ChatMessage> = emptyList()
 )
 

@@ -667,6 +667,7 @@ fun AITabContent(
                         AiChatHeader(
                             title = vm.activeChat?.title.orEmpty(),
                             hasInstruction = vm.activeChat?.systemPrompt?.isNotBlank() == true,
+                            materialLabel = vm.activeChat?.materialLabel?.takeIf { it.isNotBlank() },
                             onOpenList = { vm.showChatList = true },
                             onNewChat = { vm.newChat() },
                             onRename = { vm.activeChat?.let { chatToRename = it } },
@@ -1136,6 +1137,7 @@ fun AITabContent(
 private fun AiChatHeader(
     title: String,
     hasInstruction: Boolean,
+    materialLabel: String?,
     onOpenList: () -> Unit,
     onNewChat: () -> Unit,
     onRename: () -> Unit,
@@ -1156,15 +1158,27 @@ private fun AiChatHeader(
                 tint = White
             )
         }
-        Text(
-            text = title.ifBlank { stringResource(R.string.ai_chat_new) },
-            color = White,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 16.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title.ifBlank { stringResource(R.string.ai_chat_new) },
+                color = White,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 16.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth()
+            )
+            if (!materialLabel.isNullOrBlank()) {
+                Text(
+                    text = "📎 " + stringResource(R.string.material_quelle) + ": " + materialLabel,
+                    color = TextTertiary,
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
         if (hasInstruction) {
             Icon(
                 Icons.Default.Tune,

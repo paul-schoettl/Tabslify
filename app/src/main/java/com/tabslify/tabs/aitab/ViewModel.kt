@@ -54,6 +54,7 @@ private const val TOKEN_THROTTLE_MS = 33L
 private const val MAX_CONTEXT_MESSAGES = 40
 private const val MAX_CONTEXT_CHARS = 32_000
 private const val MAX_SYSTEM_PROMPT_CHARS = 2_000
+private const val MAX_MATERIAL_CONTEXT_CHARS = 24_000
 
 data class AiUsage(
     val count: Int,
@@ -119,6 +120,9 @@ data class ChatSession(
     val updatedAt: Long,
     val mode: String,
     val model: String,
+    val materialKey: String = "",
+    val materialLabel: String = "",
+    val contextText: String = "",
     val messages: SnapshotStateList<ChatMessage>
 )
 
@@ -190,6 +194,9 @@ class AITabViewModel(application: Application) : AndroidViewModel(application) {
                     updatedAt = stored.updatedAt,
                     mode = stored.mode,
                     model = stored.model,
+                    materialKey = stored.materialKey,
+                    materialLabel = stored.materialLabel,
+                    contextText = stored.contextText,
                     messages = mutableStateListOf<ChatMessage>().apply { addAll(stored.messages) }
                 )
             )
@@ -300,6 +307,65 @@ class AITabViewModel(application: Application) : AndroidViewModel(application) {
         persistActive()
         currentMsg = prompt
         sendMessage()
+    }
+
+    fun startMaterialChat(
+        title: String,
+        instruction: String,
+        userMessage: String,
+        materialKey: String,
+        materialLabel: String,
+        sourceText: String
+    ): String {
+        loadHistory(createIfEmpty = false)
+        val model = geminiModels.firstOrNull { it.realname == Config.DEF_GEMINI }
+            ?: geminiModels.first()
+        currentMode = "Gemini"
+        selectedModel = model
+        val chat = createSession(
+            mode = "Gemini",
+            model = model.realname,
+            title = title.trim().take(80)
+        ).copy(
+            systemPrompt = instruction.trim().take(MAX_SYSTEM_PROMPT_CHARS),
+            materialKey = materialKey,
+            materialLabel = materialLabel,
+            contextText = sourceText.trim().take(MAX_MATERIAL_CONTEXT_CHARS)
+        )
+        chats.add(chat)
+        activeChatId = chat.id
+        resetUiState()
+        showChatList = false
+        persist()
+        persistActive()
+        currentMsg = userMessage
+        sendMessage()
+        return chat.id
+    }
+
+    fun isChatLoading(id: String): Boolean = loadingChats[id] == true
+
+    fun materialChat(materialKey: String): ChatSession? =
+        chats.filter { it.materialKey == materialKey }.maxByOrNull { it.updatedAt }
+
+    fun materialChatForMode(materialKey: String, instruction: String): ChatSession? =
+        chats
+            .filter {
+                it.materialKey == materialKey && it.systemPrompt.trim() == instruction.trim()
+            }
+            .maxByOrNull { it.updatedAt }
+
+    fun regenerateChat(id: String) {
+        loadHistory(createIfEmpty = false)
+        val chat = chats.firstOrNull { it.id == id } ?: return
+        if (activeChatId != id) {
+            activeChatId = id
+            resetUiState()
+        }
+        showChatList = false
+        applyActiveChatState()
+        persistActive()
+        regenerateLast()
     }
 
     fun renameChat(id: String, title: String) {
@@ -559,13 +625,22 @@ class AITabViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun buildSystemPrompt(chat: ChatSession): String {
-        val base = aiSystemPrompt(AiTarget.AITab)
+        val base = aiSystemPrompt(
+            if (chat.materialKey.isNotBlank()) AiTarget.MaterialChat else AiTarget.AITab
+        )
+        val parts = mutableListOf(base)
         val custom = chat.systemPrompt.trim()
-        return if (custom.isEmpty()) {
-            base
-        } else {
-            "$base\n\nZusätzliche Anweisung für diesen Chat:\n$custom"
+        if (custom.isNotEmpty()) {
+            parts.add("Zusätzliche Anweisung für diesen Chat:\n$custom")
         }
+        val source = chat.contextText.trim()
+        if (source.isNotEmpty()) {
+            parts.add(
+                "Quellmaterial (OCR-Extraktion des Lernmaterials):\n" +
+                    source.take(MAX_MATERIAL_CONTEXT_CHARS)
+            )
+        }
+        return parts.joinToString("\n\n")
     }
 
     private suspend fun send(
@@ -719,6 +794,9 @@ class AITabViewModel(application: Application) : AndroidViewModel(application) {
                     updatedAt = it.updatedAt,
                     mode = it.mode,
                     model = it.model,
+                    materialKey = it.materialKey,
+                    materialLabel = it.materialLabel,
+                    contextText = it.contextText,
                     messages = it.messages.toList()
                 )
             }

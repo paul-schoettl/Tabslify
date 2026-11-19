@@ -23,6 +23,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -111,10 +112,14 @@ import com.tabslify.core.ui.normalizeCallouts
 import com.tabslify.quiethoursnotificationhelper.AiProvider
 import com.tabslify.quiethoursnotificationhelper.AiTarget
 import com.tabslify.quiethoursnotificationhelper.sendAiRequest
+import com.tabslify.tabs.aitab.AITabViewModel
+import com.tabslify.tabs.aitab.ChatTitles
 import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.tabslify.core.ui.SharedViewModel
 import java.io.ByteArrayOutputStream
 import kotlin.time.Duration.Companion.minutes
 import com.tabslify.core.ui.ErrorRed
@@ -128,10 +133,10 @@ data class MaterialUploadState(
 
 enum class UploadStatus { PENDING, UPLOADING, DONE, ERROR }
 
-data class AiSummaryState(
-    val summary: String? = null,
+private data class OcrState(
+    val text: String? = null,
     val loading: Boolean = false,
-    val analysisStarted: Boolean = false
+    val started: Boolean = false
 )
 
 @SuppressLint("AutoboxingStateCreation")
@@ -151,6 +156,8 @@ fun MaterialienScreen(
     }
     val scope = rememberCoroutineScope()
     val prefs = remember { context.getSharedPreferences("material_cache", Context.MODE_PRIVATE) }
+    val aiVm: AITabViewModel = viewModel()
+    val svm: SharedViewModel = viewModel()
 
     var showSubjectDialog by remember { mutableStateOf(false) }
     var subjectNameInput by remember { mutableStateOf("") }
@@ -172,18 +179,24 @@ fun MaterialienScreen(
                 ?: emptyList()
         )
     }
-    var showAiSummaryToRefresh by remember { mutableStateOf(false) }
+    var showRegenerateDialog by remember { mutableStateOf(false) }
+    var showCustomPromptDialog by remember { mutableStateOf(false) }
+    var customPromptInput by remember { mutableStateOf("") }
 
     var recentMaterialPreviews by remember { mutableStateOf<List<RecentMaterial>>(emptyList()) }
 
     val dateiNichtLesbar = stringResource(R.string.datei_nicht_lesbar_2)
     val dateiNichtErreichbar = stringResource(R.string.datei_nicht_erreichbar)
     val ocrFehlgeschlagen = stringResource(R.string.ocr_fehlgeschlagen)
-    val summaryFehlgeschlagen = stringResource(R.string.summary_fehlgeschlagen)
     val zusammenfassungTitel = stringResource(R.string.ai_zusammenfassung)
     val kopiertHinweis = stringResource(R.string.kopiert, zusammenfassungTitel)
+    val materialKeinKontext = stringResource(R.string.material_kein_kontext)
 
-    var aiSummaryStates by remember { mutableStateOf<Map<String, AiSummaryState>>(emptyMap()) }
+    var ocrStates by remember { mutableStateOf<Map<String, OcrState>>(emptyMap()) }
+
+    LaunchedEffect(Unit) {
+        aiVm.loadHistory(createIfEmpty = false)
+    }
 
     fun persistRecentMaterial(subject: String, fileName: String? = null) {
         if (fileName == null) return
@@ -358,32 +371,26 @@ fun MaterialienScreen(
         }
     }
 
-    suspend fun runOcrAndSummary(
+    suspend fun ensureOcr(
         fileKey: String,
         subject: String,
         fileName: String,
         forceRefresh: Boolean = false
-    ) {
+    ): String? {
         val cacheKeyBase = "cache_${subject}_${fileName}"
-
-        aiSummaryStates =
-            aiSummaryStates + (fileKey to AiSummaryState(loading = true, analysisStarted = true))
+        val current = ocrStates[fileKey]
+        if (!forceRefresh && current?.loading == true) return current.text
 
         if (!forceRefresh) {
             val cachedOcr = prefs.getString("${cacheKeyBase}_ocr", null)
-            val cachedSummary = prefs.getString("${cacheKeyBase}_summary", null)
-
-            if (cachedOcr != null && cachedSummary != null) {
-                aiSummaryStates = aiSummaryStates + (fileKey to AiSummaryState(
-                    summary = cachedSummary,
-                    loading = false,
-                    analysisStarted = true
-                ))
-                return
+            if (!cachedOcr.isNullOrBlank()) {
+                ocrStates = ocrStates + (fileKey to OcrState(cachedOcr, false, true))
+                return cachedOcr
             }
         }
 
-        try {
+        ocrStates = ocrStates + (fileKey to OcrState(current?.text, true, true))
+        return try {
             val localUri = resolveFileUrl(context, subject, fileName)
                 ?: throw Exception(dateiNichtErreichbar)
 
@@ -430,79 +437,128 @@ fun MaterialienScreen(
                 provider = AiProvider.GEMINI
             ) ?: throw Exception(ocrFehlgeschlagen)
 
-            val summary = sendAiRequest(
-                context = context,
-                history = emptyList(),
-                userMessage = """
-                    HIER IST DAS ROHMATERIAL:
-                    $rawText
-
-                    BITTE ERSTELLE EINE DIDAKTISCH WERTVOLLE ERKLÄRUNG NACH FOLGENDEM AUFBAU:
-
-                    1. **Der Anker (Einstieg & Relevanz)**
-                       - Starte mit einer einfachen, greifbaren Analogie oder einem praktischen Alltagsbeispiel, das das Kernthema sofort greifbar macht. Warum ist dieses Thema überhaupt spannend oder wichtig?
-
-                    2. **Die Kernbotschaft (Der rote Faden)**
-                       - Formuliere das Hauptziel oder die Kernaussage des Materials in einem einzigen, klaren Satz.
-
-                    3. **Schritt-für-Schritt-Erklärung (Didaktischer Aufbau)**
-                       - Gliedere das Thema in 2 bis 4 logische Abschnitte (gehe dabei vom Einfachen zum Komplexen über).
-                       - Verwende sprechende, motivierende Überschriften.
-                       - *Wichtig:* Erkläre jeden Fachbegriff (Fachtermini) sofort bei der ersten Nennung auf einfache und anschauliche Weise.
-                       - Falls Grafiken oder Diagramme im Quelltext beschrieben wurden: Erkläre deren didaktische Aussage in eigenen Worten.
-
-                    4. **Spickzettel & Aha-Momente (Kritische Punkte)**
-                       - Fasse die 3 bis 5 absolut kritischen Erkenntnisse prägnant zusammen.
-                       - Setze jeden dieser Punkte als Markdown-Callout gemäß der Formatvorgabe.
-
-                    5. **Selbstcheck (Aktivierung des Gelernten)**
-                       - Beende den Text mit 2 kurzen, reflexiven Fragen (ohne direkt die Antwort zu verraten), mit denen die Lernenden selbst prüfen können, ob sie den Kern der Sache verstanden haben.
-                """.trimIndent(),
-                target = AiTarget.MaterialSummary,
-                provider = AiProvider.GEMINI
-            ) ?: throw Exception(summaryFehlgeschlagen)
-
-            aiSummaryStates = aiSummaryStates + (fileKey to AiSummaryState(
-                summary = summary,
-                loading = false,
-                analysisStarted = true
-            ))
-
-            prefs.edit {
-                putString("${cacheKeyBase}_ocr", rawText)
-                putString("${cacheKeyBase}_summary", summary)
-            }
+            prefs.edit { putString("${cacheKeyBase}_ocr", rawText) }
+            ocrStates = ocrStates + (fileKey to OcrState(rawText, false, true))
+            rawText
         } catch (e: Exception) {
             errorMsg = e.localizedMessage
-            aiSummaryStates = aiSummaryStates + (fileKey to AiSummaryState(
-                summary = null,
-                loading = false,
-                analysisStarted = true
-            ))
+            ocrStates = ocrStates + (fileKey to OcrState(null, false, true))
+            null
         }
     }
 
-    if (showAiSummaryToRefresh) {
+    fun startMaterialMode(
+        subject: String,
+        fileName: String,
+        sourceText: String,
+        title: String,
+        instruction: String,
+        userMessage: String
+    ) {
+        val fileKey = "${subject}_$fileName"
+        val existing = aiVm.materialChatForMode(fileKey, instruction)
+        if (existing != null) {
+            sheetExpanded = true
+            aiVm.openChat(existing.id)
+            if (existing.messages.none { !it.own && it.text.isNotBlank() } &&
+                !aiVm.isChatLoading(existing.id)
+            ) {
+                aiVm.regenerateChat(existing.id)
+            }
+            return
+        }
+        val chatId = aiVm.startMaterialChat(
+            title = title,
+            instruction = instruction,
+            userMessage = userMessage,
+            materialKey = fileKey,
+            materialLabel = "$subject · $fileName",
+            sourceText = sourceText
+        )
+        sheetExpanded = true
+        aiVm.openChat(chatId)
+    }
+
+    fun startCustomPrompt(subject: String, fileName: String, sourceText: String) {
+        val prompt = customPromptInput.trim()
+        if (prompt.isEmpty()) return
+        startMaterialMode(
+            subject = subject,
+            fileName = fileName,
+            sourceText = sourceText,
+            title = ChatTitles.from(prompt),
+            instruction = prompt.take(2000),
+            userMessage = prompt
+        )
+        customPromptInput = ""
+        showCustomPromptDialog = false
+    }
+
+    if (showRegenerateDialog) {
         AlertDialogTabslify(
             onConfirm = {
-                val subject = selectedSubject
-                val file = selectedFile
-                showAiSummaryToRefresh = false
-                if (subject != null && file != null) {
-                    scope.launch {
-                        runOcrAndSummary(
-                            "${subject}_$file",
-                            subject,
-                            file,
-                            forceRefresh = true
-                        )
-                    }
+                val key = selectedSubject?.let { subject ->
+                    selectedFile?.let { file -> "${subject}_$file" }
+                }
+                val chat = key?.let {
+                    aiVm.activeChat?.takeIf { c -> c.materialKey == it } ?: aiVm.materialChat(it)
+                }
+                showRegenerateDialog = false
+                if (chat != null) {
+                    aiVm.regenerateChat(chat.id)
+                    sheetExpanded = true
                 }
             },
-            onDismiss = { showAiSummaryToRefresh = false },
+            onDismiss = { showRegenerateDialog = false },
             confirmText = stringResource(R.string.aktualisieren_2),
             title = stringResource(R.string.mochtest_du_wirklich_deine_ai),
             text = stringResource(R.string.die_jetzige_geht_dabei_verloren)
+        )
+    }
+
+    if (showCustomPromptDialog) {
+        AlertDialog(
+            onDismissRequest = { showCustomPromptDialog = false },
+            title = { Text(stringResource(R.string.material_eigene_titel)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        stringResource(R.string.material_eigene_hinweis),
+                        color = TextSecondary,
+                        fontSize = 13.sp
+                    )
+                    OutlinedTextField(
+                        value = customPromptInput,
+                        onValueChange = { customPromptInput = it.take(2000) },
+                        label = { Text(stringResource(R.string.material_eigene_feld)) },
+                        minLines = 2,
+                        maxLines = 6,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val subject = selectedSubject
+                    val file = selectedFile
+                    val source = subject?.let { s ->
+                        file?.let { f -> ocrStates["${s}_$f"]?.text }
+                    }
+                    if (subject != null && file != null && !source.isNullOrBlank()) {
+                        startCustomPrompt(subject, file, source)
+                    } else {
+                        errorMsg = materialKeinKontext
+                        showCustomPromptDialog = false
+                    }
+                }) {
+                    Text(stringResource(R.string.material_eigene_starten))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCustomPromptDialog = false }) {
+                    Text(stringResource(R.string.abbrechen))
+                }
+            }
         )
     }
 
@@ -886,11 +942,17 @@ fun MaterialienScreen(
 
         var fileUrl by remember(fileKey) { mutableStateOf<String?>(null) }
 
-        val currentState = aiSummaryStates[fileKey] ?: AiSummaryState()
-        val aiSummary = currentState.summary
-        val aiSummaryMarkdown = remember(aiSummary) { aiSummary?.let(::normalizeCallouts) ?: "" }
-        val summaryLoading = currentState.loading
-        val analysisStarted = currentState.analysisStarted
+        val ocrState = ocrStates[fileKey]
+        val materialChat = aiVm.activeChat?.takeIf { it.materialKey == fileKey }
+            ?: aiVm.materialChat(fileKey)
+        val activeMode = materialChat?.systemPrompt?.trim()?.let { prompt ->
+            MaterialAiMode.entries.firstOrNull { it.instruction.trim() == prompt }
+        }
+        val answer = materialChat?.messages?.lastOrNull { !it.own && it.text.isNotBlank() }?.text
+        val answerMarkdown = remember(answer) { answer?.let(::normalizeCallouts) ?: "" }
+        val answerLoading = materialChat?.let { aiVm.isChatLoading(it.id) } == true
+        val ocrLoading = ocrState?.loading == true
+        val isImage = isImageFile(selectedFile!!)
 
         var scale by remember { mutableFloatStateOf(1f) }
         var offsetX by remember { mutableFloatStateOf(0f) }
@@ -905,13 +967,8 @@ fun MaterialienScreen(
         LaunchedEffect(fileKey) {
             fileUrl = resolveFileUrl(context, selectedSubject!!, selectedFile!!)
 
-            if (!analysisStarted && isImageFile(selectedFile!!)) {
-                runOcrAndSummary(
-                    fileKey,
-                    selectedSubject!!,
-                    selectedFile!!,
-                    forceRefresh = false
-                )
+            if (isImage && ocrStates[fileKey]?.started != true) {
+                ensureOcr(fileKey, selectedSubject!!, selectedFile!!)
             }
         }
 
@@ -1025,7 +1082,11 @@ fun MaterialienScreen(
                             ) {
                                 Text("🤖", fontSize = 18.sp)
                                 Text(
-                                    if (aiSummary != null) stringResource(R.string.zusammenfassung_bereit) else stringResource(R.string.ki_analyse),
+                                    when {
+                                        answer != null -> stringResource(R.string.zusammenfassung_bereit)
+                                        answerLoading || ocrLoading -> stringResource(R.string.ki_analyse)
+                                        else -> stringResource(R.string.material_modus_waehlen)
+                                    },
                                     color = TextSecondary,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Medium
@@ -1073,6 +1134,64 @@ fun MaterialienScreen(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                MaterialAiMode.entries.forEach { mode ->
+                                    val title = stringResource(mode.labelRes)
+                                    val active = activeMode == mode
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(
+                                                if (active) AccentViolet else Color.White.copy(alpha = 0.07f)
+                                            )
+                                            .clickable {
+                                                val source = ocrState?.text
+                                                if (source.isNullOrBlank()) {
+                                                    errorMsg = materialKeinKontext
+                                                } else {
+                                                    startMaterialMode(
+                                                        subject = selectedSubject!!,
+                                                        fileName = selectedFile!!,
+                                                        sourceText = source,
+                                                        title = "${mode.title} · $selectedFile",
+                                                        instruction = mode.instruction,
+                                                        userMessage = mode.userMessage
+                                                    )
+                                                }
+                                            }
+                                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                                    ) {
+                                        Text(
+                                            title,
+                                            color = TextPrimary,
+                                            fontSize = 13.sp,
+                                            fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal
+                                        )
+                                    }
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(Color.White.copy(alpha = 0.07f))
+                                        .clickable {
+                                            customPromptInput = ""
+                                            showCustomPromptDialog = true
+                                        }
+                                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                                ) {
+                                    Text(
+                                        stringResource(R.string.material_eigene),
+                                        color = TextPrimary,
+                                        fontSize = 13.sp
+                                    )
+                                }
+                            }
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
                                     .clip(RoundedCornerShape(10.dp))
                                     .background(Color.White.copy(alpha = 0.05f))
                                     .padding(14.dp),
@@ -1091,13 +1210,14 @@ fun MaterialienScreen(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Text(
-                                            stringResource(R.string.ai_summary),
+                                            activeMode?.let { stringResource(it.labelRes) }
+                                                ?: stringResource(R.string.ai_summary),
                                             color = TextPrimary,
                                             fontSize = 14.sp,
                                             fontWeight = FontWeight.SemiBold
                                         )
 
-                                        if (aiSummary != null) {
+                                        if (answer != null) {
                                             IconButton(
                                                 onClick = { showFullscreenSummary = true },
                                                 modifier = Modifier.size(24.dp)
@@ -1113,7 +1233,7 @@ fun MaterialienScreen(
                                     }
 
                                     when {
-                                        summaryLoading -> Row(
+                                        answerLoading -> Row(
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
@@ -1129,7 +1249,7 @@ fun MaterialienScreen(
                                             )
                                         }
 
-                                        aiSummary != null -> {
+                                        answer != null -> {
                                             Column(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
@@ -1137,7 +1257,7 @@ fun MaterialienScreen(
                                                     .verticalScroll(rememberScrollState())
                                             ) {
                                                 Markdown(
-                                                    content = aiSummaryMarkdown,
+                                                    content = answerMarkdown,
                                                     colors = markdownColor(text = TextPrimary),
                                                     typography = markdownTypography(
                                                         h1 = TextStyle(
@@ -1192,10 +1312,52 @@ fun MaterialienScreen(
                                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
                                             Text(
-                                                stringResource(R.string.nicht_verfugbar),
+                                                when {
+                                                    !isImage -> stringResource(R.string.nicht_verfugbar)
+                                                    ocrLoading -> stringResource(R.string.material_ocr_laeuft)
+                                                    else -> stringResource(R.string.material_modus_waehlen)
+                                                },
                                                 color = TextTertiary,
                                                 fontSize = 12.sp
                                             )
+                                        }
+                                    }
+
+                                    if (materialChat != null) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(AccentViolet.copy(alpha = 0.22f))
+                                                    .clickable {
+                                                        svm.setPendingAiChatOpen(materialChat.id)
+                                                    }
+                                                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                                            ) {
+                                                Text(
+                                                    stringResource(R.string.material_im_chat_offnen),
+                                                    color = TextPrimary,
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.Medium
+                                                )
+                                            }
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(Color.White.copy(alpha = 0.07f))
+                                                    .clickable { showRegenerateDialog = true }
+                                                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                                            ) {
+                                                Text(
+                                                    stringResource(R.string.material_neu_generieren),
+                                                    color = TextPrimary,
+                                                    fontSize = 12.sp
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -1243,13 +1405,13 @@ fun MaterialienScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            if (aiSummary != null) {
+                            if (answer != null) {
                                 IconButton(
                                     onClick = {
                                         val clipboard =
                                             context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                         clipboard.setPrimaryClip(
-                                            ClipData.newPlainText(zusammenfassungTitel, aiSummary)
+                                            ClipData.newPlainText(zusammenfassungTitel, answer)
                                         )
                                         Toast.makeText(context, kopiertHinweis, Toast.LENGTH_SHORT).show()
                                     }
@@ -1267,7 +1429,7 @@ fun MaterialienScreen(
                                     .clip(RoundedCornerShape(8.dp))
                                     .background(AccentViolet.copy(alpha = 0.15f))
                                     .clickable {
-                                        showAiSummaryToRefresh = true
+                                        showRegenerateDialog = true
                                     }
                                     .padding(horizontal = 12.dp, vertical = 6.dp)
                             ) {
@@ -1286,10 +1448,10 @@ fun MaterialienScreen(
                             .verticalScroll(rememberScrollState())
                             .padding(20.dp)
                     ) {
-                        if (aiSummary != null) {
+                        if (answer != null) {
                             SelectionContainer {
                                 Markdown(
-                                    content = aiSummaryMarkdown,
+                                    content = answerMarkdown,
                                     colors = markdownColor(text = TextPrimary),
                                     typography = markdownTypography(
                                         h1 = TextStyle(
