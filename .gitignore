@@ -32,3 +32,5 @@ supabase/
 TODOS.txt
 .opencode/opencode.jsonc
 __pycache__/
+docs/
+website/tabslify-icon-animation.html
