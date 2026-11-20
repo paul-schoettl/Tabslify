@@ -137,10 +137,9 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         val pushBody = data["body"]?.takeIf { it.isNotEmpty() }
             ?: data["text"]?.takeIf { it.isNotEmpty() }
         val conversation = TikTokPushStore.conversation(appContext, convId)
-        val title = pushTitle
+        val name = pushTitle
             ?: conversation?.name?.takeIf { it.isNotEmpty() }
             ?: TikTokPushStore.rememberedName(appContext, convId).takeIf { it.isNotEmpty() }
-            ?: "TikTok"
         val body = pushBody
             ?: conversation?.lastMessage?.takeIf { it.isNotEmpty() }
             ?: TikTokPushStore.rememberedText(appContext, convId).takeIf { it.isNotEmpty() }
@@ -148,8 +147,8 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         if (pushTitle != null || pushBody != null) {
             TikTokPushStore.remember(appContext, convId, pushTitle.orEmpty(), pushBody.orEmpty())
         }
-        postTikTokNotification(appContext, convId, title, body)
-        if (pushBody == null) {
+        postTikTokNotification(appContext, convId, tiktokTitle(name), body)
+        if (pushBody == null || name == null) {
             Tabslify.serviceScope.launch {
                 try {
                     TikTokDmClient.load(appContext)
@@ -159,18 +158,43 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                     Log.w("FCM", "TikTok-Nachladen fehlgeschlagen: ${e.message}")
                     return@launch
                 }
-                val fresh = TikTokPushStore.conversation(appContext, convId) ?: return@launch
-                val freshTitle = fresh.name.takeIf { it.isNotEmpty() }
+                val resolvedName = TikTokPushStore.conversation(appContext, convId)?.name
+                    ?.takeIf { it.isNotEmpty() }
                     ?: TikTokPushStore.rememberedName(appContext, convId).takeIf { it.isNotEmpty() }
-                    ?: return@launch
-                val freshBody = fresh.lastMessage.takeIf { it.isNotEmpty() }
+                    ?: resolvePeerName(appContext, convId)
+                    ?: name
+                val resolvedBody = TikTokPushStore.conversation(appContext, convId)?.lastMessage
+                    ?.takeIf { it.isNotEmpty() }
                     ?: TikTokPushStore.rememberedText(appContext, convId).takeIf { it.isNotEmpty() }
-                    ?: return@launch
-                TikTokPushStore.remember(appContext, convId, freshTitle, freshBody)
-                postTikTokNotification(appContext, convId, freshTitle, freshBody)
+                    ?: body
+                if (resolvedName == name && resolvedBody == body) return@launch
+                TikTokPushStore.remember(appContext, convId, resolvedName.orEmpty(), resolvedBody)
+                if (resolvedName != null && resolvedName != name) {
+                    val peer = convId.split(':')
+                        .lastOrNull { it.length >= 5 && it != TikTokDmClient.currentSelfId() }
+                        .orEmpty()
+                    TikTokPushStore.reportName(appContext, convId, peer, resolvedName)
+                }
+                postTikTokNotification(appContext, convId, tiktokTitle(resolvedName), resolvedBody)
             }
         }
     }
+
+    private suspend fun resolvePeerName(appContext: android.content.Context, convId: String): String? {
+        val self = TikTokDmClient.currentSelfId()
+        val peer = convId.split(':').lastOrNull { it.length >= 5 && it != self }.orEmpty()
+        if (peer.isEmpty()) return null
+        return try {
+            TikTokDmClient.resolvePeerName(appContext, peer)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun tiktokTitle(name: String?): String =
+        if (name.isNullOrBlank()) "TikTok" else "TikTok - $name"
 
     private fun postTikTokNotification(
         appContext: android.content.Context,
