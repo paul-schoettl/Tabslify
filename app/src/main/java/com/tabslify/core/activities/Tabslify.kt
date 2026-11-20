@@ -165,22 +165,27 @@ class Tabslify : Application() {
     }
 
     private fun syncPrivateComponents() {
-        syncComponentEnabled(CommandCodeUsageWidget::class.java)
+        syncComponentEnabled(CommandCodeUsageWidget::class.java, disableWhenNotPrivate = false)
         syncComponentEnabled(ShareActivity::class.java)
     }
 
-    private fun syncComponentEnabled(componentClass: Class<*>) {
-        val state = if (prvt()) {
+    private fun syncComponentEnabled(componentClass: Class<*>, disableWhenNotPrivate: Boolean = true) {
+        val enable = prvt()
+        if (!enable && !disableWhenNotPrivate) return
+        val state = if (enable) {
             PackageManager.COMPONENT_ENABLED_STATE_ENABLED
         } else {
             PackageManager.COMPONENT_ENABLED_STATE_DISABLED
         }
+        val component = ComponentName(this, componentClass)
         runCatching {
-            packageManager.setComponentEnabledSetting(
-                ComponentName(this, componentClass),
-                state,
-                PackageManager.DONT_KILL_APP
-            )
+            if (packageManager.getComponentEnabledSetting(component) != state) {
+                packageManager.setComponentEnabledSetting(
+                    component,
+                    state,
+                    PackageManager.DONT_KILL_APP
+                )
+            }
         }
     }
 }

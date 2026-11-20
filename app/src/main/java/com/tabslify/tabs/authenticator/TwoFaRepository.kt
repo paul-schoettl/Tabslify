@@ -1,9 +1,12 @@
 package com.tabslify.tabs.authenticator
 
 import com.tabslify.core.functions.errorInsert
+import com.tabslify.core.functions.isCompositionCancellation
+import com.tabslify.core.functions.isNetworkFailure
 import com.tabslify.core.objects.Config
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import java.time.Instant
@@ -25,7 +28,7 @@ fun TwoFAEntry.toSupabase(): TwoFaEntrySupabase {
 }
 
 suspend fun saveTwoFaEntryToSupabase(entry: TwoFAEntry, db: TwoFADatabase? = null): Boolean {
-    return withContext(Dispatchers.IO) {
+    return withContext(Dispatchers.IO + NonCancellable) {
         try {
             val supabaseEntry = entry.toSupabase()
 
@@ -43,13 +46,14 @@ suspend fun saveTwoFaEntryToSupabase(entry: TwoFAEntry, db: TwoFADatabase? = nul
 
             true
         } catch (e: Exception) {
-            errorInsert(
-                "TwoFARepository",
-                "❌ Supabase Fehler: ${e.message}",
-                Instant.now().toString(),
-                "ERROR"
-
-            )
+            if (!isCompositionCancellation(e)) {
+                errorInsert(
+                    "TwoFARepository",
+                    "❌ Supabase Fehler: ${e.message}",
+                    Instant.now().toString(),
+                    if (isNetworkFailure(e)) "WARN" else "ERROR"
+                )
+            }
             false
         }
     }

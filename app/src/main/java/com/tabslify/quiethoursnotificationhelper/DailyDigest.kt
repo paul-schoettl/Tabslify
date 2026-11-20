@@ -14,6 +14,8 @@ import androidx.work.WorkManager
 import com.tabslify.R
 import com.tabslify.core.activities.MainActivity
 import com.tabslify.core.functions.errorInsert
+import com.tabslify.core.functions.isNetworkFailure
+import com.tabslify.core.functions.neverReachedServer
 import com.tabslify.core.functions.showSimpleNotificationExtern
 import com.tabslify.core.objects.Config
 import com.tabslify.core.objects.prvt
@@ -111,11 +113,12 @@ suspend fun runDailyMusicSummary(context: Context) {
             silent = false
         )
     } catch (e: Exception) {
+        if (e is kotlinx.coroutines.CancellationException) throw e
         errorInsert(
             "DailyDigest:runDailyMusicSummary",
             e.stackTraceToString().take(8000),
             Instant.now().toString(),
-            "ERROR"
+            if (isNetworkFailure(e) || neverReachedServer(e)) "WARN" else "ERROR"
         )
     }
 }

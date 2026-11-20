@@ -55,13 +55,17 @@ class CommandCodeWidgetRefreshWorker(
                 state = CommandCodeWidgetRenderer.PaceState.BLOCKED
                 Log.w(TAG, "Antwort vom Server abgewiesen")
             } catch (e: Exception) {
-                val keepCache = WidgetSnapshotStore.read(app) != null && isNetworkFailure(e)
+                val upstreamUnavailable = e is CommandCodeServerException && e.status >= 500
+                val keepCache =
+                    WidgetSnapshotStore.read(app) != null && (isNetworkFailure(e) || upstreamUnavailable)
                 if (keepCache) {
                     state = CommandCodeWidgetRenderer.PaceState.DATA
-                    Log.w(TAG, "Netzfehler, Cache bleibt stehen: ${e.message}")
+                    Log.w(TAG, "Netz-/Serverfehler, Cache bleibt stehen: ${e.message}")
+                } else if (upstreamUnavailable) {
+                    state = CommandCodeWidgetRenderer.PaceState.ERROR
+                    Log.w(TAG, "Anbieter nicht erreichbar: ${e.message}")
                 } else {
                     state = CommandCodeWidgetRenderer.PaceState.ERROR
-                    Log.e(TAG, "Abruf fehlgeschlagen: ${e.message}")
                     errorInsert(
                         "CommandCodeWidget",
                         "CommandCode-Abruf fehlgeschlagen: ${e.message}",

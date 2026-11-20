@@ -53,6 +53,7 @@ import androidx.core.content.edit
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.tabslify.R
+import com.tabslify.core.functions.isCompositionCancellation
 import com.tabslify.core.objects.Config
 import com.tabslify.core.ui.Accent
 import com.tabslify.core.ui.AccentDim
@@ -122,7 +123,7 @@ fun MovieDiscoveryTabContent(
                 val result = fetchMoviesFromTMDB(context, selectedGenre)
                 movies = result.shuffled().take(20)
             } catch (e: Exception) {
-                Log.e("MovieDiscovery", "Fehler", e)
+                if (!isCompositionCancellation(e)) Log.e("MovieDiscovery", "Fehler", e)
             } finally {
                 isLoading = false
             }

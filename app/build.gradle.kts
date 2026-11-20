@@ -19,6 +19,7 @@ fun prop(key: String) = "\"${localProps.getProperty(key)}\""
 android {
     namespace = "com.tabslify"
     compileSdk = 37
+    compileSdkMinor = 2
 
     defaultConfig {
         applicationId = "com.paluss1122.tabslify"

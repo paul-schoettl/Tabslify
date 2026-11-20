@@ -2944,6 +2944,7 @@ private suspend fun fetchIpFromSupabase(mobile: Boolean = false): String? =
                     ?.takeIf { it.isNotEmpty() }
                     ?.let { return@withContext it }
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 if (attempt == 2) {
                     if (isNetworkFailure(e)) {
                         Log.w("CLOUDSA", "Supabase-IP-Abruf fehlgeschlagen: ${e.message}")
@@ -2992,6 +2993,7 @@ private suspend fun insertMobileIpToSupabase(ipAddress: String): Boolean =
                 lastInsertedMobileIpAt = System.currentTimeMillis()
                 return@withContext true
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 if (!isNetworkFailure(e)) {
                     logError("SupabaseInsert", e)
                     return@withContext false

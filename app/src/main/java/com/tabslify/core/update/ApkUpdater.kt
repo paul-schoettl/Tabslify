@@ -6,6 +6,7 @@ import android.provider.Settings
 import androidx.core.content.FileProvider
 import androidx.core.content.edit
 import androidx.core.net.toUri
+import com.tabslify.core.functions.isCompositionCancellation
 import com.tabslify.core.logging.Log
 import com.tabslify.core.objects.Config
 import io.github.jan.supabase.exceptions.RestException
@@ -241,7 +242,9 @@ object ApkUpdater {
                 Log.i(TAG, "Download abgeschlossen, SHA-256 verifiziert: $actualSha")
                 target
             } catch (error: Throwable) {
-                Log.e(TAG, "Download/Zusammensetzen fehlgeschlagen", error)
+                if (!isCompositionCancellation(error)) {
+                    Log.e(TAG, "Download/Zusammensetzen fehlgeschlagen", error)
+                }
                 if (temp.exists()) temp.delete()
                 throw error
             }

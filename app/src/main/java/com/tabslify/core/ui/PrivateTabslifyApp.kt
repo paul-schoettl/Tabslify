@@ -116,6 +116,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenu
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -183,6 +184,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.rememberAsyncImagePainter
 import com.tabslify.R
 import com.tabslify.core.TabNavigationViewModel
+import com.tabslify.core.functions.isCompositionCancellation
 import com.tabslify.core.objects.Config
 import com.tabslify.core.objects.Config.cms
 import com.tabslify.core.objects.FavoriteManager
@@ -1158,7 +1160,7 @@ fun MainTabslifyScreen(storage: Storage) {
             // damit "favorites" nicht unbegrenzt mit toten Verweisen wächst.
             favoriteFiles = FavoriteManager.pruneMissing(context, groupedFiles.map { it.name })
         } catch (e: Exception) {
-            Log.e("PrivateTabslifyApp", "Fehler", e)
+            if (!isCompositionCancellation(e)) Log.e("PrivateTabslifyApp", "Fehler", e)
             withContext(Dispatchers.Main) {
                 Toast.makeText(context, fehlerBeimLadenMsg.format(e.message), Toast.LENGTH_SHORT)
                     .show()
@@ -1186,7 +1188,7 @@ fun MainTabslifyScreen(storage: Storage) {
                 Toast.makeText(context, fehlerBeimLoeschenMsg.format(e.message), Toast.LENGTH_LONG)
                     .show()
             }
-            Log.e("PrivateTabslifyApp", "Fehler", e)
+            if (!isCompositionCancellation(e)) Log.e("PrivateTabslifyApp", "Fehler", e)
         }
     }
 
@@ -1248,7 +1250,7 @@ fun MainTabslifyScreen(storage: Storage) {
                     Toast.makeText(context, hochgeladenMsg, Toast.LENGTH_SHORT).show()
                     loadFiles()
                 } catch (e: Exception) {
-                    Log.e("PrivateTabslifyApp", "Fehler", e)
+                    if (!isCompositionCancellation(e)) Log.e("PrivateTabslifyApp", "Fehler", e)
                     withContext(Dispatchers.Main) {
                         Toast.makeText(
                             context,
@@ -1539,7 +1541,7 @@ fun MainTabslifyScreen(storage: Storage) {
                                                         }
                                                         publicUrl = signed
                                                     } catch (e: Exception) {
-                                                        Log.e("PrivateTabslifyApp", "Fehler", e)
+                                                        if (!isCompositionCancellation(e)) Log.e("PrivateTabslifyApp", "Fehler", e)
                                                     }
                                                 }
 
@@ -2024,7 +2026,7 @@ fun MainTabslifyScreen(storage: Storage) {
                                                                     HapticFeedbackType.LongPress
                                                                 )
                                                             } catch (e: Exception) {
-                                                                Log.e("PrivateTabslifyApp", "Fehler", e)
+                                                                if (!isCompositionCancellation(e)) Log.e("PrivateTabslifyApp", "Fehler", e)
                                                                 Toast.makeText(
                                                                     context,
                                                                     String.format(fehlerMsgTemplate, e.message),

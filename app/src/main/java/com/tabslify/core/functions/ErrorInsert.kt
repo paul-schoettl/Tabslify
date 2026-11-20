@@ -7,6 +7,7 @@ import com.tabslify.core.objects.Config
 import io.github.jan.supabase.exceptions.HttpRequestException as SupabaseHttpRequestException
 import io.github.jan.supabase.functions.functions
 import io.ktor.client.plugins.HttpRequestTimeoutException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import java.io.IOException
 import java.net.UnknownHostException
@@ -37,6 +38,8 @@ fun errorInsert(serviceName: String, errorMessage: String, createdAt: String, se
                     "severity" to severity
                 )
             )
+        } catch (e: CancellationException) {
+            throw e
         } catch (_: Exception) {
         }
     }
@@ -50,3 +53,15 @@ fun isNetworkFailure(e: Throwable): Boolean =
 fun neverReachedServer(e: Throwable): Boolean =
     e is UnknownHostException ||
         e.message?.contains("Unable to resolve host", ignoreCase = true) == true
+
+fun isCompositionCancellation(e: Throwable): Boolean {
+    if (e is CancellationException) return true
+    val name = e::class.java.name
+    if (name.endsWith("ForgottenCoroutineScopeException") ||
+        name.endsWith("LeftCompositionCancellationException")
+    ) {
+        return true
+    }
+    val message = e.message ?: return false
+    return message.contains("left the composition", ignoreCase = true)
+}
