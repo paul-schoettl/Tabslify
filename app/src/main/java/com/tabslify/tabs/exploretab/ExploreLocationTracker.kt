@@ -16,7 +16,6 @@ import android.net.NetworkRequest
 import android.net.wifi.WifiInfo
 import android.net.wifi.WifiManager
 import android.os.Build
-import android.os.Handler
 import android.os.Looper
 import androidx.annotation.StringRes
 import androidx.core.content.ContextCompat
@@ -35,7 +34,6 @@ import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
-import com.google.android.gms.tasks.Tasks
 import com.tabslify.R
 import com.tabslify.core.functions.errorInsert
 import com.tabslify.core.objects.Config
@@ -46,14 +44,20 @@ import com.tabslify.quiethoursnotificationhelper.stopAllSyncServices
 import com.tabslify.quiethoursnotificationhelper.syncTodosWithLaptop
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 import java.time.Instant
+import java.util.concurrent.CancellationException
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.resume
 
 enum class TrackerStatus(@StringRes val labelRes: Int) {
     STOPPED_HOME(R.string.tracker_status_stopped_home),
@@ -166,6 +170,11 @@ object ExploreLocationTracker {
     private const val GEOFENCE_ID = "HOME"
     private const val GEOFENCE_RADIUS = 100f
     private const val GEOFENCE_TRANSITION_COOLDOWN_MS = 10 * 60_000L
+    private const val HOME_FIX_TIMEOUT_MS = 15_000L
+    private const val HOME_FIX_RETRY_TIMEOUT_MS = 20_000L
+    private const val HOME_DECISION_MAX_ACCURACY_METERS = 50f
+    private const val HOME_UNKNOWN_WIFI_EXTRA_METERS = 100f
+    private const val HOME_EXIT_CONFIRM_DELAY_MS = 20_000L
     private const val PRESENCE_PREFS = "explore_presence"
     private const val PRESENCE_KEY = "presence"
     private const val PRESENCE_HOME = "home"
@@ -226,6 +235,29 @@ object ExploreLocationTracker {
     @Volatile
     private var lastGeofenceTransitionAt = 0L
 
+    @Volatile
+    private var lastLeftHomeRejectLogAt = 0L
+
+    private val decisionLock = Any()
+
+    private val decisionScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    @Volatile
+    private var decisionJob: Job? = null
+
+    private enum class WifiVerdict { HOME, ELSEWHERE, UNKNOWN }
+
+    private data class HomeFix(val distanceToHomeMeters: Float, val accuracyMeters: Float) {
+        val confident: Boolean
+            get() = accuracyMeters <= HOME_DECISION_MAX_ACCURACY_METERS
+    }
+
+    private fun verdictField(verdict: WifiVerdict): Boolean? = when (verdict) {
+        WifiVerdict.HOME -> true
+        WifiVerdict.ELSEWHERE -> false
+        WifiVerdict.UNKNOWN -> null
+    }
+
     private fun isNightTime(): Boolean {
         val hour = Instant.now().atZone(java.time.ZoneId.systemDefault()).hour
         return hour in NIGHT_START_HOUR until NIGHT_END_HOUR
@@ -240,8 +272,11 @@ object ExploreLocationTracker {
         return results[0]
     }
 
-    fun onArrivedHome(context: Context) {
+    fun onArrivedHome(context: Context, cancelDecision: Boolean = true) {
         val appCtx = context.applicationContext
+        if (cancelDecision) {
+            cancelPendingDecision()
+        }
         setPresence(appCtx, PRESENCE_HOME)
         syncTodosWithLaptop(appCtx)
     }
@@ -276,25 +311,26 @@ object ExploreLocationTracker {
             return
         }
         logEvent(context, "GEOFENCE", "ENTER", 0, null)
+        cancelPendingDecision()
         setTrackerStatus(TrackerStatus.STOPPED_HOME)
         stop(context)
         onArrivedHome(context)
     }
 
     fun onGeofenceExit(context: Context) {
+        val appCtx = context.applicationContext
         if (swallowedByCooldown(enter = false)) {
-            logEvent(context, "GEOFENCE", "EXIT", 0, "cooldown")
-            scheduleRecheckAfterCooldown(context)
+            logEvent(appCtx, "GEOFENCE", "EXIT", 0, "cooldown")
+            scheduleRecheckAfterCooldown(appCtx)
             return
         }
-        val appCtx = context.applicationContext
         logEvent(appCtx, "GEOFENCE", "EXIT", 0, null)
         ExploreNetworkWatcher.arm(appCtx)
         if (!isNightTime()) {
-            setTrackerStatus(TrackerStatus.OUTSIDE)
+            startTracking(appCtx)
         }
-        startTracking(appCtx)
-        onLeftHome(appCtx)
+        cancelPendingDecision()
+        startDecision(appCtx, "geofence")
     }
 
     private fun swallowedByCooldown(enter: Boolean): Boolean {
@@ -372,25 +408,148 @@ object ExploreLocationTracker {
             setTrackerStatus(TrackerStatus.WAITING_GEOFENCE)
         }
 
-        homeWifiStatus(appCtx, HOME_WIFI_SSID) { isHomeWifi ->
-            _trackerInfo.value = _trackerInfo.value.copy(lastWifiHome = isHomeWifi)
-            if (isHomeWifi) {
-                setTrackerStatus(TrackerStatus.STOPPED_HOME)
-                stop(appCtx)
-                onArrivedHome(appCtx)
-                return@homeWifiStatus
-            }
-            evaluateCurrentLocation(appCtx) { distanceHome ->
-                if (distanceHome <= GEOFENCE_RADIUS) {
-                    setTrackerStatus(TrackerStatus.STOPPED_HOME)
-                    stop(appCtx)
-                    onArrivedHome(appCtx)
-                } else {
-                    setTrackerStatus(TrackerStatus.OUTSIDE)
-                    startTracking(appCtx)
-                    onLeftHome(appCtx)
+        startDecision(appCtx, "recheck")
+    }
+
+    private fun startDecision(appCtx: Context, reason: String) {
+        synchronized(decisionLock) {
+            val running = decisionJob?.isActive == true
+            if (running && reason != "geofence") return
+            decisionJob?.cancel()
+            decisionJob = decisionScope.launch {
+                try {
+                    decidePresence(appCtx, reason)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    errorInsert(
+                        "ExploreTracker",
+                        "Praesenz-Entscheidung fehlgeschlagen ($reason): ${e::class.java.simpleName}: ${e.message}",
+                        Instant.now().toString(),
+                        "ERROR"
+                    )
                 }
             }
+        }
+    }
+
+    private fun cancelPendingDecision() {
+        synchronized(decisionLock) {
+            decisionJob?.cancel()
+            decisionJob = null
+        }
+    }
+
+    private suspend fun decidePresence(appCtx: Context, reason: String) {
+        if (isNightTime()) {
+            setTrackerStatus(TrackerStatus.PAUSED_NIGHT)
+            _trackerInfo.value = _trackerInfo.value.copy(isNight = true, isEnabled = false)
+            ExploreNightRestartWorker.schedule(appCtx)
+            return
+        }
+
+        val wifi = homeWifiVerdict(appCtx, HOME_WIFI_SSID)
+        _trackerInfo.value = _trackerInfo.value.copy(lastWifiHome = verdictField(wifi))
+
+        if (wifi == WifiVerdict.HOME) {
+            setTrackerStatus(TrackerStatus.STOPPED_HOME)
+            stopInternal(appCtx, cancelDecision = false)
+            onArrivedHome(appCtx, cancelDecision = false)
+            return
+        }
+
+        val fix = currentHomeFix(appCtx)
+        if (fix == null) {
+            if (reason == "geofence") {
+                logLeftHomeRejected(appCtx, reason, "kein Standort, Geofence-EXIT gilt")
+                setTrackerStatus(TrackerStatus.OUTSIDE)
+                startTracking(appCtx)
+                onLeftHome(appCtx)
+                return
+            }
+            logLeftHomeRejected(appCtx, reason, "kein Standort (wifi=$wifi)")
+            return
+        }
+
+        _trackerInfo.value = _trackerInfo.value.copy(distanceToHomeMeters = fix.distanceToHomeMeters)
+
+        if (fix.distanceToHomeMeters <= GEOFENCE_RADIUS) {
+            setTrackerStatus(TrackerStatus.STOPPED_HOME)
+            stopInternal(appCtx, cancelDecision = false)
+            onArrivedHome(appCtx, cancelDecision = false)
+            return
+        }
+
+        if (!fix.confident) {
+            logLeftHomeRejected(
+                appCtx, reason,
+                "acc=%.0f m > %.0f m (%.0f m vom Haus)".format(
+                    fix.accuracyMeters, HOME_DECISION_MAX_ACCURACY_METERS, fix.distanceToHomeMeters
+                )
+            )
+            return
+        }
+
+        if (wifi == WifiVerdict.UNKNOWN && reason != "geofence") {
+            if (fix.distanceToHomeMeters <= GEOFENCE_RADIUS + HOME_UNKNOWN_WIFI_EXTRA_METERS) {
+                logLeftHomeRejected(
+                    appCtx, reason,
+                    "WLAN unbekannt, %.0f m reichen nicht (%.0f m noetig)".format(
+                        fix.distanceToHomeMeters, GEOFENCE_RADIUS + HOME_UNKNOWN_WIFI_EXTRA_METERS
+                    )
+                )
+                return
+            }
+        }
+
+        if (presence(appCtx) == PRESENCE_OUTSIDE) {
+            setTrackerStatus(TrackerStatus.OUTSIDE)
+            startTracking(appCtx)
+            return
+        }
+
+        delay(HOME_EXIT_CONFIRM_DELAY_MS)
+
+        val confirm = currentHomeFix(appCtx)
+        val confirmedOutside = confirm != null &&
+            confirm.confident &&
+            confirm.distanceToHomeMeters > GEOFENCE_RADIUS
+        val clearlyInside = confirm != null &&
+            confirm.confident &&
+            confirm.distanceToHomeMeters <= GEOFENCE_RADIUS
+
+        if (!confirmedOutside && !(reason == "geofence" && !clearlyInside)) {
+            logLeftHomeRejected(
+                appCtx, reason,
+                "Bestaetigung verfehlt (${confirm?.let { "%.0f m, acc %.0f m".format(it.distanceToHomeMeters, it.accuracyMeters) } ?: "kein Fix"})"
+            )
+            return
+        }
+
+        setTrackerStatus(TrackerStatus.OUTSIDE)
+        startTracking(appCtx)
+        onLeftHome(appCtx)
+    }
+
+    private fun logLeftHomeRejected(context: Context, reason: String, detail: String) {
+        val now = System.currentTimeMillis()
+        markDecisionUndecided(context)
+        if (now - lastLeftHomeRejectLogAt < 60_000L) return
+        lastLeftHomeRejectLogAt = now
+        errorInsert(
+            "ExploreTracker",
+            "Verlassen verworfen ($reason): $detail",
+            Instant.now().toString(),
+            "LOG"
+        )
+    }
+
+    private fun markDecisionUndecided(context: Context) {
+        val appCtx = context.applicationContext
+        when {
+            presence(appCtx) == PRESENCE_OUTSIDE -> setTrackerStatus(TrackerStatus.OUTSIDE)
+            serviceRunning || backgroundLocationRequested -> setTrackerStatus(TrackerStatus.ACTIVE)
+            else -> setTrackerStatus(TrackerStatus.WAITING_GEOFENCE)
         }
     }
 
@@ -398,60 +557,61 @@ object ExploreLocationTracker {
         LocationServices.getFusedLocationProviderClient(context.applicationContext)
 
     @SuppressLint("MissingPermission")
-    private fun homeWifiStatus(context: Context, homeSsid: String, onResult: (Boolean) -> Unit) {
+    private suspend fun homeWifiVerdict(context: Context, homeSsid: String): WifiVerdict {
         val appCtx = context.applicationContext
-        val cm = appCtx.getSystemService(ConnectivityManager::class.java)
-        if (cm == null) {
-            onResult(false)
-            return
-        }
+        val cm = appCtx.getSystemService(ConnectivityManager::class.java) ?: return WifiVerdict.UNKNOWN
 
-        val handler = Handler(Looper.getMainLooper())
-        var done = false
-        val finish: (Boolean) -> Unit = { isHome ->
-            if (!done) {
-                done = true
-                handler.removeCallbacksAndMessages(null)
-                onResult(isHome)
+        return withTimeoutOrNull(WIFI_CHECK_TIMEOUT_MS + 2_000L) {
+            suspendCancellableCoroutine { cont ->
+                val lock = Any()
+                var done = false
+                lateinit var callback: ConnectivityManager.NetworkCallback
+                val complete: (WifiVerdict) -> Unit = { verdict ->
+                    val first = synchronized(lock) {
+                        if (done) false else {
+                            done = true
+                            true
+                        }
+                    }
+                    if (first) {
+                        runCatching { cm.unregisterNetworkCallback(callback) }
+                        runCatching { cont.resume(verdict) }
+                    }
+                }
+
+                callback = object : ConnectivityManager.NetworkCallback(
+                    ConnectivityManager.NetworkCallback.FLAG_INCLUDE_LOCATION_INFO
+                ) {
+                    override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
+                        val wifiInfo = caps.transportInfo as? WifiInfo
+                        val ssid = wifiInfo?.ssid
+                            ?.removeSurrounding("\"")
+                            ?.takeUnless { it.isBlank() || it == WifiManager.UNKNOWN_SSID }
+                        if (ssid == null) return
+                        complete(if (ssid.equals(homeSsid, ignoreCase = true)) WifiVerdict.HOME else WifiVerdict.ELSEWHERE)
+                    }
+
+                    override fun onUnavailable() = complete(WifiVerdict.UNKNOWN)
+
+                    override fun onLost(network: Network) = complete(WifiVerdict.UNKNOWN)
+                }
+
+                val request = NetworkRequest.Builder()
+                    .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+                    .build()
+
+                try {
+                    cm.registerNetworkCallback(request, callback)
+                } catch (_: Exception) {
+                    complete(WifiVerdict.UNKNOWN)
+                    return@suspendCancellableCoroutine
+                }
+
+                cont.invokeOnCancellation {
+                    runCatching { cm.unregisterNetworkCallback(callback) }
+                }
             }
-        }
-
-        val callback = object : ConnectivityManager.NetworkCallback(
-            ConnectivityManager.NetworkCallback.FLAG_INCLUDE_LOCATION_INFO
-        ) {
-            override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
-                if (done) return
-                val wifiInfo = caps.transportInfo as? WifiInfo
-                val ssid = wifiInfo?.ssid
-                    ?.removeSurrounding("\"")
-                    ?.takeUnless { it.isBlank() || it == WifiManager.UNKNOWN_SSID }
-                if (ssid == null) return
-                runCatching { cm.unregisterNetworkCallback(this) }
-                finish(ssid.equals(homeSsid, ignoreCase = true))
-            }
-
-            override fun onUnavailable() {
-                runCatching { cm.unregisterNetworkCallback(this) }
-                finish(false)
-            }
-        }
-
-        val request = NetworkRequest.Builder()
-            .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
-            .build()
-
-        handler.postDelayed({
-            if (!done) {
-                runCatching { cm.unregisterNetworkCallback(callback) }
-            }
-            finish(false)
-        }, WIFI_CHECK_TIMEOUT_MS)
-
-        try {
-            cm.registerNetworkCallback(request, callback)
-        } catch (_: Exception) {
-            finish(false)
-        }
+        } ?: WifiVerdict.UNKNOWN
     }
 
     private fun backgroundLocationRequest(): LocationRequest =
@@ -695,37 +855,56 @@ object ExploreLocationTracker {
     }
 
     @SuppressLint("MissingPermission")
-    private fun evaluateCurrentLocation(context: Context, onResolved: (Float) -> Unit) {
-        if (Config.LAT == 0.0 && Config.LON == 0.0) {
-            setTrackerStatus(TrackerStatus.WAITING_GEOFENCE)
-            return
+    private suspend fun currentHomeFix(context: Context): HomeFix? {
+        if (Config.LAT == 0.0 && Config.LON == 0.0) return null
+
+        var best: HomeFix? = null
+        for (timeoutMs in listOf(HOME_FIX_TIMEOUT_MS, HOME_FIX_RETRY_TIMEOUT_MS)) {
+            val location = requestHomeFix(context, timeoutMs) ?: continue
+            val distanceHome = distanceToHome(location.latitude, location.longitude)
+            _trackerInfo.value = _trackerInfo.value.copy(
+                lastLat = location.latitude,
+                lastLng = location.longitude,
+                lastUpdate = Instant.now().toString(),
+                distanceToHomeMeters = distanceHome,
+            )
+            val accuracy = if (location.hasAccuracy()) location.accuracy else Float.MAX_VALUE
+            val fix = HomeFix(distanceHome, accuracy)
+            if (fix.confident) return fix
+            if (best == null || fix.accuracyMeters < best.accuracyMeters) best = fix
         }
+        return best
+    }
 
-        scope.launch {
-            try {
-                val request = CurrentLocationRequest.Builder()
-                    .setPriority(Priority.PRIORITY_BALANCED_POWER_ACCURACY)
-                    .setMaxUpdateAgeMillis(30_000L)
-                    .setDurationMillis(5_000L)
-                    .build()
-
-                val location = Tasks.await(getClient(context).getCurrentLocation(request, null))
-                if (location == null) {
-                    setTrackerStatus(TrackerStatus.WAITING_GEOFENCE)
-                    return@launch
+    @SuppressLint("MissingPermission")
+    private suspend fun requestHomeFix(context: Context, timeoutMs: Long): Location? {
+        return withTimeoutOrNull(timeoutMs) {
+            suspendCancellableCoroutine { cont ->
+                val lock = Any()
+                var resumed = false
+                val complete: (Location?) -> Unit = { location ->
+                    val first = synchronized(lock) {
+                        if (resumed) false else {
+                            resumed = true
+                            true
+                        }
+                    }
+                    if (first) runCatching { cont.resume(location) }
                 }
 
-                val distanceHome = distanceToHome(location.latitude, location.longitude)
-                _trackerInfo.value = _trackerInfo.value.copy(
-                    lastLat = location.latitude,
-                    lastLng = location.longitude,
-                    lastUpdate = Instant.now().toString(),
-                    distanceToHomeMeters = distanceHome,
-                )
+                val request = CurrentLocationRequest.Builder()
+                    .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
+                    .setMaxUpdateAgeMillis(0L)
+                    .setDurationMillis(timeoutMs)
+                    .build()
 
-                onResolved(distanceHome)
-            } catch (_: Exception) {
-                setTrackerStatus(TrackerStatus.WAITING_GEOFENCE)
+                try {
+                    getClient(context).getCurrentLocation(request, null)
+                        .addOnSuccessListener { location -> complete(location) }
+                        .addOnFailureListener { complete(null) }
+                } catch (_: Exception) {
+                    complete(null)
+                }
             }
         }
     }
@@ -1104,7 +1283,13 @@ object ExploreLocationTracker {
     }
 
     fun stop(context: Context) {
-        val appCtx = context.applicationContext
+        stopInternal(context.applicationContext, cancelDecision = true)
+    }
+
+    private fun stopInternal(appCtx: Context, cancelDecision: Boolean) {
+        if (cancelDecision) {
+            cancelPendingDecision()
+        }
         isEnabled = false
         _trackerInfo.value = _trackerInfo.value.copy(isEnabled = false)
 

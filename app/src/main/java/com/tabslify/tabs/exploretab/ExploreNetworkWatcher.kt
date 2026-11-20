@@ -39,10 +39,6 @@ object ExploreNetworkWatcher {
             override fun onAvailable(network: Network) {
                 scheduleRecheck(appCtx, cm, network)
             }
-
-            override fun onCapabilitiesChanged(network: Network, caps: NetworkCapabilities) {
-                scheduleRecheck(appCtx, cm, network)
-            }
         }
 
         try {
