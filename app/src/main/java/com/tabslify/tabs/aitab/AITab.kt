@@ -693,6 +693,7 @@ fun AITabContent(
                                     "Nvidia",
                                     "Gemini",
                                     "OpenRouter",
+                                    if (isPrivate) "CommandCode" else null,
                                     if (isPrivate) "Server" else null
                                 ).forEachIndexed { index, mode ->
                                     val containerColor by animateColorAsState(
@@ -779,6 +780,7 @@ fun AITabContent(
 
                                                                 "Gemini" -> null
                                                                 "OpenRouter" -> null
+                                                                "CommandCode" -> null
                                                                 else -> model.name.substringAfter(":")
                                                             }
                                                         val size =

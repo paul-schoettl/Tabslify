@@ -168,6 +168,7 @@ class AITabViewModel(application: Application) : AndroidViewModel(application) {
             "Nvidia" -> nvidiaModels
             "OpenRouter" -> openrouterModels
             "Server" -> serverModels
+            "CommandCode" -> commandcodeModels
             "Gemini" -> geminiModels
             else -> emptyList()
         }
@@ -473,9 +474,9 @@ class AITabViewModel(application: Application) : AndroidViewModel(application) {
         val ctx = getApplication<Application>()
         val modeAtSend = currentMode
         val modelAtSend = selectedModel
-        val isServer = modeAtSend == "Server"
+        val skipsDailyLimit = modeAtSend == "Server" || modeAtSend == "CommandCode"
         val isPrivate = prvt()
-        if (!isServer && !isPrivate) {
+        if (!skipsDailyLimit && !isPrivate) {
             checkUsageResetIfNeeded(ctx)
             if (todayUsage + modelAtSend.weight > DAILY_LIMIT) {
                 showLimitReached = true
@@ -519,7 +520,7 @@ class AITabViewModel(application: Application) : AndroidViewModel(application) {
             touchChat(chat.id)
         }
         persist()
-        if (!isServer && !isPrivate) updateTodayUsage(todayUsage + modelAtSend.weight)
+        if (!skipsDailyLimit && !isPrivate) updateTodayUsage(todayUsage + modelAtSend.weight)
         loadingChats[chat.id] = true
         val placeholder = ChatMessage(
             text = "",
@@ -678,6 +679,19 @@ class AITabViewModel(application: Application) : AndroidViewModel(application) {
                 askServer(priorMessages, question, model.realname, pic)
             }
 
+            "CommandCode" -> sendAiRequest(
+                ctx,
+                userMessage,
+                priorMessages,
+                pic,
+                target = AiTarget.AITab,
+                model = model.realname,
+                provider = AiProvider.COMMANDCODE,
+                onToken = onToken,
+                systemPrompt = systemPrompt,
+                maxTokens = 0
+            ) ?: ctx.getString(R.string.fehler)
+
             "OpenRouter" -> sendAiRequest(
                 ctx,
                 userMessage,
@@ -727,6 +741,7 @@ class AITabViewModel(application: Application) : AndroidViewModel(application) {
             "Nvidia",
             "Gemini",
             "OpenRouter",
+            if (prvt()) "CommandCode" else null,
             if (prvt()) "Server" else null
         )
         val mode = chat.mode.takeIf { it in modes } ?: "Nvidia"

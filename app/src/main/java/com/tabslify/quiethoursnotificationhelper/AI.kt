@@ -545,6 +545,7 @@ suspend fun sendAiRequest(
             history = history,
             systemPrompt = resolvedSystemPrompt,
             model = model ?: COMMANDCODE_DEFAULT_MODEL,
+            pic = pic,
             onToken = onToken,
             maxTokens = maxTokens
         )

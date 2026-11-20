@@ -31,6 +31,15 @@ val openrouterModels = listOf(
     Model("thinkingmachines/inkling-small:free", vision = true, audio = true, weight = 1, name = "Inkling Small")
 )
 
+val commandcodeModels = listOf(
+    Model("deepseek/deepseek-v4.1-flash", vision = true, weight = 1, name = "DeepSeek V4.1 Flash"),
+    Model("deepseek/deepseek-v4.1-flash-fast", vision = true, weight = 1, name = "DeepSeek V4.1 Flash Fast"),
+    Model("deepseek/deepseek-v4.1-flash-ultrafast", weight = 1, name = "DeepSeek V4.1 Flash Ultrafast"),
+    Model("deepseek/deepseek-v4-flash-vision-exp", vision = true, weight = 1, name = "DeepSeek V4 Flash Vision"),
+    Model("deepseek/deepseek-v4-pro", weight = 1, name = "DeepSeek V4 Pro"),
+    Model("xiaomi/mimo-v2.6-flash", weight = 1, name = "MiMo V2.6 Flash")
+)
+
 val serverModels = listOf(
     Model("qwen2.5:7b"),
     Model("qwen2.5-coder:3b"),
