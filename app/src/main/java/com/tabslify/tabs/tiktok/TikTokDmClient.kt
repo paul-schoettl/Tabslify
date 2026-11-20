@@ -897,6 +897,23 @@ object TikTokDmClient {
                 )
             }
         }
+        val missingNames = names.values
+            .filter { it.peerId.isNotEmpty() && it.name.isEmpty() }
+        if (missingNames.isNotEmpty()) {
+            val cookie = runCatching { TikTokCookieRepository.session(ctx).cookie }.getOrNull()
+            if (!cookie.isNullOrEmpty()) {
+                for (conversation in missingNames) {
+                    val name = runCatching { fetchProfiles(cookie, listOf(conversation.peerId)) }
+                        .getOrNull()
+                        ?.get(conversation.peerId)
+                        ?.takeIf { it.isNotEmpty() }
+                        ?: continue
+                    runCatching {
+                        TikTokPushStore.reportName(ctx, conversation.convId, conversation.peerId, name)
+                    }
+                }
+            }
+        }
     }
 
     private fun fetch(session: TikTokSession): TikTokFeed {

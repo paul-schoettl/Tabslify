@@ -40,8 +40,7 @@ object TikTokPushStore {
     fun conversation(context: Context, convId: String): TikTokConversation? =
         runCatching { TikTokDmClient.currentConversation(convId) }.getOrNull()
 
-    fun remember(context: Context, convId: String, name: String, text: String) {
-        if (convId.isEmpty()) return
+    fun remember(context: Context, convId: String, name: String, text: String) {        if (convId.isEmpty()) return
         val cleanText = text.trim()
         if (name.isBlank() && cleanText.isBlank()) return
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -105,6 +104,27 @@ object TikTokPushStore {
         }
         Unit
     }
+
+    suspend fun reportName(context: Context, convId: String, peerId: String, name: String) =
+        withContext(Dispatchers.IO) {
+            if (convId.isEmpty() || name.isBlank()) return@withContext
+            if (rememberedName(context, convId) == name) return@withContext
+            remember(context, convId, name, "")
+            val payload = buildJsonObject {
+                put("conv_id", convId)
+                put("peer_id", peerId)
+                put("name", name)
+                put("text", "")
+                put("origin", origin(context))
+            }
+            runCatching {
+                Config.safeCall {
+                    Config.client.from(TIKTOK_PUSH_TABLE).insert(payload)
+                }
+            }.onFailure {
+                Log.w(TAG, "TikTok-Name nicht meldbar: ${it.message}")
+            }
+        }
 
     private fun isReported(context: Context, marker: String): Boolean {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
