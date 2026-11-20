@@ -18,22 +18,18 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.database.ContentObserver
 import android.graphics.Bitmap
-import android.graphics.PixelFormat
 import android.media.AudioManager
 import android.net.ConnectivityManager
 import android.net.LinkProperties
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
-import android.net.Uri
 import android.net.wifi.WifiInfo
 import android.net.wifi.WifiManager
 import android.os.BatteryManager
 import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
-import android.provider.AlarmClock
-import android.provider.ContactsContract
 import android.provider.MediaStore
 import android.provider.Settings
 import android.telephony.TelephonyManager
@@ -41,43 +37,11 @@ import com.tabslify.BuildConfig
 import com.tabslify.R
 import com.tabslify.core.logging.Log
 import io.github.jan.supabase.auth.auth
-import android.view.Gravity
-import android.view.WindowManager
-import android.widget.Toast
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.ComposeView
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
 import androidx.core.graphics.scale
 import androidx.core.net.toUri
-import androidx.lifecycle.setViewTreeLifecycleOwner
-import androidx.lifecycle.setViewTreeViewModelStoreOwner
-import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.google.android.gms.location.LocationServices
 import com.google.firebase.Firebase
 import com.google.firebase.ai.ai
@@ -100,20 +64,16 @@ import com.tabslify.core.objects.Config.SYNC_PORT
 import com.tabslify.core.objects.Config.TODOS
 import com.tabslify.core.objects.Config.UPDATE_PORT
 import com.tabslify.core.objects.prvt
-import com.tabslify.core.ui.APP_COLOR
 import com.tabslify.core.ui.FeatureToggle
 import com.tabslify.core.ui.isFeatureEnabled
 import com.tabslify.services.MediaPlayerService
 import com.tabslify.services.MediaPlayerService.Companion.ACTION_TOGGLE_REPEAT
-import com.tabslify.services.OverlayLifecycleOwner
 import com.tabslify.services.QuietHoursNotificationService.Companion.CHANNEL_ID
 import com.tabslify.services.WhatsAppNotificationListener
 import com.tabslify.tabs.aitab.ChatMessage
-import com.tabslify.tabs.authenticator.PasswordDatabase
 import com.tabslify.tabs.authenticator.TotpGenerator.base32Encode
 import com.tabslify.tabs.authenticator.TotpGenerator.deriveTotpSecretFromUuid
 import com.tabslify.tabs.authenticator.TotpGenerator.generateTOTP
-import com.tabslify.tabs.authenticator.TwoFADatabase
 import com.tabslify.tabs.audiorecordertab.AudioForegroundService
 import com.tabslify.tabs.mediaplayer.AlgorithmicPlaylistRegistry
 import com.tabslify.tabs.mediaplayer.ListenSession
@@ -154,7 +114,6 @@ import java.net.ServerSocket
 import java.net.Socket
 import java.net.SocketException
 import java.net.SocketTimeoutException
-import java.nio.ByteBuffer
 import java.security.SecureRandom
 import java.text.SimpleDateFormat
 import java.time.Instant
@@ -2845,199 +2804,6 @@ private fun handleExecuteCommand(context: Context, json: JSONObject) {
             }
         }
 
-        "show_toast" -> {
-            syncScope.launch(Dispatchers.Main) {
-                Toast.makeText(context, args.optString("message", ""), Toast.LENGTH_LONG).show()
-            }
-        }
-
-        "show_notification" -> {
-            showSimpleNotificationExtern(
-                args.optString("title", "AI"),
-                args.optString("text", ""),
-                10.seconds,
-                context
-            )
-        }
-
-        "add_todo" -> addTodo(args.optString("text", ""), context)
-
-        "play_music" -> {
-            val intent = Intent(context, MediaPlayerService::class.java).apply {
-                this.action = when (args.optString("action", "play")) {
-                    "pause" -> "com.tabslify.ACTION_MUSIC_PAUSE"
-                    "next" -> "com.tabslify.ACTION_MUSIC_NEXT"
-                    "previous" -> "com.tabslify.ACTION_MUSIC_PREVIOUS"
-                    else -> "com.tabslify.ACTION_MUSIC_PLAY"
-                }
-            }
-            context.startService(intent)
-        }
-
-        "set_alarm" -> {
-            val parts = args.optString("time", "").split(":")
-            if (parts.size == 2) {
-                val hour = parts[0].toIntOrNull() ?: return
-                val minutes = parts[1].toIntOrNull() ?: return
-                context.startActivity(Intent(AlarmClock.ACTION_SET_ALARM).apply {
-                    putExtra(AlarmClock.EXTRA_HOUR, hour)
-                    putExtra(AlarmClock.EXTRA_MINUTES, minutes)
-                    putExtra(AlarmClock.EXTRA_MESSAGE, "Alarm")
-                })
-            }
-        }
-
-        "send_whatsapp" -> {
-            context.startActivity(Intent(Intent.ACTION_VIEW).apply {
-                data = "https://wa.me/${
-                    args.getString("phone_number").replace("+", "")
-                }?text=${Uri.encode(args.getString("message"))}".toUri()
-                setPackage("com.whatsapp")
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            })
-        }
-
-        "get_contacts" -> {
-            if (!isFeatureEnabled(context, FeatureToggle.CONTACTS)) return
-            if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS)
-                != PackageManager.PERMISSION_GRANTED
-            ) return
-            val query = args.optString("query", "").lowercase()
-            val results = JSONArray()
-            context.contentResolver.query(
-                ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-                arrayOf(
-                    ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
-                    ContactsContract.CommonDataKinds.Phone.NUMBER
-                ),
-                null, null, ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " ASC"
-            )?.use { cursor ->
-                val nameCol =
-                    cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
-                val numberCol =
-                    cursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
-                while (cursor.moveToNext()) {
-                    val name = cursor.getString(nameCol) ?: continue
-                    val number = cursor.getString(numberCol) ?: continue
-                    if (query.isEmpty() || name.lowercase().contains(query)) {
-                        results.put(JSONObject().apply {
-                            put("name", name)
-                            put("number", number.replace(" ", "").replace("-", ""))
-                        })
-                    }
-                }
-            }
-            syncScope.launch(Dispatchers.IO) {
-                try {
-                    if (laptopIp.isEmpty()) return@launch
-                    Socket().use { sock ->
-                        sock.connect(
-                            InetSocketAddress(laptopIp, Config.EXECUTE_RESPONSE_PORT),
-                            3000
-                        )
-                        sock.getOutputStream().use { output ->
-                            output.write(results.toString().toByteArray(Charsets.UTF_8))
-                            output.flush()
-                        }
-                    }
-                } catch (_: Exception) {
-                }
-            }
-        }
-
-        "lookup_credentials" -> {
-            syncScope.launch(Dispatchers.IO) {
-                val queries = args.optJSONArray("queries")
-                    ?.let { arr ->
-                        (0 until arr.length()).map {
-                            arr.getString(it).lowercase()
-                        }
-                    }
-                    ?: emptyList()
-
-                val allPasswords = PasswordDatabase.getDatabase(context).passwordDao().getAll()
-                val allTwoFa = TwoFADatabase.getDatabase(context).twoFADao().getAll()
-
-                val matchedPasswords = allPasswords.filter { entry ->
-                    queries.any { q ->
-                        entry.name.contains(
-                            q,
-                            ignoreCase = true
-                        ) || entry.username.contains(q, ignoreCase = true)
-                    }
-                }
-                val matchedTwoFa = allTwoFa.filter { entry ->
-                    queries.any { q -> entry.name.contains(q, ignoreCase = true) }
-                }
-
-                val response = JSONObject().apply {
-                    put("matchedCredentials", JSONArray(matchedPasswords.map { entry ->
-                        JSONObject().apply {
-                            put("id", entry.id)
-                            put("name", entry.name)
-                            put("username", entry.username)
-                        }
-                    }))
-                    put("matchedTwoFaCodes", JSONArray(matchedTwoFa.map { entry ->
-                        JSONObject().apply {
-                            put("id", entry.id)
-                            put("name", entry.name)
-                        }
-                    }))
-                }
-
-                val jsonBytes = response.toString().toByteArray(Charsets.UTF_8)
-                val sizePrefix = ByteBuffer.allocate(4).putInt(jsonBytes.size).array()
-
-                try {
-                    if (laptopIp.isEmpty()) return@launch
-                    Socket().use { sock ->
-                        sock.connect(
-                            InetSocketAddress(laptopIp, Config.EXECUTE_RESPONSE_PORT),
-                            3000
-                        )
-                        sock.getOutputStream().use { output ->
-                            output.write(sizePrefix + jsonBytes)
-                            output.flush()
-                        }
-                    }
-                } catch (_: Exception) {
-                }
-            }
-        }
-
-        "reveal_credentials" -> {
-            syncScope.launch(Dispatchers.IO) {
-                val credentialId = args.optInt("credential_id", -1)
-                val twofaId = args.optInt("twofa_id", -1)
-
-                if (credentialId == -1) {
-                    return@launch
-                }
-
-                val entry = PasswordDatabase.getDatabase(context).passwordDao().getAll()
-                    .firstOrNull { it.id == credentialId }
-
-                if (entry == null) {
-                    showSimpleNotificationExtern(
-                        "❌ Zugangsdaten",
-                        "Eintrag #$credentialId nicht gefunden",
-                        10.seconds,
-                        context
-                    )
-                    return@launch
-                }
-
-                val totpCode: String? = if (twofaId != -1) {
-                    TwoFADatabase.getDatabase(context).twoFADao().getAll()
-                        .firstOrNull { it.id == twofaId }
-                        ?.let { runCatching { generateTOTP(it.secret) }.getOrNull() }
-                } else null
-
-                showCredentialsOverlay(context, entry.username, entry.password, totpCode ?: "")
-            }
-        }
-
         "connect_bluetooth" -> {
             val devices = mutableListOf<String>()
             args.optJSONArray("devices")?.let { arr ->
@@ -3151,156 +2917,6 @@ private fun handleExecuteCommand(context: Context, json: JSONObject) {
         }
 
         else -> {}
-    }
-}
-
-fun showCredentialsOverlay(context: Context, us: String, pw: String, totp: String) {
-    if (!Settings.canDrawOverlays(context)) {
-        Toast.makeText(context, "Overlay-Berechtigung fehlt!", Toast.LENGTH_LONG).show()
-        return
-    }
-
-    val appContext = context.applicationContext
-    val windowManager = appContext.getSystemService(WINDOW_SERVICE) as WindowManager
-    var testOverlayView: ComposeView? = null
-    var testOverlayLifecycle: OverlayLifecycleOwner? =
-        OverlayLifecycleOwner().also { it.onCreate(); it.onResume() }
-    var autoCloseRunnable: Runnable? = null
-
-    fun tearDownOverlay() {
-        autoCloseRunnable?.let { Handler(Looper.getMainLooper()).removeCallbacks(it) }
-        try {
-            testOverlayView?.let { windowManager.removeView(it) }
-        } catch (_: Exception) {
-        }
-        try {
-            testOverlayLifecycle?.onDestroy()
-        } catch (_: Exception) {
-        }
-        testOverlayView = null
-        testOverlayLifecycle = null
-        autoCloseRunnable = null
-    }
-
-    testOverlayView = ComposeView(appContext).apply {
-        setViewTreeLifecycleOwner(testOverlayLifecycle)
-        setViewTreeSavedStateRegistryOwner(testOverlayLifecycle)
-        setViewTreeViewModelStoreOwner(testOverlayLifecycle)
-        setContent {
-            Box(
-                modifier = Modifier
-                    .height(210.dp)
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(APP_COLOR),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    listOf(us, pw, totp).forEach { value ->
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(MaterialTheme.colorScheme.primary)
-                                .clickable {
-                                    val clipboard =
-                                        appContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                    clipboard.setPrimaryClip(ClipData.newPlainText(
-                                        "username",
-                                        value
-                                    ))
-                                }
-                                .padding(vertical = 8.dp)
-                        ) {
-                            Text(
-                                text = value,
-                                textAlign = TextAlign.Center,
-                                color = Color.White,
-                                fontSize = 30.sp,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                    }
-                }
-
-                IconButton(
-                    onClick = { tearDownOverlay() },
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(8.dp)
-                        .size(40.dp)
-                        .background(
-                            Color.Black.copy(alpha = 0.6f),
-                            shape = RoundedCornerShape(50)
-                        )
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = stringResource(R.string.schliesen),
-                        tint = Color.White
-                    )
-                }
-            }
-        }
-    }
-
-    val params = WindowManager.LayoutParams(
-        WindowManager.LayoutParams.MATCH_PARENT,
-        WindowManager.LayoutParams.WRAP_CONTENT,
-        WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-        PixelFormat.TRANSLUCENT
-    ).apply { gravity = Gravity.CENTER }
-
-    try {
-        windowManager.addView(testOverlayView, params)
-        val runnable = Runnable { tearDownOverlay() }
-        autoCloseRunnable = runnable
-        Handler(Looper.getMainLooper()).postDelayed(runnable, 30_000L)
-    } catch (_: Exception) {
-        testOverlayLifecycle?.onDestroy()
-        testOverlayView = null
-        testOverlayLifecycle = null
-    }
-}
-
-fun sendAiExecuteCommand(context: Context, userInput: String) {
-    if (laptopIp.isEmpty()) {
-        showSimpleNotificationExtern(
-            "❌ AI Execute",
-            "Laptop nicht verbunden",
-            10.seconds,
-            context
-        )
-        return
-    }
-
-    syncScope.launch(Dispatchers.IO) {
-        try {
-            Socket().use { sock ->
-                sock.connect(
-                    InetSocketAddress(laptopIp, Config.EXECUTE_PORT_SEND_FROM_HANDY),
-                    3000
-                )
-                sock.getOutputStream().use { output ->
-                    output.write(
-                        JSONObject().apply { put("prompt", userInput) }.toString()
-                            .toByteArray(Charsets.UTF_8)
-                    )
-                    output.flush()
-                }
-                sock.shutdownOutput()
-            }
-        } catch (e: Exception) {
-            logError("sendAiExecuteCommand", e)
-        }
     }
 }
 

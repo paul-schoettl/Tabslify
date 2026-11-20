@@ -131,7 +131,6 @@ object Config {
     const val SPOTIFY_HISTORY_PORT = 8903
     const val VOICE_PORT = 8904
     const val EXECUTE_PORT = 8905
-    const val EXECUTE_PORT_SEND_FROM_HANDY = 8906
     const val EXECUTE_RESPONSE_PORT = 8907
     const val INFO_PORT = 8909
     const val SMS_PORT = 8910
@@ -239,11 +238,6 @@ object Config {
             "loc_bg" -> launcher.launch(arrayOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION))
             "activity" -> launcher.launch(arrayOf(Manifest.permission.ACTIVITY_RECOGNITION))
             "cam" -> launcher.launch(arrayOf(Manifest.permission.CAMERA))
-            "con" -> launcher.launch(
-                arrayOf(
-                    Manifest.permission.READ_CONTACTS
-                )
-            )
 
             "not" -> launcher.launch(arrayOf(Manifest.permission.POST_NOTIFICATIONS))
             "mic" -> launcher.launch(arrayOf(Manifest.permission.RECORD_AUDIO))
@@ -257,7 +251,6 @@ object Config {
                     Manifest.permission.POST_NOTIFICATIONS
                 )
                 if (prvt()) {
-                    permissions.add(Manifest.permission.READ_CONTACTS)
                     permissions.add(Manifest.permission.BLUETOOTH_CONNECT)
                 }
                 permissions.add(Manifest.permission.READ_MEDIA_IMAGES)

@@ -1468,9 +1468,6 @@ private fun permissionAccess(context: Context, permission: String): PermissionAc
 }
 
 private fun featureAllowsPermission(context: Context, permission: String): Boolean = when {
-    permission == Manifest.permission.READ_CONTACTS ->
-        isFeatureEnabled(context, FeatureToggle.CONTACTS)
-
     permission == Manifest.permission.BLUETOOTH_CONNECT ->
         isFeatureEnabled(context, FeatureToggle.BLUETOOTH)
 
@@ -1723,7 +1720,6 @@ fun PermissionInfoScreen(onboarding: Boolean = false, onClose: (() -> Unit)? = n
     val readMediaImagesVideo1 = stringResource(R.string.gallerytab_anzeige_von_bildern_und)
     val readMediaVisualUserSelected1 =
         stringResource(R.string.permission_read_media_visual_user_selected)
-    val contacts1 = stringResource(R.string.contactstab_laden_speichern_und_loschen)
     val bootCompleted1 =
         stringResource(R.string.bootreceiver_starten_von_quiethoursnotificationservice_beim)
     val recordAudio1 =
@@ -1745,7 +1741,6 @@ fun PermissionInfoScreen(onboarding: Boolean = false, onClose: (() -> Unit)? = n
     val phoneState1 =
         stringResource(R.string.reportdeviceinformation_ismobiledataactive_mobilfunk_datenstatus)
     val readSms1 = stringResource(R.string.startsmslistener_abruf_des_sms_posteingangs)
-    val setAlarm1 = stringResource(R.string.wifi_direct_set_alarm_befehl_vom_notebook)
     val wifiState1 = stringResource(R.string.reportdeviceinformation_wlan_status_hotspot)
     val networkState1 = stringResource(R.string.reportdeviceinformation_netzwerkstatus_konnektivitat)
     val localNetwork1 = stringResource(R.string.wifi_direct_lan_verbindung_zum_pc)
@@ -1792,7 +1787,6 @@ fun PermissionInfoScreen(onboarding: Boolean = false, onClose: (() -> Unit)? = n
         foregroundServiceDataSync1,
         readMediaImagesVideo1,
         readMediaVisualUserSelected1,
-        contacts1,
         bootCompleted1,
         recordAudio1,
         ignoreBattery1,
@@ -1805,7 +1799,6 @@ fun PermissionInfoScreen(onboarding: Boolean = false, onClose: (() -> Unit)? = n
         bluetoothConnect1,
         phoneState1,
         readSms1,
-        setAlarm1,
         wifiState1,
         networkState1,
         localNetwork1,
@@ -1904,9 +1897,6 @@ fun PermissionInfoScreen(onboarding: Boolean = false, onClose: (() -> Unit)? = n
             Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED to listOf(
                 readMediaVisualUserSelected1
             ),
-            Manifest.permission.READ_CONTACTS to listOf(
-                contacts1
-            ),
             Manifest.permission.RECEIVE_BOOT_COMPLETED to listOf(
                 bootCompleted1
             ),
@@ -1943,9 +1933,6 @@ fun PermissionInfoScreen(onboarding: Boolean = false, onClose: (() -> Unit)? = n
             ),
             Manifest.permission.READ_SMS to listOf(
                 readSms1
-            ),
-            "com.android.alarm.permission.SET_ALARM" to listOf(
-                setAlarm1
             ),
             Manifest.permission.ACCESS_WIFI_STATE to listOf(
                 wifiState1

@@ -135,14 +135,6 @@ enum class FeatureToggle(
         FeatureGroup.TRACKING,
         requiresPrvt = true
     ),
-    CONTACTS(
-        "feature_contacts",
-        R.string.feature_contacts_title,
-        R.string.feature_contacts_desc,
-        false,
-        FeatureGroup.TRACKING,
-        requiresPrvt = true
-    ),
     CLOUD_BACKUP(
         "service_cloud_backup",
         R.string.cloud_backup_title,

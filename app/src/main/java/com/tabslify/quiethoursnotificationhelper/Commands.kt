@@ -508,17 +508,6 @@ private fun getAvailableCommands(context: Context): List<Command> {
             )
         },
         Command(
-            name = ".",
-            aliases = listOf(),
-            description = context.getString(R.string.qh_cmd_desc_ai_command)
-        ) {
-            showSimpleNotificationExtern(
-                context.getString(R.string.qh_cmd_title_ai_command),
-                context.getString(R.string.qh_cmd_help_ai_command_short),
-                context = context
-            )
-        },
-        Command(
             name = "todos",
             aliases = listOf("todoliste", "tasks", "aufgaben"),
             description = context.getString(R.string.qh_cmd_desc_todos)
@@ -1242,26 +1231,6 @@ fun executeCommand(commandText: String, context: Context) {
             return
         }
 
-        "." -> {
-            if (!prvt()) {
-                Toast.makeText(context, "Forbidden", Toast.LENGTH_SHORT).show()
-                return
-            }
-            if (argument != null) {
-                val userInput = parts.drop(1).joinToString(" ")
-                if (userInput.isNotEmpty()) {
-                    sendAiExecuteCommand(context, userInput)
-                } else {
-                    showSimpleNotificationExtern(
-                        context.getString(R.string.qh_cmd_title_ai_command),
-                        context.getString(R.string.qh_cmd_help_ai_command),
-                        context = context
-                    )
-                }
-            }
-            return
-        }
-
         "todone", "done", "erledigt", "check" -> {
             if (argument != null) {
                 val index = argument.toIntOrNull()
@@ -1796,7 +1765,7 @@ fun executeCommand(commandText: String, context: Context) {
     val commands = getAvailableCommands(context).filter { cmd ->
         prvt() || (
                 cmd.name != "t" && cmd.name != "friendmessages" && cmd.name != "whatsapp" &&
-                        cmd.name != "tb" && cmd.name != "bitwarden" && cmd.name != "." &&
+                        cmd.name != "tb" && cmd.name != "bitwarden" &&
                         cmd.name != "errors" && cmd.name != "bahn" && cmd.name != "Other" &&
                         cmd.name != "spotify" && cmd.name != "exportprefs"
                 )
@@ -1860,7 +1829,7 @@ private fun showAvailableCommands(context: Context) {
     val commands = getAvailableCommands(context).filter { cmd ->
         prvt() || (
                 cmd.name != "t" && cmd.name != "friendmessages" && cmd.name != "whatsapp" &&
-                        cmd.name != "tb" && cmd.name != "bitwarden" && cmd.name != "." &&
+                        cmd.name != "tb" && cmd.name != "bitwarden" &&
                         cmd.name != "errors" && cmd.name != "bahn" && cmd.name != "Other" &&
                         cmd.name != "spotify" && cmd.name != "exportprefs"
                 )

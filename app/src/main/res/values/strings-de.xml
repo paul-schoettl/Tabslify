@@ -141,7 +141,6 @@
     <!-- app/src/main/java/com/tabslify/core/ui/LandingPage.kt:1034 | LandingPage.kt:1127 -->
     <string name="gallerytab_anzeige_von_bildern_und">GalleryTab: Anzeige von Bildern und Videos aus der Galerie</string> <!-- app/src/main/java/com/tabslify/core/ui/LandingPage.kt:1035 -->
     <!-- app/src/main/java/com/tabslify/core/ui/LandingPage.kt:1037 | LandingPage.kt:1128 -->
-    <string name="contactstab_laden_speichern_und_loschen">Kontakte lesen (z. B. für PC-Befehle)</string> <!-- app/src/main/java/com/tabslify/core/ui/LandingPage.kt:1038 -->
     <string name="bootreceiver_starten_von_quiethoursnotificationservice_beim">BootReceiver: Starten von QuietHoursNotificationService beim Gerätestart</string> <!-- app/src/main/java/com/tabslify/core/ui/LandingPage.kt:1041 -->
     <string name="audiorecordertab_audioforegroundservice_audioaufnahmen_mit_mikrofon">AudioRecorderTab &amp; AudioForegroundService: Audioaufnahmen mit Mikrofon</string> <!-- app/src/main/java/com/tabslify/core/ui/LandingPage.kt:1044 -->
     <string name="quiethoursnotificationservice_anfrage_zum_ignorieren_von">QuietHoursNotificationService: Anfrage zum Ignorieren von Batterieoptimierungen für zuverlässige Hintergrunddienste</string> <!-- app/src/main/java/com/tabslify/core/ui/LandingPage.kt:1047 -->
@@ -150,7 +149,6 @@
     <string name="reportdeviceinformation_bluetooth_verbindungsstatus">reportDeviceInformation: Bluetooth-Verbindungsstatus für das gekoppelte Notebook</string> <!-- app/src/main/java/com/tabslify/core/ui/LandingPage.kt (nur Debug-Build) -->
     <string name="reportdeviceinformation_ismobiledataactive_mobilfunk_datenstatus">reportDeviceInformation &amp; isMobileDataActive: Mobilfunk-Datenstatus für das gekoppelte Notebook</string> <!-- app/src/main/java/com/tabslify/core/ui/LandingPage.kt (nur Debug-Build) -->
     <string name="startsmslistener_abruf_des_sms_posteingangs">startSmsListener &amp; readAllSms: Abruf des SMS-Posteingangs durch das gekoppelte Notebook</string> <!-- app/src/main/java/com/tabslify/quiethoursnotificationhelper/WIFI_DIRECT.kt (nur Debug-Build) -->
-    <string name="wifi_direct_set_alarm_befehl_vom_notebook">WIFI_DIRECT: set_alarm-Befehl vom gekoppelten Notebook zum Stellen eines Weckers</string> <!-- app/src/main/java/com/tabslify/quiethoursnotificationhelper/WIFI_DIRECT.kt (nur Debug-Build) -->
     <string name="reportdeviceinformation_wlan_status_hotspot">reportDeviceInformation: WLAN-Verbindungs- und Hotspot-Status für das gekoppelte Notebook</string> <!-- app/src/main/java/com/tabslify/quiethoursnotificationhelper/WIFI_DIRECT.kt (nur Debug-Build) -->
     <string name="reportdeviceinformation_netzwerkstatus_konnektivitat">reportDeviceInformation: Netzwerk- und Konnektivitätsstatus für das gekoppelte Notebook</string> <!-- app/src/main/java/com/tabslify/quiethoursnotificationhelper/WIFI_DIRECT.kt (nur Debug-Build) -->
     <string name="open_information">Open information</string> <!-- app/src/main/java/com/tabslify/core/ui/LandingPage.kt:1106 | LandingPage.kt:2112 -->
@@ -248,8 +246,6 @@
     <string name="feature_health_desc">Schlafdaten aus Health Connect lesen. Standardmäßig aus.</string>
     <string name="feature_usage_stats_title">Nutzungsstatistiken</string>
     <string name="feature_usage_stats_desc">App-Nutzung für FocusGuard auswerten. Standardmäßig aus.</string>
-    <string name="feature_contacts_title">Kontakte</string>
-    <string name="feature_contacts_desc">Kontakte für die PC-Sync bereitstellen. Standardmäßig aus.</string>
     <string name="feature_bluetooth_title">Bluetooth</string>
     <string name="feature_bluetooth_desc">Bluetooth-Geräte für die PC-Sync verbinden. Standardmäßig aus.</string>
     <string name="feature_local_network_title">Lokales Netzwerk</string>
@@ -3446,7 +3442,6 @@
     <string name="qh_cmd_desc_algplay">Spielt algorithmische Playlist ab (algplay [id|name])</string>
     <string name="qh_cmd_desc_speed">Setzt Podcast-Geschwindigkeit (Syntax: speed [0.5–3.0])</string>
     <string name="qh_cmd_desc_todo">Fügt To-do hinzu (Syntax: * meine aufgabe)</string>
-    <string name="qh_cmd_desc_ai_command">Sendet AI Command an Server</string>
     <string name="qh_cmd_desc_todos">Zeigt alle To-dos</string>
     <string name="qh_cmd_desc_todone">Löscht To-do (Syntax: todone [nummer])</string>
     <string name="qh_cmd_desc_todorm">Löscht To-do (Syntax: todorm [nummer])</string>
@@ -3505,9 +3500,6 @@
     <string name="qh_cmd_help_todo_syntax">Syntax: * \"deine aufgabe\"</string>
     <string name="qh_cmd_title_todo">ℹ️ To-do</string>
     <string name="qh_cmd_help_todo">Syntax: * \"deine aufgabe\"\nBeispiel: * \"Milch kaufen\"</string>
-    <string name="qh_cmd_title_ai_command">ℹ️ AI Command Executor</string>
-    <string name="qh_cmd_help_ai_command_short">Syntax: . dein_command\nBeispiel: . show_notification</string>
-    <string name="qh_cmd_help_ai_command">Syntax: . was dieser command machen soll\nBeispiel: . Zeige einen Toast mit Text Guten Tag an</string>
     <string name="qh_cmd_help_todone_syntax">Syntax: todone [nummer]</string>
     <string name="qh_cmd_help_todorm_syntax">Syntax: todorm [nummer]</string>
     <string name="qh_cmd_title_delete_todo">ℹ️ To-do löschen</string>

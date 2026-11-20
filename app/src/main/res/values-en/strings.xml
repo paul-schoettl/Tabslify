@@ -110,7 +110,6 @@
     <string name="chargingtrackerservice_ladeuberwachung">ChargingTrackerService: charging monitoring</string>
     <string name="audioforegroundservice_audioaufnahmen">AudioForegroundService: audio recordings</string>
     <string name="gallerytab_anzeige_von_bildern_und">GalleryTab: displaying images and videos from the gallery</string>
-    <string name="contactstab_laden_speichern_und_loschen">Read contacts (e.g. for PC commands)</string>
     <string name="bootreceiver_starten_von_quiethoursnotificationservice_beim">BootReceiver: starting QuietHoursNotificationService at device boot</string>
     <string name="audiorecordertab_audioforegroundservice_audioaufnahmen_mit_mikrofon">AudioRecorderTab &amp; AudioForegroundService: audio recordings with the microphone</string>
     <string name="quiethoursnotificationservice_anfrage_zum_ignorieren_von">QuietHoursNotificationService: request to ignore battery optimizations for reliable background services</string>
@@ -119,7 +118,6 @@
     <string name="reportdeviceinformation_bluetooth_verbindungsstatus">reportDeviceInformation: Bluetooth connection status for the paired laptop</string>
     <string name="reportdeviceinformation_ismobiledataactive_mobilfunk_datenstatus">reportDeviceInformation &amp; isMobileDataActive: mobile data status for the paired laptop</string>
     <string name="startsmslistener_abruf_des_sms_posteingangs">startSmsListener &amp; readAllSms: fetching the SMS inbox for the paired laptop</string>
-    <string name="wifi_direct_set_alarm_befehl_vom_notebook">WIFI_DIRECT: set_alarm command from the paired laptop to set an alarm</string>
     <string name="reportdeviceinformation_wlan_status_hotspot">reportDeviceInformation: Wi-Fi connection and hotspot status for the paired laptop</string>
     <string name="reportdeviceinformation_netzwerkstatus_konnektivitat">reportDeviceInformation: network and connectivity status for the paired laptop</string>
     <string name="open_information">Open information</string>
@@ -211,8 +209,6 @@
     <string name="feature_health_desc">Read sleep data from Health Connect. Off by default.</string>
     <string name="feature_usage_stats_title">Usage stats</string>
     <string name="feature_usage_stats_desc">Evaluate app usage for FocusGuard. Off by default.</string>
-    <string name="feature_contacts_title">Contacts</string>
-    <string name="feature_contacts_desc">Provide contacts for PC sync. Off by default.</string>
     <string name="feature_bluetooth_title">Bluetooth</string>
     <string name="feature_bluetooth_desc">Connect Bluetooth devices for PC sync. Off by default.</string>
     <string name="feature_local_network_title">Local network</string>
@@ -2759,7 +2755,6 @@
     <string name="qh_cmd_desc_algplay">Plays an algorithmic playlist (algplay [id|name])</string>
     <string name="qh_cmd_desc_speed">Sets podcast speed (syntax: speed [0.5–3.0])</string>
     <string name="qh_cmd_desc_todo">Adds a to-do (syntax: * my task)</string>
-    <string name="qh_cmd_desc_ai_command">Sends an AI command to the server</string>
     <string name="qh_cmd_desc_todos">Shows all to-dos</string>
     <string name="qh_cmd_desc_todone">Deletes a to-do (syntax: todone [nummer])</string>
     <string name="qh_cmd_desc_todorm">Deletes a to-do (syntax: todorm [nummer])</string>
@@ -2818,9 +2813,6 @@
     <string name="qh_cmd_help_todo_syntax">Syntax: * \"your task\"</string>
     <string name="qh_cmd_title_todo">ℹ️ To-do</string>
     <string name="qh_cmd_help_todo">Syntax: * \"your task\"\nExample: * \"Buy milk\"</string>
-    <string name="qh_cmd_title_ai_command">ℹ️ AI Command Executor</string>
-    <string name="qh_cmd_help_ai_command_short">Syntax: . your_command\nExample: . show_notification</string>
-    <string name="qh_cmd_help_ai_command">Syntax: . what this command should do\nExample: . Show a toast with the text Hello</string>
     <string name="qh_cmd_help_todone_syntax">Syntax: todone [nummer]</string>
     <string name="qh_cmd_help_todorm_syntax">Syntax: todorm [nummer]</string>
     <string name="qh_cmd_title_delete_todo">ℹ️ Delete to-do</string>
