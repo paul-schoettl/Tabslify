@@ -575,7 +575,7 @@ object ExploreLocationTracker {
                     }
                     if (first) {
                         runCatching { cm.unregisterNetworkCallback(callback) }
-                        runCatching { cont.resume(verdict) }
+                        cont.resume(verdict)
                     }
                 }
 
@@ -889,7 +889,7 @@ object ExploreLocationTracker {
                             true
                         }
                     }
-                    if (first) runCatching { cont.resume(location) }
+                    if (first) cont.resume(location)
                 }
 
                 val request = CurrentLocationRequest.Builder()
