@@ -311,7 +311,7 @@ class WhatsAppNotificationListener : NotificationListenerService() {
         try {
             super.onNotificationPosted(sbn)
 
-            if (sbn.packageName != BuildConfig.APPLICATION_ID && sbn.packageName != "com.android.systemui") {
+            if (sbn.packageName != BuildConfig.APPLICATION_ID && sbn.packageName != "com.android.systemui"&& !contentOf(sbn.notification).text.contains("Nachrichten werden aktualisiert")) {
                 if (listenerConnected) {
                     try {
                         activeNotifications?.let {
