@@ -114,32 +114,16 @@ import com.tabslify.core.ui.TextPrimary
 import com.tabslify.core.ui.TextSecondary
 import com.tabslify.core.ui.TextTertiary
 
-// ─────────────────────────────────────────────
-// DESIGN TOKENS  (matching MediaTab palette)
-// ─────────────────────────────────────────────
-
-// ─────────────────────────────────────────────
-// DATA MODELS
-// ─────────────────────────────────────────────
-
-/**
- * A calendar entry occupying [startMinute, endMinute) on a given day.
- * startMinute / endMinute = minutes since midnight (0..1439).
- */
 data class CalendarEntry(
     val id: String = UUID.randomUUID().toString(),
-    val date: String,           // ISO "yyyy-MM-dd"
-    val startMinute: Int,       // 0..1439
-    val endMinute: Int? = null,         // startMinute+1..1440
+    val date: String,
+    val startMinute: Int,
+    val endMinute: Int? = null,
     val title: String,
     val description: String = "",
     val color: Long = AccentViolet.value.toLong(),
     val createdAt: Long = System.currentTimeMillis()
 )
-
-// ─────────────────────────────────────────────
-// REPOSITORY  (SharedPreferences + StateFlow)
-// ─────────────────────────────────────────────
 
 object CalendarRepository {
 
@@ -155,7 +139,6 @@ object CalendarRepository {
         _entries.value = load(context)
     }
 
-    /** Returns all entries whose date falls within [from, to] inclusive. */
     fun query(from: LocalDate, to: LocalDate): List<CalendarEntry> {
         return _entries.value.filter {
             val d = LocalDate.parse(it.date)
@@ -198,16 +181,8 @@ object CalendarRepository {
     }
 }
 
-// ─────────────────────────────────────────────
-// HELPER EXTENSIONS
-// ─────────────────────────────────────────────
-
 private fun Int.toHHMM(): String = "%02d:%02d".format(this / 60, this % 60)
 private fun entryColor(entry: CalendarEntry) = Color(entry.color.toULong())
-
-// ─────────────────────────────────────────────
-// TOP-LEVEL COMPOSABLE
-// ─────────────────────────────────────────────
 
 @Composable
 fun CalendarTabContent() {
@@ -230,7 +205,6 @@ fun CalendarTabContent() {
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
 
-            // ── Header ──────────────────────────────────────
             CalendarHeader(
                 currentMonth = currentMonth,
                 onPrev = { currentMonth = currentMonth.minusMonths(1) },
@@ -242,7 +216,6 @@ fun CalendarTabContent() {
                 }
             )
 
-            // ── Month grid ──────────────────────────────────
             MonthGrid(
                 yearMonth = currentMonth,
                 selectedDate = selectedDate,
@@ -253,7 +226,6 @@ fun CalendarTabContent() {
                 }
             )
 
-            // ── Day view (expandable) ────────────────────────
             AnimatedVisibility(
                 visible = showDayView,
                 enter = expandVertically() + fadeIn(),
@@ -273,7 +245,6 @@ fun CalendarTabContent() {
             if (!showDayView) Spacer(Modifier.weight(1f))
         }
 
-        // ── FAB ─────────────────────────────────────────────
         FloatingActionButton(
             onClick = { createDialogMinute = LocalTime.now().hour * 60 + LocalTime.now().minute },
             modifier = Modifier
@@ -287,7 +258,6 @@ fun CalendarTabContent() {
         }
     }
 
-    // ── Create dialog ────────────────────────────────────────
     createDialogMinute?.let { startMin ->
         EntryDialog(
             date = LocalDate.parse(selectedDate),
@@ -301,7 +271,6 @@ fun CalendarTabContent() {
         )
     }
 
-    // ── Edit dialog ──────────────────────────────────────────
     editEntry?.let { entry ->
         EntryDialog(
             date = LocalDate.parse(entry.date),
@@ -319,10 +288,6 @@ fun CalendarTabContent() {
         )
     }
 }
-
-// ─────────────────────────────────────────────
-// CALENDAR HEADER
-// ─────────────────────────────────────────────
 
 @Composable
 private fun CalendarHeader(
@@ -369,10 +334,6 @@ private fun CalendarHeader(
     }
 }
 
-// ─────────────────────────────────────────────
-// MONTH GRID
-// ─────────────────────────────────────────────
-
 @Composable
 private fun MonthGrid(
     yearMonth: YearMonth,
@@ -382,7 +343,6 @@ private fun MonthGrid(
 ) {
     val today = LocalDate.now()
     val firstDayOfMonth = yearMonth.atDay(1)
-    // Monday-first offset
     val startOffset = (firstDayOfMonth.dayOfWeek.value - 1)
     val daysInMonth = yearMonth.lengthOfMonth()
     val totalCells = startOffset + daysInMonth
@@ -392,7 +352,6 @@ private fun MonthGrid(
     Column(modifier = Modifier
         .fillMaxWidth()
         .padding(horizontal = 8.dp)) {
-        // Weekday labels
         Row(modifier = Modifier.fillMaxWidth()) {
             listOf("Mo", "Di", "Mi", "Do", "Fr", "Sa", "So").forEach { label ->
                 Text(
@@ -407,7 +366,6 @@ private fun MonthGrid(
         }
         Spacer(Modifier.height(4.dp))
 
-        // Grid cells
         val rows = ((totalCells + 6) / 7)
         for (row in 0 until rows) {
             Row(modifier = Modifier.fillMaxWidth()) {
@@ -485,10 +443,6 @@ private fun DayCell(
     }
 }
 
-// ─────────────────────────────────────────────
-// DAY TIMELINE  (1 row = 1 minute)
-// ─────────────────────────────────────────────
-
 private const val MIN_MINUTE_HEIGHT = 1.5f
 private const val MAX_MINUTE_HEIGHT = 8f
 private val HOUR_LABEL_WIDTH = 44.dp
@@ -516,7 +470,6 @@ private fun DayTimeline(
     }
 
     Column(modifier = modifier) {
-        // Day label strip
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -573,7 +526,6 @@ private fun DayTimeline(
                         )
                         val oldMinH = 2f * oldScale
                         val newMinH = 2f * newScale
-                        // Scroll so anpassen, dass der Inhalt unter centroid.y stabil bleibt
                         val newScroll =
                             ((scrollState.value + centroid.y) * (newMinH / oldMinH) - centroid.y)
                                 .toInt().coerceAtLeast(0)
@@ -582,13 +534,11 @@ private fun DayTimeline(
                     }
                 }
         ) {
-            // Scrollable minute grid
             Row(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(scrollState)
             ) {
-                // Hour labels column
                 Column(modifier = Modifier.width(HOUR_LABEL_WIDTH)) {
                     for (hour in 0..23) {
                         Box(
@@ -607,13 +557,11 @@ private fun DayTimeline(
                     }
                 }
 
-                // Timeline grid + entries
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .height(minuteHeightDp * 1440)
                 ) {
-                    // Minute tap grid
                     Canvas(
                         modifier = Modifier
                             .fillMaxSize()
@@ -626,7 +574,6 @@ private fun DayTimeline(
                                 }
                             }
                     ) {
-                        // Hour separator lines
                         for (hour in 0..24) {
                             val y = hour * 60 * minuteHeightDp.toPx()
                             drawLine(
@@ -636,7 +583,6 @@ private fun DayTimeline(
                                 strokeWidth = if (hour % 6 == 0) 1.5f else 0.8f
                             )
                         }
-                        // 30-min dashes
                         for (slot in 0..47) {
                             val y = slot * 30 * minuteHeightDp.toPx()
                             drawLine(
@@ -646,7 +592,6 @@ private fun DayTimeline(
                                 strokeWidth = 0.5f
                             )
                         }
-                        // "now" indicator
                         val nowY = nowMinute * minuteHeightDp.toPx()
                         drawLine(
                             color = SuccessGreen,
@@ -657,7 +602,6 @@ private fun DayTimeline(
                         drawCircle(SuccessGreen, radius = 4f, center = Offset(0f, nowY))
                     }
 
-                    // Render entries as overlapping blocks
                     entries.forEach { entry ->
                         EntryBlock(
                             entry = entry,
@@ -724,10 +668,6 @@ private fun EntryBlock(
     }
 }
 
-// ─────────────────────────────────────────────
-// ENTRY CREATE / EDIT DIALOG
-// ─────────────────────────────────────────────
-
 private val entryColors = listOf(
     Accent, Color(0xFF4CC9FF), SuccessGreen, Color(0xFFB45CFC),
     AccentDim, Color(0xFF5C8CFF), Color(0xFF2ECC71), Color(0xFF9A8CFF)
@@ -785,7 +725,6 @@ private fun EntryDialog(
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    // Title bar
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             if (existingEntry == null) stringResource(R.string.neuer_eintrag) else stringResource(R.string.eintrag_bearbeiten),
@@ -799,7 +738,6 @@ private fun EntryDialog(
                         }
                     }
 
-                    // Date chip
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
@@ -814,7 +752,6 @@ private fun EntryDialog(
                         )
                     }
 
-                    // Title field
                     OutlinedTextField(
                         value = title,
                         onValueChange = { title = it },
@@ -826,7 +763,6 @@ private fun EntryDialog(
                         )
                     )
 
-                    // Time pickers
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -867,7 +803,6 @@ private fun EntryDialog(
                         }
                     }
 
-                    // Duration hint
                     if (hasEndTime) {
                         val durationMin = endMin - startMin
                         Text(
@@ -877,7 +812,6 @@ private fun EntryDialog(
                         )
                     }
 
-                    // Description
                     OutlinedTextField(
                         value = description,
                         onValueChange = { description = it },
@@ -887,7 +821,6 @@ private fun EntryDialog(
                         colors = dialogTextFieldColors()
                     )
 
-                    // Color picker
                     Text(stringResource(R.string.farbe), color = TextSecondary, fontSize = 13.sp)
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(entryColors) { color ->
@@ -906,7 +839,6 @@ private fun EntryDialog(
                         }
                     }
 
-                    // Action buttons
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -947,7 +879,6 @@ private fun EntryDialog(
         }
     }
 
-    // Delete confirmation
     if (showDeleteConfirm) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
@@ -973,10 +904,6 @@ private fun EntryDialog(
     }
 }
 
-// ─────────────────────────────────────────────
-// MINUTE PICKER WHEEL  (scrollable HH:MM)
-// ─────────────────────────────────────────────
-
 @Composable
 private fun MinutePicker(
     label: String,
@@ -987,7 +914,6 @@ private fun MinutePicker(
     var expanded by remember { mutableStateOf(false) }
     val listState = rememberLazyListState()
 
-    // Pre-scroll to current value when opened
     LaunchedEffect(expanded) {
         if (expanded) listState.scrollToItem(minute.coerceIn(0, 1439))
     }
@@ -1053,7 +979,6 @@ private fun MinutePicker(
                         }
                     }
                 }
-                // Center selection indicator lines
                 Box(
                     modifier = Modifier
                         .align(Alignment.Center)
@@ -1069,10 +994,6 @@ private fun MinutePicker(
         }
     }
 }
-
-// ─────────────────────────────────────────────
-// HELPERS
-// ─────────────────────────────────────────────
 
 @Composable
 private fun dialogTextFieldColors() = OutlinedTextFieldDefaults.colors(
