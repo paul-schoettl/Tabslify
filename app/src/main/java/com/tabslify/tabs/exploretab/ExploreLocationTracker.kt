@@ -114,7 +114,7 @@ class ExploreGeofenceReceiver : BroadcastReceiver() {
             Geofence.GEOFENCE_TRANSITION_ENTER -> {
                 errorInsert(
                     "ExploreTracker",
-                    "GeofenceReceiver - ENTER (triggeringLocation=${event.triggeringLocation?.latitude},${event.triggeringLocation?.longitude})",
+                    "GeofenceReceiver - ENTER",
                     Instant.now().toString(),
                     "LOG"
                 )
@@ -124,7 +124,7 @@ class ExploreGeofenceReceiver : BroadcastReceiver() {
             Geofence.GEOFENCE_TRANSITION_EXIT -> {
                 errorInsert(
                     "ExploreTracker",
-                    "GeofenceReceiver - EXIT (triggeringLocation=${event.triggeringLocation?.latitude},${event.triggeringLocation?.longitude})",
+                    "GeofenceReceiver - EXIT",
                     Instant.now().toString(),
                     "LOG"
                 )
@@ -803,7 +803,7 @@ object ExploreLocationTracker {
                 )
                 errorInsert(
                     "ExploreTracker",
-                    "Geofence registriert (lat=%.6f, lng=%.6f, radius=%.0f)".format(homeLat, homeLng, GEOFENCE_RADIUS),
+                    "Geofence registriert (radius=%.0f)".format(GEOFENCE_RADIUS),
                     Instant.now().toString(),
                     "LOG"
                 )
