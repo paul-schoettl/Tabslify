@@ -24,7 +24,7 @@ object TikTokSignatur {
     private val HEX_STR = intArrayOf(30, 64, 224, 217, 147, 69, 0, 180)
     private val LADON_KEY = hexZuBytes(LADON_SCHLUESSEL)
     private val ARGUS_KEY = hexZuBytes(ARGUS_SCHLUESSEL)
-    private val zufall = SecureRandom()
+    private val random = SecureRandom()
 
     fun signiere(
         params: String,
@@ -46,8 +46,8 @@ object TikTokSignatur {
         deviceType,
         osVersion,
         channel,
-        ByteArray(4) { zufall.nextInt(256).toByte() },
-        zufall.nextInt(Int.MAX_VALUE)
+        ByteArray(4) { random.nextInt(256).toByte() },
+        random.nextInt(Int.MAX_VALUE)
     )
 
     fun signiere(
@@ -64,14 +64,14 @@ object TikTokSignatur {
         argusZufall: Int
     ): Map<String, String> {
         val stub = stubOf(payload)
-        val kopf = mutableMapOf<String, String>()
-        kopf["x-ss-req-ticket"] = (unix * 1000L).toString()
-        kopf["x-tt-trace-id"] = traceId(deviceId, AID)
-        if (payload.isNotEmpty()) kopf["x-ss-stub"] = stub
-        kopf["x-khronos"] = unix.toString()
-        kopf["x-gorgon"] = gorgon(params, stub, cookie, unix)
-        kopf["x-ladon"] = ladon(unix, LICENSE_ID, AID, ladonZufall)
-        kopf["x-argus"] = argus(
+        val header = mutableMapOf<String, String>()
+        header["x-ss-req-ticket"] = (unix * 1000L).toString()
+        header["x-tt-trace-id"] = traceId(deviceId, AID)
+        if (payload.isNotEmpty()) header["x-ss-stub"] = stub
+        header["x-khronos"] = unix.toString()
+        header["x-gorgon"] = gorgon(params, stub, cookie, unix)
+        header["x-ladon"] = ladon(unix, LICENSE_ID, AID, ladonZufall)
+        header["x-argus"] = argus(
             params = params,
             stub = stub,
             unix = unix,
@@ -80,24 +80,24 @@ object TikTokSignatur {
             deviceType = deviceType,
             osVersion = osVersion,
             channel = channel,
-            zufallWert = argusZufall
+            randomValue = argusZufall
         )
-        return kopf
+        return header
     }
 
 
 
     fun gorgon(params: String, stub: String, cookie: String, unix: Long): String {
         val ts = unix.toInt()
-        val zustand = IntArray(20)
-        fuelle(zustand, 0, params)
-        fuelleHex(zustand, 4, stub)
-        fuelle(zustand, 8, cookie)
+        val state = IntArray(20)
+        fillValue(state, 0, params)
+        fillHex(state, 4, stub)
+        fillValue(state, 8, cookie)
         val khronos = Integer.toHexString(ts)
         for (i in 0 until 4) {
-            val stelle = i * 2
-            zustand[16 + i] = if (stelle + 1 < khronos.length) {
-                khronos.substring(stelle, stelle + 2).toInt(16)
+            val position = i * 2
+            state[16 + i] = if (position + 1 < khronos.length) {
+                khronos.substring(position, position + 2).toInt(16)
             } else {
                 0
             }
@@ -105,7 +105,7 @@ object TikTokSignatur {
         val kopie = gorgonTabelle()
         val tmp = IntArray(20)
         for (i in 0 until 20) {
-            val a = zustand[i]
+            val a = state[i]
             val b = if (i > 0) tmp[i - 1] else 0
             val c = (kopie[i + 1] + b) and 0xFF
             tmp[i] = c
@@ -113,32 +113,32 @@ object TikTokSignatur {
             kopie[i + 1] = d
             val e = (d + d) and 0xFF
             val f = kopie[e]
-            zustand[i] = a xor f
+            state[i] = a xor f
         }
         for (i in 0 until 20) {
-            val a = zustand[i]
-            val b = halbbyteTausch(a)
-            val c = zustand[(i + 1) % 20]
+            val a = state[i]
+            val b = nibbleSwap(a)
+            val c = state[(i + 1) % 20]
             val d = b xor c
             val e = bitReverse8(d)
             val f = e xor 20
-            zustand[i] = f.inv() and 0xFF
+            state[i] = f.inv() and 0xFF
         }
-        val ende = zustand.joinToString("") { "%02x".format(it and 0xFF) }
+        val ende = state.joinToString("") { "%02x".format(it and 0xFF) }
         return "8404" + "%02x".format(HEX_STR[7]) + "%02x".format(HEX_STR[3]) +
             "%02x".format(HEX_STR[1]) + "%02x".format(HEX_STR[6]) + ende
     }
 
-    private fun fuelle(ziel: IntArray, ab: Int, text: String) {
+    private fun fillValue(target: IntArray, ab: Int, text: String) {
         if (text.isEmpty()) return
         val digest = md5(text.toByteArray(Charsets.UTF_8))
-        for (i in 0 until 4) ziel[ab + i] = digest[i].toInt() and 0xFF
+        for (i in 0 until 4) target[ab + i] = digest[i].toInt() and 0xFF
     }
 
-    private fun fuelleHex(ziel: IntArray, ab: Int, hex: String) {
+    private fun fillHex(target: IntArray, ab: Int, hex: String) {
         if (hex.isEmpty()) return
         for (i in 0 until 4) {
-            ziel[ab + i] = ((hex[i * 2].digitToInt(16) shl 4) or hex[i * 2 + 1].digitToInt(16))
+            target[ab + i] = ((hex[i * 2].digitToInt(16) shl 4) or hex[i * 2 + 1].digitToInt(16))
         }
     }
 
@@ -148,30 +148,30 @@ object TikTokSignatur {
         for (i in 0 until 256) {
             val a = if (i == 0) 0 else if (last != -1) last else hexZu[i - 1]
             val b = HEX_STR[i % 8]
-            val aWert = if (a == 85 && i != 1 && last != 85) 0 else a
-            val c = (aWert + i + b) and 0xFF
+            val aValue = if (a == 85 && i != 1 && last != 85) 0 else a
+            val c = (aValue + i + b) and 0xFF
             last = if (c < i) c else -1
             hexZu[i] = hexZu[c]
         }
         return hexZu
     }
 
-    fun ladon(khronos: Long, lcId: Int, aid: Int, zufaellig: ByteArray): String {
+    fun ladon(khronos: Long, lcId: Int, aid: Int, random: ByteArray): String {
         val daten = "$khronos-$lcId-$aid"
-        val md5hex = md5(zufaellig + aid.toString().toByteArray(Charsets.UTF_8))
+        val md5hex = md5(random + aid.toString().toByteArray(Charsets.UTF_8))
             .joinToString("") { "%02x".format(it.toInt() and 0xFF) }
             .toByteArray(Charsets.UTF_8)
-        val groesse = daten.toByteArray(Charsets.UTF_8).size
-        val aufgerundet = if (groesse % 16 > 0) groesse + (16 - groesse % 16) else groesse
-        val eingabe = ByteArray(aufgerundet)
+        val sizeBytes = daten.toByteArray(Charsets.UTF_8).size
+        val aufgerundet = if (sizeBytes % 16 > 0) sizeBytes + (16 - sizeBytes % 16) else sizeBytes
+        val inputBytes = ByteArray(aufgerundet)
         val bytes = daten.toByteArray(Charsets.UTF_8)
-        bytes.copyInto(eingabe)
-        val fuell = 16 - groesse % 16
-        for (i in 0 until fuell) eingabe[groesse + i] = fuell.toByte()
-        val tabelle = ByteArray(272 + 16)
-        md5hex.copyInto(tabelle)
+        bytes.copyInto(inputBytes)
+        val fill = 16 - sizeBytes % 16
+        for (i in 0 until fill) inputBytes[sizeBytes + i] = fill.toByte()
+        val table = ByteArray(272 + 16)
+        md5hex.copyInto(table)
         val temp = ArrayDeque<Long>()
-        for (i in 0 until 4) temp.addLast(lesen64(tabelle, i * 8))
+        for (i in 0 until 4) temp.addLast(read64(table, i * 8))
         var b0 = temp.removeFirst()
         var b8 = temp.removeFirst()
         for (i in 0 until 0x22) {
@@ -181,26 +181,26 @@ object TikTokSignatur {
             x8 = x8 xor i.toLong()
             temp.addLast(x8)
             x8 = x8 xor rorNeu(x9, 61)
-            schreiben64(tabelle, (i + 1) * 8, x8)
+            write64(table, (i + 1) * 8, x8)
             b0 = x8
             b8 = temp.removeFirst()
         }
         val ausgabe = ByteArray(aufgerundet)
         for (block in 0 until aufgerundet / 16) {
-            var d0 = lesen64(eingabe, block * 16)
-            var d1 = lesen64(eingabe, block * 16 + 8)
+            var d0 = read64(inputBytes, block * 16)
+            var d1 = read64(inputBytes, block * 16 + 8)
             for (i in 0 until 0x22) {
-                val hash = lesen64(tabelle, i * 8)
+                val hash = read64(table, i * 8)
                 d1 = hash xor (d0 + java.lang.Long.rotateLeft(d1, 56))
                 d0 = d1 xor java.lang.Long.rotateLeft(d0, 3)
             }
-            schreiben64(ausgabe, block * 16, d0)
-            schreiben64(ausgabe, block * 16 + 8, d1)
+            write64(ausgabe, block * 16, d0)
+            write64(ausgabe, block * 16 + 8, d1)
         }
-        val kopf = ByteArray(4 + ausgabe.size)
-        zufaellig.copyInto(kopf, 0, 0, 4)
-        ausgabe.copyInto(kopf, 4)
-        return Base64.getEncoder().encodeToString(kopf)
+        val header = ByteArray(4 + ausgabe.size)
+        random.copyInto(header, 0, 0, 4)
+        ausgabe.copyInto(header, 4)
+        return Base64.getEncoder().encodeToString(header)
     }
 
     private fun argus(
@@ -212,57 +212,57 @@ object TikTokSignatur {
         deviceType: String,
         osVersion: String,
         channel: String,
-        zufallWert: Int
+        randomValue: Int
     ): String {
-        val koerperHash = sm3(hexZuBytes(stub)).copyOf(6)
+        val bodyHash = sm3(hexZuBytes(stub)).copyOf(6)
         val queryHash = sm3(params.toByteArray(Charsets.UTF_8)).copyOf(6)
-        val felder = ByteArrayOutputStream()
-        varint(felder, 1, 0x20200929L shl 1)
-        varint(felder, 2, 2L)
-        varint(felder, 3, zufallWert.toLong())
-        bytes(felder, 4, AID.toString().toByteArray(Charsets.UTF_8))
-        bytes(felder, 5, deviceId.toByteArray(Charsets.UTF_8))
-        bytes(felder, 6, LICENSE_ID.toString().toByteArray(Charsets.UTF_8))
-        bytes(felder, 7, SDK_VERSION.toByteArray(Charsets.UTF_8))
-        bytes(felder, 8, SDK_VERSION.toByteArray(Charsets.UTF_8))
-        varint(felder, 9, SDK_VERSION_INT.toLong())
-        bytes(felder, 10, ByteArray(8))
-        bytes(felder, 11, "android".toByteArray(Charsets.UTF_8))
-        varint(felder, 12, unix shl 1)
-        bytes(felder, 13, koerperHash)
-        bytes(felder, 14, queryHash)
-        bytes(felder, 15, zaehler(unix))
-        bytes(felder, 16, deviceId.toByteArray(Charsets.UTF_8))
-        bytes(felder, 20, "none".toByteArray(Charsets.UTF_8))
-        varint(felder, 21, 738L)
-        bytes(felder, 23, geraet(deviceType, osVersion, channel, versionName))
-        varint(felder, 25, 2L)
-        val gepuffert = pkcs7(felder.toByteArray(), 16)
-        val schluesselWoerter = LongArray(4) { lesen64(ARGUS_KEY, it * 8) }
-        val verschluesselt = ByteArray(gepuffert.size)
-        for (block in 0 until gepuffert.size / 16) {
-            val pt = LongArray(2) { lesen64(gepuffert, block * 16 + it * 8) }
-            val ct = simon(pt, schluesselWoerter)
-            schreiben64(verschluesselt, block * 16, ct[0])
-            schreiben64(verschluesselt, block * 16 + 8, ct[1])
+        val fields = ByteArrayOutputStream()
+        varint(fields, 1, 0x20200929L shl 1)
+        varint(fields, 2, 2L)
+        varint(fields, 3, randomValue.toLong())
+        bytes(fields, 4, AID.toString().toByteArray(Charsets.UTF_8))
+        bytes(fields, 5, deviceId.toByteArray(Charsets.UTF_8))
+        bytes(fields, 6, LICENSE_ID.toString().toByteArray(Charsets.UTF_8))
+        bytes(fields, 7, SDK_VERSION.toByteArray(Charsets.UTF_8))
+        bytes(fields, 8, SDK_VERSION.toByteArray(Charsets.UTF_8))
+        varint(fields, 9, SDK_VERSION_INT.toLong())
+        bytes(fields, 10, ByteArray(8))
+        bytes(fields, 11, "android".toByteArray(Charsets.UTF_8))
+        varint(fields, 12, unix shl 1)
+        bytes(fields, 13, bodyHash)
+        bytes(fields, 14, queryHash)
+        bytes(fields, 15, counter(unix))
+        bytes(fields, 16, deviceId.toByteArray(Charsets.UTF_8))
+        bytes(fields, 20, "none".toByteArray(Charsets.UTF_8))
+        varint(fields, 21, 738L)
+        bytes(fields, 23, device(deviceType, osVersion, channel, versionName))
+        varint(fields, 25, 2L)
+        val buffered = pkcs7(fields.toByteArray(), 16)
+        val keyWords = LongArray(4) { read64(ARGUS_KEY, it * 8) }
+        val encrypted = ByteArray(buffered.size)
+        for (block in 0 until buffered.size / 16) {
+            val pt = LongArray(2) { read64(buffered, block * 16 + it * 8) }
+            val ct = simon(pt, keyWords)
+            write64(encrypted, block * 16, ct[0])
+            write64(encrypted, block * 16 + 8, ct[1])
         }
-        val kopf = byteArrayOf(
+        val header = byteArrayOf(
             0xF2.toByte(), 0xF7.toByte(), 0xFC.toByte(), 0xFF.toByte(),
             0xF2.toByte(), 0xF7.toByte(), 0xFC.toByte(), 0xFF.toByte()
-        ) + verschluesselt
-        val xorTeil = xorUndDrehen(kopf)
-        var puffer = byteArrayOf(
+        ) + encrypted
+        val xorPart = xorUndDrehen(header)
+        var buffer = byteArrayOf(
             0xA6.toByte(), 0x6E, 0xAD.toByte(), 0x9F.toByte(), 0x77, 0x01, 0xD0.toByte(),
             0x0C, 0x18
-        ) + xorTeil + byteArrayOf(0x61, 0x6F)
-        puffer = pkcs7(puffer, 16)
+        ) + xorPart + byteArrayOf(0x61, 0x6F)
+        buffer = pkcs7(buffer, 16)
         val cipher = Cipher.getInstance("AES/CBC/NoPadding")
         cipher.init(
             Cipher.ENCRYPT_MODE,
             SecretKeySpec(md5(LADON_KEY.copyOf(16)), "AES"),
             IvParameterSpec(md5(LADON_KEY.copyOfRange(16, 32)))
         )
-        val end = cipher.doFinal(puffer)
+        val end = cipher.doFinal(buffer)
         val ausgabe = ByteArray(2 + end.size)
         ausgabe[0] = 0xF2.toByte()
         ausgabe[1] = 0x81.toByte()
@@ -270,80 +270,80 @@ object TikTokSignatur {
         return Base64.getEncoder().encodeToString(ausgabe)
     }
 
-    private fun zaehler(unix: Long): ByteArray {
-        val innen = ByteArrayOutputStream()
-        varint(innen, 1, 85L)
-        varint(innen, 2, 85L)
-        varint(innen, 3, 85L)
-        varint(innen, 5, 85L)
-        varint(innen, 6, 170L)
-        varint(innen, 7, (unix shl 1) - 310L)
-        return innen.toByteArray()
+    private fun counter(unix: Long): ByteArray {
+        val inner = ByteArrayOutputStream()
+        varint(inner, 1, 85L)
+        varint(inner, 2, 85L)
+        varint(inner, 3, 85L)
+        varint(inner, 5, 85L)
+        varint(inner, 6, 170L)
+        varint(inner, 7, (unix shl 1) - 310L)
+        return inner.toByteArray()
     }
 
-    private fun geraet(
+    private fun device(
         deviceType: String,
         osVersion: String,
         channel: String,
         versionName: String
     ): ByteArray {
-        val innen = ByteArrayOutputStream()
-        bytes(innen, 1, deviceType.toByteArray(Charsets.UTF_8))
-        bytes(innen, 2, osVersion.toByteArray(Charsets.UTF_8))
-        bytes(innen, 3, channel.toByteArray(Charsets.UTF_8))
-        varint(innen, 4, appVersion(versionName))
-        return innen.toByteArray()
+        val inner = ByteArrayOutputStream()
+        bytes(inner, 1, deviceType.toByteArray(Charsets.UTF_8))
+        bytes(inner, 2, osVersion.toByteArray(Charsets.UTF_8))
+        bytes(inner, 3, channel.toByteArray(Charsets.UTF_8))
+        varint(inner, 4, appVersion(versionName))
+        return inner.toByteArray()
     }
 
     fun appVersion(versionName: String): Long {
-        val teile = versionName.split(".")
-        val patch = teile.getOrNull(2)?.toIntOrNull() ?: 0
-        val minor = teile.getOrNull(1)?.toIntOrNull() ?: 0
-        val major = teile.getOrNull(0)?.toIntOrNull() ?: 0
+        val parts = versionName.split(".")
+        val patch = parts.getOrNull(2)?.toIntOrNull() ?: 0
+        val minor = parts.getOrNull(1)?.toIntOrNull() ?: 0
+        val major = parts.getOrNull(0)?.toIntOrNull() ?: 0
         val hex = Integer.toHexString(patch * 4) +
             Integer.toHexString(minor * 16) +
             Integer.toHexString(major * 4) + "00"
-        val gefuellt = hex.padStart(8, '0')
-        var wert = 0L
-        for (zeichen in gefuellt) {
-            wert = (wert shl 4) or zeichen.digitToInt(16).toLong()
+        val filled = hex.padStart(8, '0')
+        var value = 0L
+        for (character in filled) {
+            value = (value shl 4) or character.digitToInt(16).toLong()
         }
-        return wert shl 1
+        return value shl 1
     }
 
     fun traceId(deviceId: String, aid: Int): String {
         val deviceHex = deviceId.toLongOrNull()?.let { Integer.toHexString(it.toInt()) } ?: deviceId
-        val zufaellig = ByteArray(2) { zufall.nextInt(16).toByte() }
-        val spur = deviceHex + zufaellig.joinToString("") { "%02x".format(it.toInt() and 0xFF) } +
+        val random = ByteArray(2) { random.nextInt(16).toByte() }
+        val spur = deviceHex + random.joinToString("") { "%02x".format(it.toInt() and 0xFF) } +
             "0" + Integer.toHexString(aid)
         return "00-$spur-${spur.take(16)}-01"
     }
 
-    private fun rorNeu(wert: Long, anzahl: Int): Long {
-        val n = anzahl % 64
-        val low = wert shl (64 - n)
-        val shifted = wert ushr n
+    private fun rorNeu(value: Long, count: Int): Long {
+        val n = count % 64
+        val low = value shl (64 - n)
+        val shifted = value ushr n
         return if (shifted != 0L) shifted else low
     }
 
     fun stubOf(text: String): String {
-        val roh = text.toByteArray(Charsets.UTF_8)
+        val raw = text.toByteArray(Charsets.UTF_8)
         val deflater = Deflater(9, true)
-        deflater.setInput(roh)
+        deflater.setInput(raw)
         deflater.finish()
         val aus = ByteArrayOutputStream()
         aus.write(byteArrayOf(0x1F, 0x8B.toByte(), 0x08, 0x00, 0, 0, 0, 0, 0x02, 0xFF.toByte()))
-        val puffer = ByteArray(4096)
+        val buffer = ByteArray(4096)
         while (!deflater.finished()) {
-            aus.write(puffer, 0, deflater.deflate(puffer))
+            aus.write(buffer, 0, deflater.deflate(buffer))
         }
         deflater.end()
         val crc = CRC32()
-        crc.update(roh)
+        crc.update(raw)
         val vier = ByteArray(4)
         for (i in 0 until 4) vier[i] = ((crc.value ushr (8 * i)) and 0xFF).toByte()
         aus.write(vier)
-        for (i in 0 until 4) vier[i] = ((roh.size.toLong() ushr (8 * i)) and 0xFF).toByte()
+        for (i in 0 until 4) vier[i] = ((raw.size.toLong() ushr (8 * i)) and 0xFF).toByte()
         aus.write(vier)
         return md5(aus.toByteArray()).joinToString("") { "%02X".format(it.toInt() and 0xFF) }
     }
@@ -370,16 +370,16 @@ object TikTokSignatur {
         var xi = pt[0]
         var xi1 = pt[1]
         for (i in 0 until 72) {
-            val merker = xi1
+            val marker = xi1
             val f = java.lang.Long.rotateLeft(xi1, 1) and java.lang.Long.rotateLeft(xi1, 8)
             xi1 = xi xor f xor java.lang.Long.rotateLeft(xi1, 2) xor key[i]
-            xi = merker
+            xi = marker
         }
         return longArrayOf(xi, xi1)
     }
 
-    private fun schreibeVarint(aus: ByteArrayOutputStream, wert: Long) {
-        var v = wert and 0xFFFFFFFFL
+    private fun writeVarint(aus: ByteArrayOutputStream, value: Long) {
+        var v = value and 0xFFFFFFFFL
         while (v > 0x80L) {
             aus.write((v and 0x7FL).toInt() or 0x80)
             v = v shr 7
@@ -387,34 +387,34 @@ object TikTokSignatur {
         aus.write((v and 0x7FL).toInt())
     }
 
-    private fun schreibeKey(aus: ByteArrayOutputStream, index: Int, typ: Int) {
-        schreibeVarint(aus, (index shl 3).toLong() or typ.toLong())
+    private fun writeKey(aus: ByteArrayOutputStream, index: Int, typ: Int) {
+        writeVarint(aus, (index shl 3).toLong() or typ.toLong())
     }
 
-    private fun varint(aus: ByteArrayOutputStream, index: Int, wert: Long) {
-        schreibeKey(aus, index, 0)
-        schreibeVarint(aus, wert)
+    private fun varint(aus: ByteArrayOutputStream, index: Int, value: Long) {
+        writeKey(aus, index, 0)
+        writeVarint(aus, value)
     }
 
-    private fun bytes(aus: ByteArrayOutputStream, index: Int, wert: ByteArray) {
-        schreibeKey(aus, index, 2)
-        schreibeVarint(aus, wert.size.toLong())
-        aus.write(wert)
+    private fun bytes(aus: ByteArrayOutputStream, index: Int, value: ByteArray) {
+        writeKey(aus, index, 2)
+        writeVarint(aus, value.size.toLong())
+        aus.write(value)
     }
 
     private fun pkcs7(daten: ByteArray, block: Int): ByteArray {
-        val fuell = block - (daten.size % block)
-        val ausgabe = ByteArray(daten.size + fuell)
+        val fill = block - (daten.size % block)
+        val ausgabe = ByteArray(daten.size + fill)
         daten.copyInto(ausgabe)
-        for (i in 0 until fuell) ausgabe[daten.size + i] = fuell.toByte()
+        for (i in 0 until fill) ausgabe[daten.size + i] = fill.toByte()
         return ausgabe
     }
 
-    private fun halbbyteTausch(wert: Int): Int =
-        ((wert and 0x0F) shl 4) or ((wert shr 4) and 0x0F)
+    private fun nibbleSwap(value: Int): Int =
+        ((value and 0x0F) shl 4) or ((value shr 4) and 0x0F)
 
-    private fun bitReverse8(wert: Int): Int {
-        var v = wert and 0xFF
+    private fun bitReverse8(value: Int): Int {
+        var v = value and 0xFF
         var r = 0
         repeat(8) {
             r = (r shl 1) or (v and 1)
@@ -423,17 +423,17 @@ object TikTokSignatur {
         return r and 0xFF
     }
 
-    private fun lesen64(daten: ByteArray, versatz: Int): Long {
-        var wert = 0L
+    private fun read64(daten: ByteArray, versatz: Int): Long {
+        var value = 0L
         for (i in 7 downTo 0) {
-            wert = (wert shl 8) or (daten[versatz + i].toLong() and 0xFF)
+            value = (value shl 8) or (daten[versatz + i].toLong() and 0xFF)
         }
-        return wert
+        return value
     }
 
-    private fun schreiben64(daten: ByteArray, versatz: Int, wert: Long) {
+    private fun write64(daten: ByteArray, versatz: Int, value: Long) {
         for (i in 0 until 8) {
-            daten[versatz + i] = ((wert ushr (8 * i)) and 0xFF).toByte()
+            daten[versatz + i] = ((value ushr (8 * i)) and 0xFF).toByte()
         }
     }
 
@@ -441,9 +441,9 @@ object TikTokSignatur {
         MessageDigest.getInstance("MD5").digest(daten)
 
     private fun hexZuBytes(hex: String): ByteArray {
-        val frei = hex.length / 2
-        val ausgabe = ByteArray(frei)
-        for (i in 0 until frei) {
+        val free = hex.length / 2
+        val ausgabe = ByteArray(free)
+        for (i in 0 until free) {
             ausgabe[i] = ((hex[i * 2].digitToInt(16) shl 4) or hex[i * 2 + 1].digitToInt(16)).toByte()
         }
         return ausgabe
@@ -454,22 +454,22 @@ object TikTokSignatur {
             0x7380166FL.toInt(), 0x4914B2B9L.toInt(), 0x172442D7L.toInt(), 0xDA8A0600L.toInt(),
             0xA96F30BCL.toInt(), 0x163138AAL.toInt(), 0xE38DEE4DL.toInt(), 0xB0FB0E4EL.toInt()
         )
-        val bitLaenge = daten.size.toLong() * 8L
-        val puffer = ByteArrayOutputStream()
-        puffer.write(daten)
-        puffer.write(0x80)
-        while (puffer.size() % 64 != 56) puffer.write(0)
-        for (i in 7 downTo 0) puffer.write(((bitLaenge ushr (8 * i)) and 0xFF).toInt())
-        val blok = puffer.toByteArray()
+        val bitLength = daten.size.toLong() * 8L
+        val buffer = ByteArrayOutputStream()
+        buffer.write(daten)
+        buffer.write(0x80)
+        while (buffer.size() % 64 != 56) buffer.write(0)
+        for (i in 7 downTo 0) buffer.write(((bitLength ushr (8 * i)) and 0xFF).toInt())
+        val blok = buffer.toByteArray()
         val v = iv.copyOf()
         for (block in blok.indices step 64) {
             val w = IntArray(68)
             for (i in 0 until 16) {
-                var wert = 0
+                var value = 0
                 for (k in 0 until 4) {
-                    wert = (wert shl 8) or (blok[block + i * 4 + k].toInt() and 0xFF)
+                    value = (value shl 8) or (blok[block + i * 4 + k].toInt() and 0xFF)
                 }
-                w[i] = wert
+                w[i] = value
             }
             for (j in 16 until 68) {
                 w[j] = p1(w[j - 16] xor w[j - 9] xor Integer.rotateLeft(w[j - 3], 15)) xor
