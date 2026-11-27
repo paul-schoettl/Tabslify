@@ -46,11 +46,11 @@ object TikTokOfflineDownloader {
     private const val MELDUNG_ALLE_MS = 1000L
     private const val SCHRITT_MELDUNG = 256L * 1024L
 
-    private class Abbruch : Exception("Download abgebrochen")
+    private class DownloadCancelled : Exception("Download abgebrochen")
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val warteschlange = MutableStateFlow<List<OfflineAntrag>>(emptyList())
-    private val verworfen = mutableSetOf<String>()
+    private val queue = MutableStateFlow<List<OfflineAntrag>>(emptyList())
+    private val discarded = mutableSetOf<String>()
     private var worker: Job? = null
 
     private val client: HttpClient by lazy {
@@ -64,20 +64,20 @@ object TikTokOfflineDownloader {
         }
     }
 
-    suspend fun enqueue(context: Context, antrag: OfflineAntrag): String = withContext(Dispatchers.IO) {
+    suspend fun enqueue(context: Context, request: OfflineAntrag): String = withContext(Dispatchers.IO) {
         val app = context.applicationContext
-        if (antrag.urls.none { it.isNotBlank() }) return@withContext "keine Video-URL"
-        TikTokOfflineStore.registriere(app, antrag)
+        if (request.urls.none { it.isNotBlank() }) return@withContext "keine Video-URL"
+        TikTokOfflineStore.register(app, request)
         Log.i(
             TAG,
-            "wartet ${antrag.videoId} ${antrag.title.take(40)} varianten=${antrag.urls.size}"
+            "wartet ${request.videoId} ${request.title.take(40)} varianten=${request.urls.size}"
         )
-        einreihen(app, antrag)
+        enqueueRequest(app, request)
         "in Warteschlange"
     }
 
-    fun abbrechen(videoId: String) {
-        verworfen.add(videoId)
+    fun cancel(videoId: String) {
+        discarded.add(videoId)
         Log.i(TAG, "Abbruch angefordert $videoId")
     }
 
@@ -85,107 +85,107 @@ object TikTokOfflineDownloader {
 
     fun starteAutoKontrolle(context: Context) {
         val app = context.applicationContext
-        scope.launch { autoFuellen(app) }
+        scope.launch { autoFill(app) }
     }
 
-    suspend fun groesse(context: Context, url: String): Long = withContext(Dispatchers.IO) {
+    suspend fun sizeBytes(context: Context, url: String): Long = withContext(Dispatchers.IO) {
         val app = context.applicationContext
         if (url.isBlank()) return@withContext 0L
-        val kopf = runCatching {
-            client.head(url) { kopfzeilen(this, app) }
-                .let { laenge(it) }
+        val header = runCatching {
+            client.head(url) { headers(this, app) }
+                .let { length(it) }
         }.getOrDefault(0L)
-        if (kopf > 0L) return@withContext kopf
+        if (header > 0L) return@withContext header
         runCatching {
-            val antwort = client.get(url) {
-                kopfzeilen(this, app)
+            val response = client.get(url) {
+                headers(this, app)
                 header("Range", "bytes=0-0")
             }
-            val kanal = antwort.bodyAsChannel()
-            if (!antwort.status.isSuccess() || antwort.status != HttpStatusCode.PartialContent) {
+            val kanal = response.bodyAsChannel()
+            if (!response.status.isSuccess() || response.status != HttpStatusCode.PartialContent) {
                 kanal.cancel(CancellationException("kein Bereich"))
                 return@runCatching 0L
             }
-            val bereich = antwort.headers[HttpHeaders.ContentRange].orEmpty()
-            val totale = bereich.substringAfter('/').trim().toLongOrNull() ?: 0L
+            val section = response.headers[HttpHeaders.ContentRange].orEmpty()
+            val totale = section.substringAfter('/').trim().toLongOrNull() ?: 0L
             kanal.cancel(CancellationException("nur Kopfzeile gelesen"))
             totale
         }.getOrDefault(0L)
     }
 
-    private fun einreihen(context: Context, antrag: OfflineAntrag) {
-        if (warteschlange.value.none { it.videoId == antrag.videoId }) {
-            warteschlange.value = warteschlange.value + antrag
+    private fun enqueueRequest(context: Context, request: OfflineAntrag) {
+        if (queue.value.none { it.videoId == request.videoId }) {
+            queue.value = queue.value + request
         }
-        planen(context)
+        startWorker(context)
     }
 
-    private fun planen(context: Context) {
+    private fun startWorker(context: Context) {
         synchronized(this) {
             if (worker?.isActive == true) return
-            worker = scope.launch { verarbeite(context.applicationContext) }
+            worker = scope.launch { processQueue(context.applicationContext) }
         }
     }
 
-    private suspend fun verarbeite(context: Context) {
+    private suspend fun processQueue(context: Context) {
         try {
             while (true) {
-                val antrag = warteschlange.value.firstOrNull() ?: break
-                warteschlange.value = warteschlange.value.filterNot { it.videoId == antrag.videoId }
+                val request = queue.value.firstOrNull() ?: break
+                queue.value = queue.value.filterNot { it.videoId == request.videoId }
                 try {
-                    ladeHerunter(context, antrag)
-                } catch (e: Abbruch) {
-                    verworfen.remove(antrag.videoId)
-                    Log.i(TAG, "Download verworfen ${antrag.videoId}")
-                    TikTokOfflineStore.fortschrittWeg(antrag.videoId)
-                    mldung(context, "Download abgebrochen", antrag.title, -1, false)
+                    download(context, request)
+                } catch (e: DownloadCancelled) {
+                    discarded.remove(request.videoId)
+                    Log.i(TAG, "Download discarded ${request.videoId}")
+                    TikTokOfflineStore.clearProgress(request.videoId)
+                    sendUpdate(context, "Download abgebrochen", request.title, -1, false)
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    Log.w(TAG, "Download ${antrag.videoId} fehlgeschlagen: ${e.message}")
-                    TikTokOfflineStore.markiere(
+                    Log.w(TAG, "Download ${request.videoId} failed: ${e.message}")
+                    TikTokOfflineStore.markState(
                         context,
-                        antrag.videoId,
+                        request.videoId,
                         TikTokOfflineStore.STATE_ERROR,
                         e.message ?: "Download fehlgeschlagen"
                     )
-                    TikTokOfflineStore.fortschrittWeg(antrag.videoId)
-                    mldung(context, "Download fehlgeschlagen", antrag.title, -1, false)
+                    TikTokOfflineStore.clearProgress(request.videoId)
+                    sendUpdate(context, "Download fehlgeschlagen", request.title, -1, false)
                 }
-                autoFuellen(context)
+                autoFill(context)
             }
         } finally {
             synchronized(this) { worker = null }
-            if (warteschlange.value.isNotEmpty()) planen(context)
+            if (queue.value.isNotEmpty()) startWorker(context)
         }
     }
 
-    private suspend fun autoFuellen(context: Context) {
+    private suspend fun autoFill(context: Context) {
         val app = context.applicationContext
-        if (!TikTokOfflineStore.autoAktiv(app)) return
-        if (warteschlange.value.isNotEmpty()) return
-        if (TikTokOfflineStore.fortschritt.value.isNotEmpty()) return
+        if (!TikTokOfflineStore.isAutoActive(app)) return
+        if (queue.value.isNotEmpty()) return
+        if (TikTokOfflineStore.progress.value.isNotEmpty()) return
         if (HandyLampClient.isCellularOnly(app)) {
-            Log.i(TAG, "Auto wartet: nur mobiles Netz")
+            Log.i(TAG, "Auto waits: cellular only")
             return
         }
         val limit = TikTokOfflineStore.autoLimit(app)
         if (limit <= 0) return
-        val zeilen = runCatching {
+        val rows = runCatching {
             TikTokOfflineDatabase.get(app).videoDao().byState(TikTokOfflineStore.STATE_PENDING)
         }.getOrDefault(emptyList())
-        if (zeilen.isEmpty()) return
-        val frei = TikTokOfflineStore.frei(app)
-        if (frei <= 0L) {
-            Log.w(TAG, "Auto gestoppt: kein Speicher mehr")
+        if (rows.isEmpty()) return
+        val freeBytes = TikTokOfflineStore.freeBytes(app)
+        if (freeBytes <= 0L) {
+            Log.w(TAG, "Auto stopped: out of storage")
             return
         }
-        var genutzt = 0
-        for (video in zeilen) {
-            if (genutzt >= limit) break
+        var used = 0
+        for (video in rows) {
+            if (used >= limit) break
             if (video.streamUrl.isEmpty()) continue
-            if (video.sizeBytes > 0L && frei - video.sizeBytes < TikTokOfflineStore.SCHRITT_BYTES) break
-            einreihen(
+            if (video.sizeBytes > 0L && freeBytes - video.sizeBytes < TikTokOfflineStore.SCHRITT_BYTES) break
+            enqueueRequest(
                 app,
                 OfflineAntrag(
                     videoId = video.videoId,
@@ -196,158 +196,158 @@ object TikTokOfflineDownloader {
                     urls = listOf(video.streamUrl)
                 )
             )
-            genutzt++
+            used++
             Log.i(TAG, "Auto lädt ${video.videoId} ${video.title.take(40)}")
         }
     }
 
-    private suspend fun ladeHerunter(context: Context, antrag: OfflineAntrag) {
+    private suspend fun download(context: Context, request: OfflineAntrag) {
         val app = context.applicationContext
-        verworfen.remove(antrag.videoId)
-        val kandidaten = antrag.urls.filter { it.isNotBlank() }
-        if (kandidaten.isEmpty()) {
-            TikTokOfflineStore.markiere(
+        discarded.remove(request.videoId)
+        val candidates = request.urls.filter { it.isNotBlank() }
+        if (candidates.isEmpty()) {
+            TikTokOfflineStore.markState(
                 app,
-                antrag.videoId,
+                request.videoId,
                 TikTokOfflineStore.STATE_ERROR,
                 "keine Video-URL"
             )
             return
         }
-        val video = TikTokOfflineStore.get(app, antrag.videoId)
-            ?: TikTokOfflineStore.registriere(app, antrag)
-        val ziel = TikTokOfflineStore.datei(app, video)
-        val teil = TikTokOfflineStore.teilDatei(app, video)
-        if (ziel.exists() && ziel.length() > 0L) {
-            Log.i(TAG, "bereits vorhanden ${antrag.videoId} ${ziel.length()}")
-            TikTokOfflineStore.markiere(app, antrag.videoId, TikTokOfflineStore.STATE_DONE, "", ziel.length())
-            TikTokOfflineStore.fortschrittWeg(antrag.videoId)
+        val video = TikTokOfflineStore.get(app, request.videoId)
+            ?: TikTokOfflineStore.register(app, request)
+        val target = TikTokOfflineStore.file(app, video)
+        val part = TikTokOfflineStore.partFile(app, video)
+        if (target.exists() && target.length() > 0L) {
+            Log.i(TAG, "bereits vorhanden ${request.videoId} ${target.length()}")
+            TikTokOfflineStore.markState(app, request.videoId, TikTokOfflineStore.STATE_DONE, "", target.length())
+            TikTokOfflineStore.clearProgress(request.videoId)
             return
         }
-        var gewaehlt = kandidaten.first()
+        var chosen = candidates.first()
         var kleinste = 0L
-        for (url in kandidaten) {
-            val groesse = groesse(app, url)
-            if (groesse <= 0L) continue
-            if (kleinste == 0L || groesse < kleinste) {
-                kleinste = groesse
-                gewaehlt = url
+        for (url in candidates) {
+            val sizeBytes = sizeBytes(app, url)
+            if (sizeBytes <= 0L) continue
+            if (kleinste == 0L || sizeBytes < kleinste) {
+                kleinste = sizeBytes
+                chosen = url
             }
         }
-        val beginn = if (teil.exists()) teil.length() else 0L
+        val beginn = if (part.exists()) part.length() else 0L
         Log.i(
             TAG,
-            "lade ${antrag.videoId} ab $beginn Bytes, Kandidaten=${kandidaten.size}, vorab=$kleinste"
+            "lade ${request.videoId} ab $beginn Bytes, Kandidaten=${candidates.size}, vorab=$kleinste"
         )
-        TikTokOfflineStore.markiere(app, antrag.videoId, TikTokOfflineStore.STATE_DOWNLOADING)
-        var antwort = client.get(gewaehlt) {
-            kopfzeilen(this, app)
+        TikTokOfflineStore.markState(app, request.videoId, TikTokOfflineStore.STATE_DOWNLOADING)
+        var response = client.get(chosen) {
+            headers(this, app)
             if (beginn > 0L) header("Range", "bytes=$beginn-")
         }
-        if (antwort.status.value == 403) {
-            Log.i(TAG, "403 bei ${antrag.videoId}, Versuch mit App-Kennung")
-            antwort.bodyAsChannel().cancel(CancellationException("403"))
-            antwort = client.get(gewaehlt) {
+        if (response.status.value == 403) {
+            Log.i(TAG, "403 bei ${request.videoId}, Versuch mit App-Kennung")
+            response.bodyAsChannel().cancel(CancellationException("403"))
+            response = client.get(chosen) {
                 header("User-Agent", APP_USER_AGENT)
                 header("Referer", REFERER)
                 if (beginn > 0L) header("Range", "bytes=$beginn-")
             }
         }
-        val fortsetzen = beginn > 0L && antwort.status == HttpStatusCode.PartialContent
-        if (!antwort.status.isSuccess() && !fortsetzen) {
-            val code = antwort.status.value
-            antwort.bodyAsChannel().cancel(CancellationException("HTTP $code"))
+        val resume = beginn > 0L && response.status == HttpStatusCode.PartialContent
+        if (!response.status.isSuccess() && !resume) {
+            val code = response.status.value
+            response.bodyAsChannel().cancel(CancellationException("HTTP $code"))
             throw IllegalStateException("HTTP $code")
         }
-        val erwartet = beginn + laenge(antwort)
-        if (beginn > 0L && !fortsetzen) teil.delete()
-        val kanal = antwort.bodyAsChannel()
-        var geladen = if (fortsetzen) beginn else 0L
-        var stand = 0L
-        var letzteMeldung = 0L
-        FileOutputStream(teil, fortsetzen).use { dateiStrom ->
-            val puffer = ByteArray(PUFFER)
-            TikTokOfflineStore.fortschrittSetzen(antrag.videoId, anteil(geladen, erwartet))
+        val expected = beginn + length(response)
+        if (beginn > 0L && !resume) part.delete()
+        val kanal = response.bodyAsChannel()
+        var loaded = if (resume) beginn else 0L
+        var currentState = 0L
+        var lastMessage = 0L
+        FileOutputStream(part, resume).use { fileStream ->
+            val buffer = ByteArray(PUFFER)
+            TikTokOfflineStore.setProgress(request.videoId, fraction(loaded, expected))
             while (true) {
-                if (verworfen.contains(antrag.videoId)) throw Abbruch()
-                val gelesen = kanal.readAvailable(puffer, 0, puffer.size)
-                if (gelesen < 0) break
-                if (gelesen == 0) {
+                if (discarded.contains(request.videoId)) throw DownloadCancelled()
+                val read = kanal.readAvailable(buffer, 0, buffer.size)
+                if (read < 0) break
+                if (read == 0) {
                     delay(20)
                     continue
                 }
-                dateiStrom.write(puffer, 0, gelesen)
-                geladen += gelesen
-                if (geladen - stand >= SCHRITT_MELDUNG) {
-                    stand = geladen
-                    val prozent = anteil(geladen, erwartet)
-                    TikTokOfflineStore.fortschrittSetzen(antrag.videoId, prozent)
-                    val jetzt = System.currentTimeMillis()
-                    if (jetzt - letzteMeldung >= MELDUNG_ALLE_MS) {
-                        letzteMeldung = jetzt
-                        mldung(context, "Lade Video", antrag.title, prozent, true, erwartet, geladen)
+                fileStream.write(buffer, 0, read)
+                loaded += read
+                if (loaded - currentState >= SCHRITT_MELDUNG) {
+                    currentState = loaded
+                    val percent = fraction(loaded, expected)
+                    TikTokOfflineStore.setProgress(request.videoId, percent)
+                    val now = System.currentTimeMillis()
+                    if (now - lastMessage >= MELDUNG_ALLE_MS) {
+                        lastMessage = now
+                        sendUpdate(context, "Lade Video", request.title, percent, true, expected, loaded)
                     }
                 }
             }
-            dateiStrom.flush()
+            fileStream.flush()
         }
         kanal.cancel(CancellationException("Download beendet"))
-        if (erwartet > 0L && teil.length() < erwartet) {
-            val ist = teil.length()
-            Log.w(TAG, "unvollständig ${antrag.videoId} $ist von $erwartet")
-            throw IllegalStateException("unvollständig ($ist von $erwartet Bytes)")
+        if (expected > 0L && part.length() < expected) {
+            val ist = part.length()
+            Log.w(TAG, "unvollständig ${request.videoId} $ist von $expected")
+            throw IllegalStateException("unvollständig ($ist von $expected Bytes)")
         }
-        if (!teil.renameTo(ziel)) {
-            teil.copyTo(ziel, overwrite = true)
-            teil.delete()
+        if (!part.renameTo(target)) {
+            part.copyTo(target, overwrite = true)
+            part.delete()
         }
-        val groesse = ziel.length()
-        TikTokOfflineStore.markiere(app, antrag.videoId, TikTokOfflineStore.STATE_DONE, "", groesse)
-        TikTokOfflineStore.fortschrittWeg(antrag.videoId)
-        TikTokOfflineStore.raeumeAuf(app)
-        mldung(context, "Video gespeichert", antrag.title, 100, false, groesse, groesse)
+        val sizeBytes = target.length()
+        TikTokOfflineStore.markState(app, request.videoId, TikTokOfflineStore.STATE_DONE, "", sizeBytes)
+        TikTokOfflineStore.clearProgress(request.videoId)
+        TikTokOfflineStore.cleanupStorage(app)
+        sendUpdate(context, "Video gespeichert", request.title, 100, false, sizeBytes, sizeBytes)
     }
 
-    private fun anteil(geladen: Long, erwartet: Long): Int =
-        if (erwartet > 0L) ((geladen * 100L) / erwartet).toInt().coerceIn(0, 100) else 0
+    private fun fraction(loaded: Long, expected: Long): Int =
+        if (expected > 0L) ((loaded * 100L) / expected).toInt().coerceIn(0, 100) else 0
 
-    private fun laenge(antwort: HttpResponse): Long =
-        antwort.headers[HttpHeaders.ContentLength]?.trim()?.toLongOrNull()?.takeIf { it > 0L } ?: 0L
+    private fun length(response: HttpResponse): Long =
+        response.headers[HttpHeaders.ContentLength]?.trim()?.toLongOrNull()?.takeIf { it > 0L } ?: 0L
 
-    private fun kopfzeilen(builder: HttpRequestBuilder, context: Context) {
+    private fun headers(builder: HttpRequestBuilder, context: Context) {
         builder.header("Cookie", TikTokCookieRepository.cachedCookie(context))
         builder.header("User-Agent", USER_AGENT)
         builder.header("Referer", REFERER)
         builder.header("Accept", "*/*")
     }
 
-    private fun mldung(
+    private fun sendUpdate(
         context: Context,
-        titel: String,
+        title: String,
         text: String,
-        prozent: Int,
-        laeuft: Boolean,
-        gesamt: Long = 0L,
-        aktuell: Long = 0L
+        percent: Int,
+        isPlaying: Boolean,
+        total: Long = 0L,
+        current: Long = 0L
     ) {
         runCatching { kanalAnlegen(context) }
-        val baue = NotificationCompat.Builder(context, CHANNEL_ID)
+        val build = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(
-                if (laeuft) android.R.drawable.stat_sys_download
+                if (isPlaying) android.R.drawable.stat_sys_download
                 else android.R.drawable.stat_sys_download_done
             )
-            .setContentTitle(titel)
+            .setContentTitle(title)
             .setContentText(text)
-            .setOngoing(laeuft)
-            .setAutoCancel(!laeuft)
+            .setOngoing(isPlaying)
+            .setAutoCancel(!isPlaying)
             .setOnlyAlertOnce(true)
-        if (laeuft) {
-            baue.setProgress(100, prozent, gesamt <= 0L)
-            if (gesamt > 0L && aktuell > 0L) {
-                baue.setContentText("$text · $prozent % · ${mb(aktuell)} von ${mb(gesamt)}")
+        if (isPlaying) {
+            build.setProgress(100, percent, total <= 0L)
+            if (total > 0L && current > 0L) {
+                build.setContentText("$text · $percent % · ${formatMb(current)} von ${formatMb(total)}")
             }
         }
-        runCatching { tNotify(context, NOTIFY_ID, baue.build()) }
+        runCatching { tNotify(context, NOTIFY_ID, build.build()) }
     }
 
     private fun kanalAnlegen(context: Context) {
