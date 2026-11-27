@@ -88,7 +88,7 @@ class DownloadRepositoryImpl(
                             detail = "MiniPC lädt · ${elapsed / 1000} s"
                         )
                     )
-                    delay(300)
+                    delay(300.milliseconds)
                 }
             }
             try {
@@ -109,7 +109,7 @@ class DownloadRepositoryImpl(
                         job = current
                         break
                     }
-                    delay(POLL_INTERVAL_MS)
+                    delay(POLL_INTERVAL_MS.milliseconds)
                 }
             } finally {
                 ticker.cancel()
