@@ -95,9 +95,9 @@ import com.tabslify.core.objects.Config
 import com.tabslify.core.ui.AlertDialogTabslify
 import com.tabslify.core.ui.FeedCard
 import com.tabslify.services.MediaPlayerService
-import com.tabslify.spotifydownloader_own.data.DownloadRepositoryImpl
-import com.tabslify.spotifydownloader_own.domain.DownloadState
-import com.tabslify.spotifydownloader_own.ui.DownloadViewModel
+import com.tabslify.tabs.mediaplayer.song_downloader_backend.data.DownloadRepositoryImpl
+import com.tabslify.tabs.mediaplayer.song_downloader_backend.domain.DownloadState
+import com.tabslify.tabs.mediaplayer.song_downloader_backend.ui.DownloadViewModel
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation

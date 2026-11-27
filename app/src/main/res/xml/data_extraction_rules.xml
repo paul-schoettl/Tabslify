@@ -39,6 +39,7 @@
 
         <exclude domain="sharedpref" path="focusguard_prefs.xml" />
         <exclude domain="sharedpref" path="noten.xml" />
+        <exclude domain="sharedpref" path="home_location.xml" />
     </cloud-backup>
 
     <device-transfer>
@@ -80,5 +81,6 @@
 
         <exclude domain="sharedpref" path="focusguard_prefs.xml" />
         <exclude domain="sharedpref" path="noten.xml" />
+        <exclude domain="sharedpref" path="home_location.xml" />
     </device-transfer>
 </data-extraction-rules>

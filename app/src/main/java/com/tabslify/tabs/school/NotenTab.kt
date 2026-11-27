@@ -183,8 +183,7 @@ private fun EintragRecord.toEintrag(): NotenEintrag = NotenEintrag(
 )
 
 fun speichereNotenFaecher(prefs: SharedPreferences, faecher: List<NotenFach>): List<NotenFach> {
-    val json = runCatching { notenJson.encodeToString(faecher.map { it.toRecord() }) }
-        .getOrDefault("[]")
+    val json = notenJson.encodeToString(faecher.map { it.toRecord() })
     prefs.edit { putString(NOTEN_KEY, json) }
     return faecher
 }

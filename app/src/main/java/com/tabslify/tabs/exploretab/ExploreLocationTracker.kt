@@ -36,7 +36,9 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.tabslify.R
 import com.tabslify.core.functions.errorInsert
+import com.tabslify.core.functions.errorInsertLocal
 import com.tabslify.core.objects.Config
+import com.tabslify.core.objects.HomeLocation
 import com.tabslify.core.ui.FeatureToggle
 import com.tabslify.core.ui.isFeatureEnabled
 import com.tabslify.quiethoursnotificationhelper.isLaptopConnected
@@ -112,7 +114,7 @@ class ExploreGeofenceReceiver : BroadcastReceiver() {
 
         when (event.geofenceTransition) {
             Geofence.GEOFENCE_TRANSITION_ENTER -> {
-                errorInsert(
+                errorInsertLocal(
                     "ExploreTracker",
                     "GeofenceReceiver - ENTER",
                     Instant.now().toString(),
@@ -122,7 +124,7 @@ class ExploreGeofenceReceiver : BroadcastReceiver() {
             }
 
             Geofence.GEOFENCE_TRANSITION_EXIT -> {
-                errorInsert(
+                errorInsertLocal(
                     "ExploreTracker",
                     "GeofenceReceiver - EXIT",
                     Instant.now().toString(),
@@ -186,7 +188,6 @@ object ExploreLocationTracker {
     private const val BACKGROUND_UPDATE_MIN_INTERVAL_MS = 30_000L
     private const val BACKGROUND_UPDATE_MIN_DISTANCE_M = 25f
     private const val BACKGROUND_UPDATE_BATCH_MS = 2 * 60_000L
-    const val HOME_WIFI_SSID = "FRITZ!Box 5590 XO"
     private const val NIGHT_START_HOUR = 0
     private const val NIGHT_END_HOUR = 5
 
@@ -448,7 +449,7 @@ object ExploreLocationTracker {
             return
         }
 
-        val wifi = homeWifiVerdict(appCtx, HOME_WIFI_SSID)
+        val wifi = homeWifiVerdict(appCtx, homeSsid(appCtx))
         _trackerInfo.value = _trackerInfo.value.copy(lastWifiHome = verdictField(wifi))
 
         if (wifi == WifiVerdict.HOME) {
@@ -536,7 +537,7 @@ object ExploreLocationTracker {
         markDecisionUndecided(context)
         if (now - lastLeftHomeRejectLogAt < 60_000L) return
         lastLeftHomeRejectLogAt = now
-        errorInsert(
+        errorInsertLocal(
             "ExploreTracker",
             "Verlassen verworfen ($reason): $detail",
             Instant.now().toString(),
@@ -556,9 +557,12 @@ object ExploreLocationTracker {
     private fun getClient(context: Context) =
         LocationServices.getFusedLocationProviderClient(context.applicationContext)
 
+    fun homeSsid(context: Context): String = HomeLocation.ssid(context)
+
     @SuppressLint("MissingPermission")
     private suspend fun homeWifiVerdict(context: Context, homeSsid: String): WifiVerdict {
         val appCtx = context.applicationContext
+        if (homeSsid.isBlank()) return WifiVerdict.UNKNOWN
         val cm = appCtx.getSystemService(ConnectivityManager::class.java) ?: return WifiVerdict.UNKNOWN
 
         return withTimeoutOrNull(WIFI_CHECK_TIMEOUT_MS + 2_000L) {
@@ -801,7 +805,7 @@ object ExploreLocationTracker {
                     geofenceRegistered = true,
                     geofenceError = null,
                 )
-                errorInsert(
+                errorInsertLocal(
                     "ExploreTracker",
                     "Geofence registriert (radius=%.0f)".format(GEOFENCE_RADIUS),
                     Instant.now().toString(),

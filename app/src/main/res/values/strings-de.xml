@@ -3734,4 +3734,5 @@
     <string name="link_vorschau_laden">Vorschau wird geladen …</string>
     <string name="link_vorschau_nicht_verfugbar">Keine Vorschau verfügbar</string>
     <string name="link_offnen">Link öffnen</string>
+    <string name="heim_wlan_leer_hinweis">Leer = WLAN-Status gilt als unbekannt (keine Anwesenheitsentscheidung).</string>
 </resources>

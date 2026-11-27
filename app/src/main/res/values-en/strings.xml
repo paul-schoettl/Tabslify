@@ -3087,4 +3087,5 @@
     <string name="link_vorschau_laden">Loading preview …</string>
     <string name="link_vorschau_nicht_verfugbar">No preview available</string>
     <string name="link_offnen">Open link</string>
+    <string name="heim_wlan_leer_hinweis">Empty = Wi-Fi status is treated as unknown (no presence decision).</string>
 </resources>

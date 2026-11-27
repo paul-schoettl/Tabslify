@@ -791,8 +791,7 @@ fun EditNoteDialog(
 
 fun saveNotes(context: Context, notes: List<Note>) {
     val prefs = context.getSharedPreferences("notes_prefs", Context.MODE_PRIVATE)
-    val encoded = runCatching { notesJson.encodeToString(notes.map { it.toRecord() }) }
-        .getOrDefault("[]")
+    val encoded = notesJson.encodeToString(notes.map { it.toRecord() })
     prefs.edit(commit = true) { putString("notes", encoded) }
 }
 

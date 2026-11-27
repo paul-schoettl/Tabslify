@@ -89,12 +89,15 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.edit
-import com.google.gson.GsonBuilder
 import com.tabslify.R
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.decodeFromJsonElement
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.YearMonth
@@ -114,6 +117,7 @@ import com.tabslify.core.ui.TextPrimary
 import com.tabslify.core.ui.TextSecondary
 import com.tabslify.core.ui.TextTertiary
 
+@Serializable
 data class CalendarEntry(
     val id: String = UUID.randomUUID().toString(),
     val date: String,
@@ -125,11 +129,16 @@ data class CalendarEntry(
     val createdAt: Long = System.currentTimeMillis()
 )
 
+private val calendarJson = Json {
+    ignoreUnknownKeys = true
+    encodeDefaults = true
+    explicitNulls = false
+}
+
 object CalendarRepository {
 
     private const val PREFS = "calendar_entries"
     private const val KEY = "entries_json"
-    private val gson = GsonBuilder().create()
 
     private val _entries = MutableStateFlow<List<CalendarEntry>>(emptyList())
     val entries: StateFlow<List<CalendarEntry>> = _entries.asStateFlow()
@@ -165,18 +174,19 @@ object CalendarRepository {
     }
 
     private fun save(context: Context, list: List<CalendarEntry>) {
+        val encoded = calendarJson.encodeToString(list)
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            .edit { putString(KEY, gson.toJson(list)) }
+            .edit { putString(KEY, encoded) }
     }
 
     private fun load(context: Context): List<CalendarEntry> {
         val raw = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getString(KEY, null) ?: return emptyList()
-        return try {
-            val type = object : com.google.gson.reflect.TypeToken<List<CalendarEntry>>() {}.type
-            gson.fromJson(raw, type) ?: emptyList()
-        } catch (_: Exception) {
-            emptyList()
+        val elements = runCatching {
+            calendarJson.decodeFromString<List<JsonElement>>(raw)
+        }.getOrNull() ?: return emptyList()
+        return elements.mapNotNull { element ->
+            runCatching { calendarJson.decodeFromJsonElement<CalendarEntry>(element) }.getOrNull()
         }
     }
 }

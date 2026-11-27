@@ -2913,7 +2913,7 @@ object MediaAnalyticsManager {
     }
 
     private fun saveSessions(sessions: List<ListenSession>) {
-        val encoded = runCatching { analyticsJson.encodeToString(sessions) }.getOrDefault("[]")
+        val encoded = analyticsJson.encodeToString(sessions)
         prefs?.edit { putString(KEY_SESSIONS, encoded) }
     }
 

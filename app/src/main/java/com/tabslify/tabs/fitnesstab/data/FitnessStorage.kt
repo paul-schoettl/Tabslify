@@ -144,9 +144,9 @@ class FitnessStorage(context: Context) {
     // ----- private helpers -----
 
     private fun saveSessions(sessions: List<WorkoutSession>) {
-        val encoded = runCatching {
-            sessionsJson.encodeToString(sessions.sortedByDescending { it.dateStartMs }.map { it.toRecord() })
-        }.getOrDefault("[]")
+        val encoded = sessionsJson.encodeToString(
+            sessions.sortedByDescending { it.dateStartMs }.map { it.toRecord() }
+        )
         prefs.edit { putString(KEY_SESSIONS, encoded) }
     }
 

@@ -169,6 +169,7 @@ import com.tabslify.core.objects.BackupOutcome
 import com.tabslify.core.objects.Config
 import com.tabslify.core.objects.Config.client
 import com.tabslify.core.objects.Config.realDevice
+import com.tabslify.core.objects.HomeLocation
 import com.tabslify.quiethoursnotificationhelper.checkPermissionsForPrvt
 import com.tabslify.core.objects.PasswordStorage
 import com.tabslify.core.objects.PrefsBackup
@@ -302,17 +303,10 @@ fun LandingPageOrApp(
         }
         Config.masterPassword = masterPw!!
 
-        val prefs = remember { context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE) }
-        var hasCoords by remember { mutableStateOf(prefs.getBoolean("has_coordinates", false)) }
+        var hasCoords by remember { mutableStateOf(HomeLocation.load(context) != null) }
         if (!hasCoords) {
             CoordinatesSetupScreen(modifier = Modifier.zIndex(10f)) { lat, lon ->
-                prefs.edit {
-                    putLong("lat_key_d", java.lang.Double.doubleToRawLongBits(lat))
-                    putLong("lon_key_d", java.lang.Double.doubleToRawLongBits(lon))
-                    putBoolean("has_coordinates", true)
-                }
-                Config.LAT = lat
-                Config.LON = lon
+                HomeLocation.save(context, lat, lon, HomeLocation.ssid(context))
                 hasCoords = true
             }
             return
@@ -3743,27 +3737,17 @@ fun SettingsFrame(
             enter = fadeIn() + expandVertically(),
             exit = fadeOut() + shrinkVertically()
         ) {
-            val coordPrefs =
-                remember { context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE) }
+            val current = remember { HomeLocation.load(context) }
             var latInput by remember {
-                mutableStateOf(
-                    if (coordPrefs.contains("lat_key_d"))
-                        java.lang.Double.longBitsToDouble(coordPrefs.getLong("lat_key_d", 0L))
-                            .toString()
-                    else
-                        coordPrefs.getFloat("lat_key", 0f).toString()
-                )
+                mutableStateOf(current?.first?.toString() ?: "")
             }
             var lonInput by remember {
-                mutableStateOf(
-                    if (coordPrefs.contains("lon_key_d"))
-                        java.lang.Double.longBitsToDouble(coordPrefs.getLong("lon_key_d", 0L))
-                            .toString()
-                    else
-                        coordPrefs.getFloat("lon_key", 0f).toString()
-                )
+                mutableStateOf(current?.second?.toString() ?: "")
             }
             var savedHint by remember { mutableStateOf(false) }
+            var ssidInput by remember {
+                mutableStateOf(HomeLocation.ssid(context))
+            }
             val latDouble = latInput.toDoubleOrNull()
             val lonDouble = lonInput.toDoubleOrNull()
             val isValid = latDouble != null && lonDouble != null
@@ -3837,6 +3821,25 @@ fun SettingsFrame(
                         label = { Text(stringResource(R.string.langengrad_longitude)) },
                         modifier = Modifier.fillMaxWidth()
                     )
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = ssidInput,
+                        onValueChange = { ssidInput = it; savedHint = false },
+                        label = { Text(stringResource(R.string.heim_wlan)) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    if (ssidInput.isBlank())
+                        Text(
+                            stringResource(R.string.heim_wlan_leer_hinweis),
+                            color = APP_COLOR.copy(
+                                red = APP_COLOR.red + .6f,
+                                green = APP_COLOR.green + .6f,
+                                blue = APP_COLOR.blue + .6f
+                            ),
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
 
                     if (latInput.isNotEmpty() && latDouble == null)
                         Text(
@@ -3857,19 +3860,7 @@ fun SettingsFrame(
 
                     Button(
                         onClick = {
-                            coordPrefs.edit {
-                                putLong(
-                                    "lat_key_d",
-                                    java.lang.Double.doubleToRawLongBits(latDouble!!)
-                                )
-                                putLong(
-                                    "lon_key_d",
-                                    java.lang.Double.doubleToRawLongBits(lonDouble!!)
-                                )
-                                putBoolean("has_coordinates", true)
-                            }
-                            Config.LAT = latDouble!!
-                            Config.LON = lonDouble!!
+                            HomeLocation.save(context, latDouble!!, lonDouble!!, ssidInput)
                             savedHint = true
                         },
                         enabled = isValid,

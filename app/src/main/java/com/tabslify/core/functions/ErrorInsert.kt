@@ -13,6 +13,29 @@ import java.io.IOException
 import java.net.UnknownHostException
 
 fun errorInsert(serviceName: String, errorMessage: String, createdAt: String, severity: String) {
+    errorInsertLocal(serviceName, errorMessage, createdAt, severity)
+
+    if (!Config.realDevice) return
+
+    serviceScope.launch {
+        try {
+            Config.client.functions.invoke(
+                function = "report_error",
+                body = mapOf(
+                    "serviceName" to serviceName,
+                    "errorMessage" to AppLog.sanitize(errorMessage),
+                    "createdAt" to createdAt,
+                    "severity" to severity
+                )
+            )
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+        }
+    }
+}
+
+fun errorInsertLocal(serviceName: String, errorMessage: String, createdAt: String, severity: String) {
     AppLog.write(
         level = when (severity.uppercase()) {
             "ERROR" -> LogLevel.ERROR
@@ -24,25 +47,6 @@ fun errorInsert(serviceName: String, errorMessage: String, createdAt: String, se
         message = errorMessage,
         throwable = null
     )
-
-    if (!Config.realDevice) return
-
-    serviceScope.launch {
-        try {
-            Config.client.functions.invoke(
-                function = "report_error",
-                body = mapOf(
-                    "serviceName" to serviceName,
-                    "errorMessage" to errorMessage,
-                    "createdAt" to createdAt,
-                    "severity" to severity
-                )
-            )
-        } catch (e: CancellationException) {
-            throw e
-        } catch (_: Exception) {
-        }
-    }
 }
 
 fun isNetworkFailure(e: Throwable): Boolean =

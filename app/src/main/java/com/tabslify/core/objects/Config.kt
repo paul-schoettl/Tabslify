@@ -151,15 +151,20 @@ object Config {
     fun init(context: Context) {
         masterPassword = PasswordStorage.loadPassword(context)
             ?: ""
-        val prefs = context.getSharedPreferences("tabslify_app_prefs", Context.MODE_PRIVATE)
-        LAT = if (prefs.contains("lat_key_d"))
-            java.lang.Double.longBitsToDouble(prefs.getLong("lat_key_d", 0L))
-        else
-            prefs.getFloat("lat_key", 0.0f).toDouble()
-        LON = if (prefs.contains("lon_key_d"))
-            java.lang.Double.longBitsToDouble(prefs.getLong("lon_key_d", 0L))
-        else
-            prefs.getFloat("lon_key", 0.0f).toDouble()
+        HomeLocation.migrateLegacy(context)
+        val prefs = HomeLocation.prefs(context)
+        LAT = if (prefs.contains(HomeLocation.KEY_LAT)) {
+            java.lang.Double.longBitsToDouble(prefs.getLong(HomeLocation.KEY_LAT, 0L))
+        } else {
+            context.getSharedPreferences("tabslify_app_prefs", Context.MODE_PRIVATE)
+                .getFloat("lat_key", 0.0f).toDouble()
+        }
+        LON = if (prefs.contains(HomeLocation.KEY_LON)) {
+            java.lang.Double.longBitsToDouble(prefs.getLong(HomeLocation.KEY_LON, 0L))
+        } else {
+            context.getSharedPreferences("tabslify_app_prefs", Context.MODE_PRIVATE)
+                .getFloat("lon_key", 0.0f).toDouble()
+        }
     }
 
     var realDevice = false

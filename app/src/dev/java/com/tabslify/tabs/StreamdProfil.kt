@@ -61,7 +61,7 @@ object StreamdProfile {
     }
 
     fun speichern(context: Context, liste: List<StreamProfil>, auswahl: Int) {
-        val encoded = runCatching { profileJson.encodeToString(liste) }.getOrDefault("[]")
+        val encoded = profileJson.encodeToString(liste)
         context.getSharedPreferences(DATEI, Context.MODE_PRIVATE).edit {
             putString(KEY_LISTE, encoded)
             putInt(KEY_AUSWAHL, auswahl.coerceAtLeast(0))

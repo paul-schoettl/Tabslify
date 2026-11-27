@@ -27,6 +27,12 @@ object AppLog {
     )
     private val bearerToken = Regex("(?i)(bearer\\s+)[A-Za-z0-9._~+/=-]+")
     private val supabaseKey = Regex("sb_(?:publishable|secret)_[A-Za-z0-9_-]+")
+    private val coordinatePair = Regex(
+        """\b(?:4[0-9]|5[0-6])\.\d{4,}\s*,\s*(?:[5-9]|1[0-6])\.\d{4,}\b"""
+    )
+    private val namedCoordinate = Regex(
+        "(?i)\\b((?:config\\.|home_)?(?:lat|latitude|lon|lng|longitude))\\s*[=:]\\s*-?\\d+(?:\\.\\d+)?"
+    )
 
     @Volatile
     internal var store: AppLogStore? = null
@@ -102,10 +108,14 @@ object AppLog {
         target.append(line)
     }
 
-    private fun redact(text: String): String {
+    private fun redact(text: String): String = sanitize(text)
+
+    fun sanitize(text: String): String {
         var result = text.replace(secretKeyValue) { match -> match.groupValues[1] + "***" }
         result = result.replace(bearerToken) { match -> match.groupValues[1] + "***" }
         result = result.replace(supabaseKey, "***")
+        result = result.replace(coordinatePair, "<koordinaten>")
+        result = result.replace(namedCoordinate) { match -> match.groupValues[1] + "=<koordinate>" }
         return result
     }
 

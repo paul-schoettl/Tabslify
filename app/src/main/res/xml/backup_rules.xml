@@ -38,4 +38,5 @@
 
     <exclude domain="sharedpref" path="focusguard_prefs.xml" />
     <exclude domain="sharedpref" path="noten.xml" />
+    <exclude domain="sharedpref" path="home_location.xml" />
 </full-backup-content>
