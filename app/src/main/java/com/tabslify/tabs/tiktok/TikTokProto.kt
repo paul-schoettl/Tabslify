@@ -21,7 +21,13 @@ data class TikTokMessage(
     val mediaStream: String = "",
     val mediaDuration: Long = 0L,
     val mediaWave: String = "",
-    val mediaVid: String = ""
+    val mediaVid: String = "",
+    val unknownType: String = "",
+    val myReaction: String = "",
+    val peerReaction: String = "",
+    val replyToId: String = "",
+    val replyToText: String = "",
+    val replyToQuote: String = ""
 )
 
 data class TikTokPage(
@@ -29,6 +35,15 @@ data class TikTokPage(
     val nextCursor: Long,
     val hasMore: Boolean,
     val streaks: Map<String, TikTokStreak> = emptyMap()
+)
+
+data class TikTokProfile(
+    val uid: String,
+    val name: String,
+    val handle: String,
+    val signature: String,
+    val avatarUrl: String,
+    val following: Boolean
 )
 
 data class TikTokConversation(
@@ -39,7 +54,11 @@ data class TikTokConversation(
     val lastMessage: String,
     val unread: Int = 0,
     val streak: TikTokStreak = TikTokStreak(),
-    val reactions: List<String> = emptyList()
+    val reactions: List<String> = emptyList(),
+    val avatarUrl: String = "",
+    val handle: String = "",
+    val lastKind: String = "",
+    val lastIsOwn: Boolean = false
 )
 
 data class TikTokConvMeta(
@@ -47,7 +66,9 @@ data class TikTokConvMeta(
     val convType: Int,
     val convShortId: Long,
     val ticket: String,
-    val unread: Int = 0
+    val unread: Int = 0,
+    val maxIndex: Long = 0L,
+    val readIndex: Long = 0L
 )
 
 data class TikTokStreak(
@@ -120,10 +141,22 @@ object TikTokProto {
 
     private const val PROTO_DECRYPT_KEY = 3
 
+    private val SYSTEM_SCENES = setOf(
+        "nudge",
+        "greeting_card",
+        "streak_pet_egg_invitation",
+        "PRM_ci_share_feed_invitation",
+        "story_reaction"
+    )
+
     private val HEX_ZEICHEN = "0123456789abcdef".toCharArray()
 
-    fun latestStreak(current: TikTokStreak, incoming: TikTokStreak): TikTokStreak =
-        if (incoming.changedAt >= current.changedAt) incoming else current
+    fun latestStreak(current: TikTokStreak, incoming: TikTokStreak): TikTokStreak {
+        val newerFirst = incoming.changedAt >= current.changedAt
+        val newer = if (newerFirst) incoming else current
+        val older = if (newerFirst) current else incoming
+        return newer.copy(value = newer.value ?: older.value)
+    }
 
     fun buildRequest(
         params: Map<String, String>,
@@ -192,11 +225,11 @@ object TikTokProto {
         return fields.firstOrNull { it.number == 4 && it.value is String }?.value as? String ?: ""
     }
 
-    fun parseAntwortUrl(bytes: ByteArray): String {
+    fun parseResponseUrl(bytes: ByteArray): String {
         val text = runCatching { String(bytes, Charsets.UTF_8) }.getOrDefault("")
         if (text.contains("http")) {
-            Regex("https?://[^\\s\\\"'<>\\\\]+").find(text)?.let { treffer ->
-                return treffer.value.replace("\\u0026", "&").replace("\\/", "/")
+            Regex("https?://[^\\s\\\"'<>\\\\]+").find(text)?.let { matches ->
+                return matches.value.replace("\\u0026", "&").replace("\\/", "/")
             }
         }
         return alleUrls(bytes).firstOrNull { it.contains("tos-") || it.contains(".m4a") }.orEmpty()
@@ -221,24 +254,25 @@ object TikTokProto {
         }
         val streaks = applyStreakBadges(raw)
         raw.sortedBy { it.timestamp }.forEach { item ->
+            val previous = streaks[item.convId] ?: TikTokStreak()
             if (item.streakCmd != STREAK_CMD_NONE) {
-                streaks[item.convId] = streakFromCommand(
-                    streaks[item.convId] ?: TikTokStreak(),
-                    item.streakCmd,
-                    item.streakValue,
-                    item.timestamp
+                streaks[item.convId] = latestStreak(
+                    previous,
+                    streakFromCommand(previous, item.streakCmd, item.streakValue, item.timestamp)
                 )
             }
-            if (streaks[item.convId]?.value == null) {
+            val afterCommand = streaks[item.convId] ?: TikTokStreak()
+            if (afterCommand.value == null) {
                 streakFromScene(item.scene, item.timestamp)
-                    ?.let { streaks[item.convId] = it }
+                    ?.let { streaks[item.convId] = latestStreak(afterCommand, it) }
             }
         }
-        val ohneSystem = raw.filter { item ->
-            item.streakCmd == STREAK_CMD_NONE && item.badge == null && !(item.silent && item.scene.isNotEmpty())
+        val withoutSystem = raw.filter { item ->
+            item.streakCmd == STREAK_CMD_NONE && item.badge == null &&
+                !(item.silent && item.scene.isNotEmpty() && item.scene !in SYSTEM_SCENES)
         }
-        val self = mostFrequentUid(ohneSystem.map { it.convId })
-        val visible = ohneSystem.filter { item ->
+        val self = mostFrequentUid(withoutSystem.map { it.convId })
+        val visible = withoutSystem.filter { item ->
             item.invisibleFor != self
         }
 
@@ -251,14 +285,16 @@ object TikTokProto {
             .map { (convId, list) ->
                 val last = list.last()
                 TikTokConversation(
-                    convId,
-                    peerOf(convId, self).ifEmpty { self },
-                    "",
-                    last.timestamp,
-                    last.text,
-                    metas[convId]?.unread ?: 0,
-                    streaks[convId] ?: TikTokStreak(),
-                    list.flatMap { it.reactions }.distinct()
+                    convId = convId,
+                    peerId = peerOf(convId, self).ifEmpty { self },
+                    name = "",
+                    lastTimestamp = last.timestamp,
+                    lastMessage = last.text,
+                    unread = metas[convId]?.unread ?: 0,
+                    streak = streaks[convId] ?: TikTokStreak(),
+                    reactions = list.flatMap { it.reactions }.distinct(),
+                    lastKind = last.mediaKind,
+                    lastIsOwn = last.isOwn
                 )
             }
             .sortedByDescending { it.lastTimestamp }
@@ -381,11 +417,13 @@ object TikTokProto {
         val shortId = longField(fields, 2) ?: 0L
         val type = longField(fields, 3)?.toInt() ?: 1
         val ticket = stringField(fields, 4).orEmpty()
-        val unread = bytesField(fields, 51)?.let { settingInfo ->
+        val maxIndex = longField(fields, 11) ?: 0L
+        val readIndex = bytesField(fields, 51)?.let { settingInfo ->
             val info = readFields(settingInfo)
-            (longField(info, 17) ?: longField(info, 16))?.toInt() ?: 0
-        } ?: 0
-        return TikTokConvMeta(convId, type, shortId, ticket, unread)
+            longField(info, 17) ?: longField(info, 16) ?: 0L
+        } ?: 0L
+        val unread = (maxIndex - readIndex).coerceAtLeast(0L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+        return TikTokConvMeta(convId, type, shortId, ticket, unread, maxIndex, readIndex)
     }
 
     fun statusCode(bytes: ByteArray): Int =
@@ -393,73 +431,73 @@ object TikTokProto {
 
     fun errorDesc(bytes: ByteArray): String = stringField(readFields(bytes), 4).orEmpty()
 
-    fun beschreibeFrame(bytes: ByteArray): String {
+    fun describeFrame(bytes: ByteArray): String {
         val out = StringBuilder()
-        beschreiben(bytes, "", 0, out)
+        describe(bytes, "", 0, out)
         return out.toString().trimEnd()
     }
 
-    private fun beschreiben(
+    private fun describe(
         bytes: ByteArray,
-        pfad: String,
-        tiefe: Int,
+        path: String,
+        depthLevel: Int,
         out: StringBuilder
     ) {
-        if (tiefe > MAX_TIEFE || out.length > MAX_BESCHRIEBUNG) return
+        if (depthLevel > MAX_TIEFE || out.length > MAX_BESCHRIEBUNG) return
         if (bytes.isEmpty()) {
-            out.append(pfad).append(" = leer\n")
+            out.append(path).append(" = leer\n")
             return
         }
         if (bytes.size > 2 && bytes[0] == 0x1F.toByte() && bytes[1] == 0x8B.toByte()) {
-            val entpackt = gunzip(bytes)
-            if (entpackt == null) {
-                out.append(pfad).append(" = gzip unlesbar ").append(bytes.size).append("B\n")
+            val unpacked = gunzip(bytes)
+            if (unpacked == null) {
+                out.append(path).append(" = gzip unlesbar ").append(bytes.size).append("B\n")
                 return
             }
-            out.append(pfad).append(" = gzip ").append(entpackt.size).append("B\n")
-            beschreiben(entpackt, "$pfad!gz", tiefe + 1, out)
+            out.append(path).append(" = gzip ").append(unpacked.size).append("B\n")
+            describe(unpacked, "$path!gz", depthLevel + 1, out)
             return
         }
-        val felder = readFields(bytes)
-        if (felder.isEmpty()) {
-            out.append(pfad).append(" = roh ").append(bytes.size).append("B ")
-                .append(hexVorschau(bytes)).append('\n')
+        val fields = readFields(bytes)
+        if (fields.isEmpty()) {
+            out.append(path).append(" = roh ").append(bytes.size).append("B ")
+                .append(hexPreview(bytes)).append('\n')
             return
         }
-        for (feld in felder) {
+        for (field in fields) {
             if (out.length > MAX_BESCHRIEBUNG) return
-            when (val wert = feld.value) {
-                is Long -> out.append(pfad).append('.').append(feld.number)
-                    .append(" = ").append(wert).append('\n')
+            when (val value = field.value) {
+                is Long -> out.append(path).append('.').append(field.number)
+                    .append(" = ").append(value).append('\n')
 
-                is String -> out.append(pfad).append('.').append(feld.number)
-                    .append(" text ").append(textVorschau(wert)).append('\n')
+                is String -> out.append(path).append('.').append(field.number)
+                    .append(" text ").append(textPreview(value)).append('\n')
 
                 is ByteArray -> {
-                    val lesbar = lesbarerText(wert)
+                    val lesbar = lesbarerText(value)
                     if (lesbar != null) {
-                        out.append(pfad).append('.').append(feld.number)
-                            .append(" text ").append(textVorschau(lesbar)).append('\n')
+                        out.append(path).append('.').append(field.number)
+                            .append(" text ").append(textPreview(lesbar)).append('\n')
                     } else {
-                        out.append(pfad).append('.').append(feld.number)
-                            .append(" bytes[").append(wert.size).append("]\n")
-                        if (wert.size > MAX_UNTERFELD) {
-                            out.append(pfad).append('.').append(feld.number)
-                                .append(" zu gross zum Aufschluesseln ")
-                                .append(hexVorschau(wert)).append('\n')
+                        out.append(path).append('.').append(field.number)
+                            .append(" bytes[").append(value.size).append("]\n")
+                        if (value.size > MAX_UNTERFELD) {
+                            out.append(path).append('.').append(field.number)
+                                .append(" zu large zum Aufschluesseln ")
+                                .append(hexPreview(value)).append('\n')
                         } else {
-                            beschreiben(wert, "$pfad.${feld.number}", tiefe + 1, out)
+                            describe(value, "$path.${field.number}", depthLevel + 1, out)
                         }
                     }
                 }
 
-                else -> out.append(pfad).append('.').append(feld.number)
-                    .append(" = ").append(wert).append('\n')
+                else -> out.append(path).append('.').append(field.number)
+                    .append(" = ").append(value).append('\n')
             }
         }
     }
 
-    private fun textVorschau(text: String): String {
+    private fun textPreview(text: String): String {
         val flach = text.replace('\n', ' ').replace('\t', ' ').trim()
         if (flach.length <= MAX_TEXT) return flach
         return flach.take(MAX_TEXT) + " …"
@@ -469,10 +507,10 @@ object TikTokProto {
         if (bytes.isEmpty()) return null
         val text = String(bytes, Charsets.UTF_8)
         var sichtbar = 0
-        for (zeichen in text) {
-            if (zeichen == '\n' || zeichen == '\t') {
+        for (character in text) {
+            if (character == '\n' || character == '\t') {
                 sichtbar++
-            } else if (zeichen.code >= 32 && zeichen.code != 0xFFFD) {
+            } else if (character.code >= 32 && character.code != 0xFFFD) {
                 sichtbar++
             }
         }
@@ -480,16 +518,16 @@ object TikTokProto {
         return text
     }
 
-    private fun hexVorschau(bytes: ByteArray): String {
-        val anzahl = minOf(bytes.size, MAX_VORSCHAU)
-        val out = StringBuilder(anzahl * 3 + 2)
-        for (index in 0 until anzahl) {
+    private fun hexPreview(bytes: ByteArray): String {
+        val count = minOf(bytes.size, MAX_VORSCHAU)
+        val out = StringBuilder(count * 3 + 2)
+        for (index in 0 until count) {
             if (index > 0) out.append(' ')
-            val wert = bytes[index].toInt() and 0xFF
-            out.append(HEX_ZEICHEN[wert ushr 4])
-            out.append(HEX_ZEICHEN[wert and 0x0F])
+            val value = bytes[index].toInt() and 0xFF
+            out.append(HEX_ZEICHEN[value ushr 4])
+            out.append(HEX_ZEICHEN[value and 0x0F])
         }
-        if (bytes.size > anzahl) out.append(" …")
+        if (bytes.size > count) out.append(" …")
         return out.toString()
     }
 
@@ -529,22 +567,23 @@ object TikTokProto {
         }
         val streaks = applyStreakBadges(raw)
         raw.sortedBy { it.timestamp }.forEach { item ->
+            val previous = streaks[item.convId] ?: TikTokStreak()
             if (item.streakCmd != STREAK_CMD_NONE) {
-                streaks[item.convId] = streakFromCommand(
-                    streaks[item.convId] ?: TikTokStreak(),
-                    item.streakCmd,
-                    item.streakValue,
-                    item.timestamp
+                streaks[item.convId] = latestStreak(
+                    previous,
+                    streakFromCommand(previous, item.streakCmd, item.streakValue, item.timestamp)
                 )
             }
-            if (streaks[item.convId]?.value == null) {
+            val afterCommand = streaks[item.convId] ?: TikTokStreak()
+            if (afterCommand.value == null) {
                 streakFromScene(item.scene, item.timestamp)
-                    ?.let { streaks[item.convId] = it }
+                    ?.let { streaks[item.convId] = latestStreak(afterCommand, it) }
             }
         }
         val visible = raw.filter { item ->
             item.streakCmd == STREAK_CMD_NONE && item.badge == null &&
-                !(item.silent && item.scene.isNotEmpty()) &&
+                !(item.silent && item.scene.isNotEmpty() &&
+                    item.scene !in SYSTEM_SCENES) &&
                 item.invisibleFor != self
         }
         return TikTokPage(
@@ -555,23 +594,37 @@ object TikTokProto {
         )
     }
 
-    private fun toMessage(raw: RawMessage, self: String): TikTokMessage = TikTokMessage(
-        id = raw.id,
-        convId = raw.convId,
-        convHash = raw.convHash,
-        senderId = raw.senderId,
-        text = raw.text,
-        timestamp = raw.timestamp,
-        isOwn = raw.senderId == self,
-        mediaUrl = raw.mediaUrl,
-        mediaKind = raw.mediaKind,
-        mediaKey = raw.mediaKey,
-        mediaVid = raw.mediaVid,
-        reactions = raw.reaktionen,
-        mediaStream = raw.mediaStream,
-        mediaDuration = raw.mediaDuration,
-        mediaWave = raw.mediaWave
-    )
+    private fun toMessage(raw: RawMessage, self: String): TikTokMessage {
+        val mine = raw.reactionUsers.entries
+            .firstOrNull { (_, users) -> self.isNotEmpty() && users.any { it == self } }
+            ?.key.orEmpty()
+        val peer = raw.reactionUsers.entries
+            .firstOrNull { (_, users) -> users.any { it.isNotEmpty() && it != self } }
+            ?.key.orEmpty()
+        return TikTokMessage(
+            id = raw.id,
+            convId = raw.convId,
+            convHash = raw.convHash,
+            senderId = raw.senderId,
+            text = raw.text,
+            timestamp = raw.timestamp,
+            isOwn = raw.senderId == self,
+            mediaUrl = raw.mediaUrl,
+            mediaKind = raw.mediaKind,
+            mediaKey = raw.mediaKey,
+            mediaVid = raw.mediaVid,
+            reactions = raw.reactions,
+            mediaStream = raw.mediaStream,
+            mediaDuration = raw.mediaDuration,
+            mediaWave = raw.mediaWave,
+            unknownType = raw.unknownType,
+            myReaction = mine,
+            peerReaction = peer,
+            replyToId = raw.replyToId,
+            replyToText = raw.replyToText,
+            replyToQuote = raw.replyToQuote
+        )
+    }
 
     private data class RawMessage(
         val id: String,
@@ -589,18 +642,24 @@ object TikTokProto {
         val silent: Boolean,
         val badge: StreakBadge? = null,
         val invisibleFor: String = "",
-        val reaktionen: List<String> = emptyList(),
+        val reactions: List<String> = emptyList(),
         val mediaStream: String = "",
         val mediaDuration: Long = 0L,
         val mediaWave: String = "",
-        val mediaVid: String = ""
+        val mediaVid: String = "",
+        val unknownType: String = "",
+        val reactionUsers: Map<String, List<String>> = emptyMap(),
+        val replyToId: String = "",
+        val replyToText: String = "",
+        val replyToQuote: String = ""
     )
 
     private data class StreakBadge(
         val days: Int,
         val active: Boolean,
         val restorable: Boolean,
-        val scene: String
+        val scene: String,
+        val level: Int? = null
     )
 
     private data class Classified(
@@ -611,14 +670,18 @@ object TikTokProto {
         val mediaStream: String = "",
         val mediaDuration: Long = 0L,
         val mediaWave: String = "",
-        val mediaVid: String = ""
+        val mediaVid: String = "",
+        val unknownType: String = "",
+        val myReaction: String = "",
+        val peerReaction: String = ""
     )
 
     private fun parseMessage(bytes: ByteArray): RawMessage? {
         val fields = readFields(bytes)
         val convId = stringField(fields, 1) ?: return null
         if (!convId.contains(':')) return null
-        if (erledigt(fields)) return null
+        if (isDone(fields)) return null
+        val response = responseFromF18(fields)
         val contentPb = bytesField(fields, 20)
         val badge = streakBadgeFrom(bytes)
         val scene = stringField(fields, 21).orEmpty().ifEmpty { badge?.scene.orEmpty() }
@@ -629,18 +692,31 @@ object TikTokProto {
         val medien = medienAusF24(bytesField(fields, 24))
         val vid = bytesField(fields, 24)?.let { stringField(readFields(it), 1) }.orEmpty()
         val card = contentPb?.let { parseContentPb(it, vid) }
-        val rohCard = obj?.let { classify(it, card) } ?: Classified("")
+        val messageType = longField(fields, 12) ?: 0L
+        val rohCard = if (scene == "nudge") {
+            Classified(nudgeText(obj, contentPb, card))
+        } else if (obj != null) {
+            classify(
+                obj = obj,
+                card = card,
+                scene = scene,
+                pbFields = contentPb?.let { describeFields(it) }.orEmpty(),
+                messageType = messageType
+            ) ?: Classified("")
+        } else {
+            Classified("")
+        }
         val classified = when {
             rohCard.mediaKind == KIND_VOICE && medien.play.isNotEmpty() -> rohCard.copy(
                 mediaUrl = medien.play,
                 mediaStream = medien.play,
-                mediaDuration = if (medien.dauerMs > 0L) medien.dauerMs else rohCard.mediaDuration
+                mediaDuration = if (medien.durationMs > 0L) medien.durationMs else rohCard.mediaDuration
             )
 
             card?.mediaKind == KIND_VIDEO && medien.play.isNotEmpty() -> rohCard.copy(
                 mediaUrl = medien.cover.ifEmpty { rohCard.mediaUrl },
                 mediaStream = medien.play,
-                mediaDuration = medien.dauerMs
+                mediaDuration = medien.durationMs
             )
 
             else -> rohCard
@@ -650,6 +726,7 @@ object TikTokProto {
         val convHash = longField(fields, 5) ?: 0L
         val senderId = longField(fields, 7)?.toString().orEmpty()
         val timestamp = longField(fields, 10) ?: 0L
+        val reactionsWithUser = reactionsByF15(fields)
         return RawMessage(
             id = id,
             convId = convId,
@@ -665,44 +742,81 @@ object TikTokProto {
             scene = scene,
             silent = obj == null,
             badge = badge,
-            invisibleFor = mapWerte(fields, "s:invisible").orEmpty(),
-            reaktionen = reaktionenAusF15(fields),
+            invisibleFor = mapValuesOf(fields, "s:invisible").orEmpty(),
+            reactions = reactionsWithUser.keys.toList(),
             mediaStream = classified.mediaStream,
             mediaDuration = classified.mediaDuration,
             mediaWave = classified.mediaWave,
-            mediaVid = classified.mediaVid
+            mediaVid = classified.mediaVid,
+            unknownType = classified.unknownType,
+            reactionUsers = reactionsWithUser,
+            replyToId = response.first,
+            replyToText = response.second,
+            replyToQuote = response.third
         )
     }
 
+    private fun responseFromF18(fields: List<Field>): Triple<String, String, String> {
+        val blob = bytesField(fields, 18) ?: return Triple("", "", "")
+        val entry = readFields(blob)
+        val zielId = longField(entry, 1)?.toString().orEmpty()
+        val raw = stringField(entry, 2).orEmpty()
+        val obj = raw.takeIf { it.startsWith("{") }
+            ?.let { runCatching { JSONObject(it) }.getOrNull() }
+            ?: return Triple(zielId, "", "")
+        val quote = obj.optString("refmsg_template_quote")
+        val content = obj.optString("refmsg_content")
+        val text = quote.ifEmpty {
+            content.takeIf { it.startsWith("{") }
+                ?.let { runCatching { JSONObject(it) }.getOrNull() }
+                ?.optString("text")
+                .orEmpty()
+        }
+        return Triple(zielId, cleanText(text), quote)
+    }
+
+    private fun describeFields(bytes: ByteArray): String =
+        readFields(bytes).joinToString(",") { it.number.toString() }
+
     private fun streakBadgeFrom(bytes: ByteArray): StreakBadge? {
         val text = String(bytes, Charsets.ISO_8859_1)
-        val marker = "streak_badge_streak_num\":\""
-        val at = text.indexOf(marker)
-        if (at < 0) return null
-        val days = text.substring(at + marker.length).takeWhile { it.isDigit() }.toIntOrNull() ?: return null
-        val jsonStart = text.lastIndexOf('{', at)
-        if (jsonStart < 0) return null
-        val jsonEnd = text.indexOf('}', at)
-        if (jsonEnd < 0) return null
-        val json = text.substring(jsonStart, jsonEnd + 1)
-        val head = text.substring(maxOf(0, jsonStart - 300), jsonStart)
+        val content = contentField(readFields(bytes))
+        val obj = content?.let { runCatching { JSONObject(it) }.getOrNull() }
+        val tips = obj?.optString("tips").orEmpty()
+        val numMatch = Regex("\"streak_badge_streak_num\":\"(\\d+)\"").find(text)
+        val levelMatch = Regex("\"streak_badge_streak_level\":\"(\\d+)\"").find(text)
+        val style = Regex("\"streak_badge_style\":\"(\\w+)\"").find(text)?.groupValues?.get(1).orEmpty()
+        val ausTips = Regex("(\\d+)-t(?:ä|a)gi?ge").find(tips)?.groupValues?.get(1)?.toIntOrNull()
+        val hasHint = numMatch != null || levelMatch != null ||
+            style.isNotEmpty() || ausTips != null
+        if (!hasHint) return null
+        val anker = text.indexOf("streak_badge")
+        val head = if (anker > 0) text.substring(maxOf(0, anker - 300), anker) else ""
         return StreakBadge(
-            days = days,
-            active = json.contains("\"streak_badge_style\":\"orange\""),
-            restorable = json.contains("\"action\":200001"),
-            scene = Regex("streak_(?:new|end)[a-z_]*").find(head)?.value.orEmpty()
+            days = numMatch?.groupValues?.get(1)?.toIntOrNull() ?: ausTips ?: 0,
+            active = style == "orange",
+            restorable = obj?.toString()?.contains("\"action\":200001") == true ||
+                text.contains("\"streak_badge_style\":\"grey\""),
+            scene = Regex("streak_(?:new|end|milestone|interaction)[a-z_]*")
+                .find(head)?.value.orEmpty(),
+            level = levelMatch?.groupValues?.get(1)?.toIntOrNull()
         )
     }
 
     private fun applyStreakBadges(raw: List<RawMessage>): MutableMap<String, TikTokStreak> {
         val streaks = mutableMapOf<String, TikTokStreak>()
-        raw.sortedByDescending { it.timestamp }.forEach { item ->
-            val badge = item.badge ?: return@forEach
-            if (streaks.containsKey(item.convId)) return@forEach
+        val afterTime = raw.sortedByDescending { it.timestamp }
+        for (item in afterTime) {
+            val badge = item.badge ?: continue
+            if (streaks.containsKey(item.convId)) continue
+            val zahl = badge.days.takeIf { it > 0 }
+                ?: afterTime.firstOrNull {
+                    it.convId == item.convId && (it.badge?.days ?: 0) > 0
+                }?.badge?.days
             streaks[item.convId] = TikTokStreak(
                 active = badge.active,
                 restorable = badge.restorable,
-                value = badge.days.takeIf { it > 0 },
+                value = zahl,
                 changedAt = item.timestamp
             )
         }
@@ -742,29 +856,29 @@ object TikTokProto {
             val cover = valUrls.firstOrNull { it != stream && it.contains("image") }
                 ?: valUrls.firstOrNull { it != stream }
                 ?: stream
-            val dauer = 0L
+            val duration = 0L
             if (cover.isNotEmpty() || stream.isNotEmpty()) {
                 return Classified(
                     text = "🎬 Video",
                     mediaUrl = cover.ifEmpty { stream },
                     mediaKind = KIND_VIDEO,
                     mediaStream = stream,
-                    mediaDuration = dauer
+                    mediaDuration = duration
                 )
             }
         }
         val voice = bytesField(fields, 14)
         if (voice != null) {
             val voiceFelder = readFields(voice)
-            val text = dauerTextIn(bytesVon(voiceFelder, 102) ?: ByteArray(0))
+            val text = durationTextIn(bytesVon(voiceFelder, 102) ?: ByteArray(0))
                 ?: "Sprachnachricht"
-            val dauerMs = dauerAusText(text)
-            val zeit = Regex("(\\d{1,2}:\\d{2})").find(text)?.groupValues?.get(1).orEmpty()
+            val durationMs = durationFromText(text)
+            val time = Regex("(\\d{1,2}:\\d{2})").find(text)?.groupValues?.get(1).orEmpty()
             return Classified(
-                text = "🎤 Sprache" + if (zeit.isNotEmpty()) " $zeit" else "",
+                text = "🎤 Sprache" + if (time.isNotEmpty()) " $time" else "",
                 mediaKind = KIND_VOICE,
                 mediaKey = voiceKey(voiceFelder),
-                mediaDuration = dauerMs,
+                mediaDuration = durationMs,
                 mediaVid = vid
             )
         }
@@ -799,11 +913,13 @@ object TikTokProto {
     private fun streakFromScene(scene: String, changedAt: Long): TikTokStreak? {
         if (!scene.contains("streak")) return null
         return when {
-            scene.contains("streak_new") -> TikTokStreak(active = true, changedAt = changedAt)
-            scene.contains("end_with_restore") ->
-                TikTokStreak(restorable = true, changedAt = changedAt)
+            scene.contains("streak_new") || scene.contains("milestone") ||
+                scene.contains("interaction_unlock") ->
+                TikTokStreak(active = true, changedAt = changedAt)
 
-            scene.contains("end_no_restore") -> TikTokStreak(changedAt = changedAt)
+            scene.contains("end_with_restore") || scene.contains("end_no_restore") ->
+                TikTokStreak(changedAt = changedAt)
+
             else -> null
         }
     }
@@ -995,6 +1111,43 @@ object TikTokProto {
         return out
     }
 
+    fun parseFrontierMessages(bytes: ByteArray, self: String): List<TikTokMessage> {
+        val out = LinkedHashMap<String, TikTokMessage>()
+        if (self.isEmpty()) return emptyList()
+        val frame = runCatching { readFields(bytes) }.getOrElse { return emptyList() }
+        val payload = bytesField(frame, 8) ?: bytes
+        collectFrontierMessages(payload, self, 0, out)
+        return out.values.toList()
+    }
+
+    private fun collectFrontierMessages(
+        bytes: ByteArray,
+        self: String,
+        depth: Int,
+        out: MutableMap<String, TikTokMessage>
+    ) {
+        if (depth > 8 || out.size >= 32) return
+        if (bytes.size > 2 && bytes[0] == 0x1F.toByte() && bytes[1] == 0x8B.toByte()) {
+            gunzip(bytes)?.let { collectFrontierMessages(it, self, depth + 1, out) }
+            return
+        }
+        val fields = runCatching { readFields(bytes) }.getOrElse { return }
+        val looksLikeMessage = bytesField(fields, 1) != null &&
+            stringField(fields, 1)?.contains(':') == true &&
+            longField(fields, 3) != null
+        if (looksLikeMessage) {
+            val message = runCatching { parseMessage(bytes) }.getOrNull()
+            if (message != null && message.id.isNotEmpty()) {
+                out.putIfAbsent(message.id, toMessage(message, self))
+            }
+        }
+        for ((_, value) in fields) {
+            val chunk = value as? ByteArray ?: continue
+            if (chunk.isEmpty()) continue
+            collectFrontierMessages(chunk, self, depth + 1, out)
+        }
+    }
+
     private fun collectFrontierStreaks(bytes: ByteArray, depth: Int, out: MutableList<FrontierStreak>) {
         if (depth > 8 || out.size >= 16) return
         if (bytes.size > 2 && bytes[0] == 0x1F.toByte() && bytes[1] == 0x8B.toByte()) {
@@ -1058,18 +1211,19 @@ object TikTokProto {
         return cmdType to value
     }
 
-    private fun mapEintrag(bytes: ByteArray): Pair<String, String>? {
+    private fun mapEntry(bytes: ByteArray): Pair<String, String>? {
         val fields = readFields(bytes)
         val key = stringField(fields, 1) ?: return null
         val value = stringField(fields, 2) ?: return null
         return key to value
     }
 
-    private fun reaktionenAusF15(fields: List<Field>): List<String> {
+    private fun reactionsFromF15(fields: List<Field>): List<String> {
         val out = LinkedHashSet<String>()
         for (field in fields) {
             if (field.number != 15 || field.value !is ByteArray) continue
-            val key = stringField(readFields(field.value), 1) ?: continue
+            val entry = readFields(field.value)
+            val key = stringField(entry, 1) ?: continue
             if (!key.startsWith("e:") || key.length <= 2) continue
             val emoji = key.substring(2)
             if (emoji.all { it.code in 32..126 }) continue
@@ -1078,15 +1232,45 @@ object TikTokProto {
         return out.toList()
     }
 
-    private fun mapWerte(fields: List<Field>, schluessel: String): String? =
+    private fun reactionsByF15(fields: List<Field>): Map<String, List<String>> {
+        val out = LinkedHashMap<String, MutableList<String>>()
+        for (field in fields) {
+            if (field.number != 15 || field.value !is ByteArray) continue
+            val entry = readFields(field.value)
+            val key = stringField(entry, 1) ?: continue
+            if (!key.startsWith("e:") || key.length <= 2) continue
+            val emoji = key.substring(2)
+            if (emoji.all { it.code in 32..126 }) continue
+            val users = mutableListOf<String>()
+            val payload = bytesField(entry, 2)
+            if (payload != null) {
+                for ((number, value1) in readFields(payload)) {
+                    if (number != 1 || value1 !is ByteArray) continue
+                    val info = readFields(value1)
+                    val uid = longField(info, 4)?.toString()
+                        ?: longField(info, 1)?.toString()
+                        ?: continue
+                    users += uid
+                }
+            }
+            out.getOrPut(emoji) { mutableListOf() }.addAll(users)
+        }
+        val result = LinkedHashMap<String, List<String>>()
+        for ((emoji, list) in out) {
+            result[emoji] = list.distinct()
+        }
+        return result
+    }
+
+    private fun mapValuesOf(fields: List<Field>, key: String): String? =
         fields
             .filter { it.number == 9 && it.value is ByteArray }
-            .mapNotNull { mapEintrag(it.value as ByteArray) }
-            .firstOrNull { it.first == schluessel }
+            .mapNotNull { mapEntry(it.value as ByteArray) }
+            .firstOrNull { it.first == key }
             ?.second
 
-    private fun erledigt(fields: List<Field>): Boolean =
-        mapWerte(fields, "s:is_recalled") == "1"
+    private fun isDone(fields: List<Field>): Boolean =
+        mapValuesOf(fields, "s:is_recalled") == "1"
 
     private fun bytesVon(fields: List<Field>, number: Int): ByteArray? =
         fields.firstOrNull { it.number == number && it.value is ByteArray }?.value as? ByteArray
@@ -1097,49 +1281,49 @@ object TikTokProto {
     private fun bytesField(fields: List<Field>, number: Int): ByteArray? =
         fields.firstOrNull { it.number == number && it.value is ByteArray }?.value as? ByteArray
 
-    private class MedienUrls(val play: String, val cover: String, val dauerMs: Long)
+    private class MedienUrls(val play: String, val cover: String, val durationMs: Long)
 
     private fun medienAusF24(bytes: ByteArray?): MedienUrls {
         if (bytes == null) return MedienUrls("", "", 0L)
         var play = ""
         var cover = ""
-        var dauer = 0L
+        var duration = 0L
         for (field in readFields(bytes)) {
             if (field.number != 20 || field.value !is ByteArray) continue
-            val eintrag = readFields(field.value)
-            val rolle = stringField(eintrag, 1) ?: continue
-            val url = stringField(eintrag, 2)?.takeIf { it.startsWith("http") }.orEmpty()
+            val entry = readFields(field.value)
+            val rolle = stringField(entry, 1) ?: continue
+            val url = stringField(entry, 2)?.takeIf { it.startsWith("http") }.orEmpty()
                 .ifEmpty { alleUrls(field.value).firstOrNull().orEmpty() }
             when (rolle) {
                 "play" -> {
                     if (play.isEmpty()) play = url
-                    if (dauer == 0L) dauer = longVon(eintrag, 22) ?: 0L
+                    if (duration == 0L) duration = longVon(entry, 22) ?: 0L
                 }
                 "cover" -> if (cover.isEmpty()) cover = url
             }
         }
-        return MedienUrls(play, cover, dauer)
+        return MedienUrls(play, cover, duration)
     }
 
-    private fun alleUrls(bytes: ByteArray, tiefe: Int = 8, acc: MutableList<String> = mutableListOf()): List<String> {
-        if (tiefe <= 0 || bytes.isEmpty()) return acc
+    private fun alleUrls(bytes: ByteArray, depthLevel: Int = 8, acc: MutableList<String> = mutableListOf()): List<String> {
+        if (depthLevel <= 0 || bytes.isEmpty()) return acc
         for ((_, value1) in readFields(bytes)) {
             val value = value1 as? ByteArray ?: continue
             if (value.isEmpty()) continue
             val text = runCatching { String(value, Charsets.UTF_8) }.getOrNull()
             if (text != null && text.contains("http")) {
                 Regex("https?://[^\\s\\u0000-\\u001f]+").findAll(text)
-                    .forEach { treffer ->
-                        val url = treffer.value.trim('"', '\'')
+                    .forEach { matches ->
+                        val url = matches.value.trim('"', '\'')
                         if (url.isNotEmpty() && acc.none { it == url }) acc.add(url)
                     }
             }
-            alleUrls(value, tiefe - 1, acc)
+            alleUrls(value, depthLevel - 1, acc)
         }
         return acc
     }
 
-    private fun dauerTextIn(bytes: ByteArray, depth: Int = 4): String? {
+    private fun durationTextIn(bytes: ByteArray, depth: Int = 4): String? {
         if (depth <= 0 || bytes.isEmpty()) return null
         for ((_, value1) in readFields(bytes)) {
             val value = value1 as? ByteArray ?: continue
@@ -1148,15 +1332,15 @@ object TikTokProto {
             if (!text.isNullOrEmpty() && Regex("\\d{1,2}:\\d{2}").containsMatchIn(text)) {
                 return text.trim()
             }
-            dauerTextIn(value, depth - 1)?.let { return it }
+            durationTextIn(value, depth - 1)?.let { return it }
         }
         return null
     }
 
-    private fun dauerAusText(text: String): Long {
-        val treffer = Regex("(\\d{1,2}):(\\d{2})").find(text) ?: return 0L
-        val minuten = treffer.groupValues[1].toLongOrNull() ?: return 0L
-        val sekunden = treffer.groupValues[2].toLongOrNull() ?: return 0L
+    private fun durationFromText(text: String): Long {
+        val matches = Regex("(\\d{1,2}):(\\d{2})").find(text) ?: return 0L
+        val minuten = matches.groupValues[1].toLongOrNull() ?: return 0L
+        val sekunden = matches.groupValues[2].toLongOrNull() ?: return 0L
         return (minuten * 60L + sekunden) * 1000L
     }
 
@@ -1180,7 +1364,13 @@ object TikTokProto {
         return ""
     }
 
-    private fun classify(obj: JSONObject, card: Classified?): Classified? {
+    private fun classify(
+        obj: JSONObject,
+        card: Classified?,
+        scene: String,
+        pbFields: String,
+        messageType: Long
+    ): Classified? {
         if (obj.has("refmsg_type") && !obj.has("text") && card == null) return null
         val itemId = obj.optString("itemId")
         if (itemId.isNotEmpty()) {
@@ -1217,8 +1407,69 @@ object TikTokProto {
         if (roomName.isNotEmpty()) return Classified("🔴 Live: $roomName")
         val tips = obj.optString("tips")
         if (tips.isNotEmpty()) return Classified("ℹ️ ${cleanText(tips)}")
-        if (obj.has("hack")) return Classified("👉 Angestupst")
+        val sceneLabel = systemSceneLabel(scene, obj)
+        if (sceneLabel.isNotEmpty()) return Classified(sceneLabel)
+        if (rawText.isEmpty() && tips.isEmpty()) {
+            return Classified(
+                text = "Unbekannter Nachrichtentyp",
+                unknownType = describeUnknown(scene, messageType, pbFields, obj)
+            )
+        }
         return null
+    }
+
+    private fun nudgeText(obj: JSONObject?, contentPb: ByteArray?, card: Classified?): String {
+        val ausJson = obj?.optString("text").orEmpty()
+        if (ausJson.isNotEmpty()) return "👉 ${cleanText(ausJson)}"
+        val ausPb = contentPb?.let { pb ->
+            val sticker = bytesField(readFields(pb), 7) ?: return@let ""
+            val hint = bytesField(readFields(sticker), 2) ?: return@let ""
+            val outer = bytesField(readFields(hint), 1) ?: return@let ""
+            val outerFields = readFields(outer)
+            val text = stringField(outerFields, 1).orEmpty()
+            if (text.isNotEmpty()) text
+            else bytesField(outerFields, 1)
+                ?.let { runCatching { String(it, Charsets.UTF_8).trim() }.getOrNull() }
+                .orEmpty()
+        }.orEmpty()
+        if (ausPb.length > 3 && ausPb.none { it.code < 32 }) return "👉 $ausPb"
+        val ausKarte = card?.text.orEmpty()
+        return if (ausKarte.isNotEmpty() && !ausKarte.startsWith("😀")) ausKarte else "👉 Angestupst"
+    }
+
+    private fun deepText(bytes: ByteArray, depth: Int = 6): String? {
+        if (depth <= 0) return null
+        for ((_, value1) in readFields(bytes)) {
+            val value = value1 as? ByteArray ?: continue
+            val raw = runCatching { String(value, Charsets.UTF_8) }.getOrNull()
+            val text = raw?.trim().orEmpty()
+            if (text.length > 3 && text.none { it.code < 32 }) return text
+            deepText(value, depth - 1)?.let { return it }
+        }
+        return null
+    }
+
+    private fun systemSceneLabel(scene: String, obj: JSONObject): String = when (scene) {
+        "nudge" -> {
+            val hint = obj.optString("text").ifEmpty { obj.optString("fallback_tips") }
+            if (hint.isNotEmpty()) "👉 ${cleanText(hint)}" else "👉 Angestupst"
+        }
+
+        "greeting_card" -> "👋 Grußkarte"
+        "streak_pet_egg_invitation" -> "🐾 Serienhaustier-Einladung"
+        "PRM_ci_share_feed_invitation" -> "📨 Einladung eines geteilten Feeds"
+        "story_reaction" -> "📖 Story-Reaktion"
+        else -> ""
+    }
+
+    private fun describeUnknown(
+        scene: String,
+        messageType: Long,
+        pbFields: String,
+        obj: JSONObject
+    ): String {
+        val keys = obj.keys().asSequence().sorted().joinToString(",")
+        return "scene=${scene.ifEmpty { "-" }} type=$messageType pb=${pbFields.ifEmpty { "-" }} json=$keys"
     }
 
     private fun firstUrl(container: JSONObject?): String {
