@@ -8,7 +8,7 @@ import java.io.File
 
 @Database(
     entities = [CachedConversation::class, CachedMessage::class],
-    version = 1,
+    version = 3,
     exportSchema = false
 )
 abstract class TikTokCacheDatabase : RoomDatabase() {
@@ -24,19 +24,19 @@ abstract class TikTokCacheDatabase : RoomDatabase() {
 
         fun get(context: Context): TikTokCacheDatabase =
             INSTANCE ?: synchronized(this) {
-                INSTANCE ?: aufraeumen(context.applicationContext).let {
+                INSTANCE ?: cleanup(context.applicationContext).let {
                     val app = context.applicationContext
-                    val ordner = File(app.cacheDir, ORDNER)
-                    if (!ordner.exists()) ordner.mkdirs()
+                    val folder = File(app.cacheDir, ORDNER)
+                    if (!folder.exists()) folder.mkdirs()
                     Room.databaseBuilder(
                         app,
                         TikTokCacheDatabase::class.java,
-                        File(ordner, DATEINAME).absolutePath
+                        File(folder, DATEINAME).absolutePath
                     ).fallbackToDestructiveMigration(true).build().also { INSTANCE = it }
                 }
             }
 
-        private fun aufraeumen(context: Context) {
+        private fun cleanup(context: Context) {
             runCatching {
                 val alt = context.getDatabasePath(DATEINAME)
                 if (alt.exists()) {
