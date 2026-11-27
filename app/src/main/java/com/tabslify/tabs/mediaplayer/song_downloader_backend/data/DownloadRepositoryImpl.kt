@@ -1,14 +1,15 @@
-package com.tabslify.spotifydownloader_own.data
+package com.tabslify.tabs.mediaplayer.song_downloader_backend.data
 
 import android.content.ContentValues
 import android.content.Context
+import android.net.Uri
 import android.os.Environment
 import android.provider.MediaStore
 import com.tabslify.core.functions.Id3Tags
 import com.tabslify.core.functions.SongHashtags
 import com.tabslify.core.objects.Config
-import com.tabslify.spotifydownloader_own.domain.DownloadRepository
-import com.tabslify.spotifydownloader_own.domain.DownloadState
+import com.tabslify.tabs.mediaplayer.song_downloader_backend.domain.DownloadRepository
+import com.tabslify.tabs.mediaplayer.song_downloader_backend.domain.DownloadState
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.storage.storage
@@ -294,7 +295,7 @@ class DownloadRepositoryImpl(
         album: String,
         coverBytes: ByteArray?,
         hashtags: String?
-    ): android.net.Uri {
+    ): Uri {
         val resolver = context.contentResolver
         val contentValues = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)

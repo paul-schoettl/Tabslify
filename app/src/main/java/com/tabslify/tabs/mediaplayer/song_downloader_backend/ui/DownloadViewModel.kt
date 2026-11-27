@@ -1,5 +1,6 @@
-package com.tabslify.spotifydownloader_own.ui
+package com.tabslify.tabs.mediaplayer.song_downloader_backend.ui
 
+import android.R
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -12,18 +13,19 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tabslify.core.objects.tNotify
 import com.tabslify.services.MediaPlayerService
-import com.tabslify.spotifydownloader_own.domain.DownloadRepository
-import com.tabslify.spotifydownloader_own.domain.DownloadState
+import com.tabslify.tabs.mediaplayer.song_downloader_backend.domain.DownloadRepository
+import com.tabslify.tabs.mediaplayer.song_downloader_backend.domain.DownloadState
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.io.Closeable
 
 class DownloadViewModel(
     private val repository: DownloadRepository,
     context: Context,
-    private val httpClient: java.io.Closeable? = null
+    private val httpClient: Closeable? = null
 ) : ViewModel() {
 
     private val appContext: Context = context.applicationContext
@@ -81,7 +83,7 @@ class DownloadViewModel(
         )
 
         val notification = NotificationCompat.Builder(appContext, DOWNLOAD_CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.stat_sys_download_done)
+            .setSmallIcon(R.drawable.stat_sys_download_done)
             .setContentTitle("✓ Song heruntergeladen")
             .setContentText(state.note?.let { "${state.artist} – ${state.title}\n$it" }
                 ?: "${state.artist} – ${state.title}")

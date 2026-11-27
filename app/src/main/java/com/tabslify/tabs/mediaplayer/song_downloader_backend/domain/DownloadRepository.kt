@@ -1,4 +1,4 @@
-package com.tabslify.spotifydownloader_own.domain
+package com.tabslify.tabs.mediaplayer.song_downloader_backend.domain
 
 import kotlinx.coroutines.flow.Flow
 

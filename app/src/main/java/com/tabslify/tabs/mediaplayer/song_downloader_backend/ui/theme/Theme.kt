@@ -1,4 +1,4 @@
-package com.tabslify.spotifydownloader_own.ui.theme
+package com.tabslify.tabs.mediaplayer.song_downloader_backend.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
