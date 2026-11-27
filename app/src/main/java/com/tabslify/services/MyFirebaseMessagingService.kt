@@ -26,6 +26,7 @@ import com.tabslify.tabs.ainotify.AiNotifySession
 import com.tabslify.tabs.ainotify.AiNotifyStore
 import com.tabslify.tabs.tiktok.TIKTOK_PUSH_CHANNEL
 import com.tabslify.tabs.tiktok.TIKTOK_PUSH_CHANNEL_ID
+import com.tabslify.tabs.tiktok.TIKTOK_PUSH_GROUP
 import com.tabslify.tabs.tiktok.TIKTOK_PUSH_TAG
 import com.tabslify.tabs.tiktok.TIKTOK_PUSH_TARGET
 import com.tabslify.tabs.tiktok.TIKTOK_PUSH_TOPIC
@@ -132,52 +133,67 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         val convId = data["conv_id"].orEmpty()
         if (convId.isEmpty()) return
         if (TikTokPushStore.isOwnReport(appContext, data["origin"].orEmpty())) return
+        if (TikTokDmClient.openConversationId() == convId &&
+            isAppInForeground()
+        ) {
+            Log.d("FCM", "TikTok push suppressed, chat is open")
+            return
+        }
         val pushTitle = data["title"]?.takeIf { it.isNotEmpty() }
             ?: data["name"]?.takeIf { it.isNotEmpty() }
         val pushBody = data["body"]?.takeIf { it.isNotEmpty() }
             ?: data["text"]?.takeIf { it.isNotEmpty() }
-        val conversation = TikTokPushStore.conversation(appContext, convId)
-        val name = pushTitle
-            ?: conversation?.name?.takeIf { it.isNotEmpty() }
-            ?: TikTokPushStore.rememberedName(appContext, convId).takeIf { it.isNotEmpty() }
-        val body = pushBody
-            ?: conversation?.lastMessage?.takeIf { it.isNotEmpty() }
-            ?: TikTokPushStore.rememberedText(appContext, convId).takeIf { it.isNotEmpty() }
-            ?: "Neue Nachricht"
-        if (pushTitle != null || pushBody != null) {
-            TikTokPushStore.remember(appContext, convId, pushTitle.orEmpty(), pushBody.orEmpty())
+        val knownName = TikTokPushStore.rememberedName(appContext, convId).takeIf { it.isNotEmpty() }
+        val knownBody = TikTokPushStore.rememberedText(appContext, convId).takeIf { it.isNotEmpty() }
+        val name = pushTitle ?: knownName
+        val body = pushBody ?: knownBody
+        if (name != null && body != null) {
+            TikTokPushStore.remember(appContext, convId, name, body)
+            postTikTokNotification(appContext, convId, tiktokTitle(name), body)
+            return
         }
-        postTikTokNotification(appContext, convId, tiktokTitle(name), body)
-        if (pushBody == null || name == null) {
-            Tabslify.serviceScope.launch {
-                try {
-                    TikTokDmClient.load(appContext)
-                } catch (e: kotlinx.coroutines.CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    Log.w("FCM", "TikTok-Nachladen fehlgeschlagen: ${e.message}")
-                    return@launch
-                }
-                val resolvedName = TikTokPushStore.conversation(appContext, convId)?.name
+        Tabslify.serviceScope.launch {
+            var resolvedName = name
+            var resolvedBody = body
+            try {
+                TikTokDmClient.load(appContext)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w("FCM", "TikTok reload failed: ${e.message}")
+            }
+            if (resolvedName == null) {
+                resolvedName = TikTokPushStore.conversation(appContext, convId)?.name
                     ?.takeIf { it.isNotEmpty() }
                     ?: TikTokPushStore.rememberedName(appContext, convId).takeIf { it.isNotEmpty() }
                     ?: resolvePeerName(appContext, convId)
-                    ?: name
-                val resolvedBody = TikTokPushStore.conversation(appContext, convId)?.lastMessage
+            }
+            if (resolvedBody == null) {
+                resolvedBody = TikTokPushStore.conversation(appContext, convId)?.lastMessage
                     ?.takeIf { it.isNotEmpty() }
                     ?: TikTokPushStore.rememberedText(appContext, convId).takeIf { it.isNotEmpty() }
-                    ?: body
-                if (resolvedName == name && resolvedBody == body) return@launch
-                TikTokPushStore.remember(appContext, convId, resolvedName.orEmpty(), resolvedBody)
-                if (resolvedName != null && resolvedName != name) {
-                    val peer = convId.split(':')
-                        .lastOrNull { it.length >= 5 && it != TikTokDmClient.currentSelfId() }
-                        .orEmpty()
-                    TikTokPushStore.reportName(appContext, convId, peer, resolvedName)
-                }
-                postTikTokNotification(appContext, convId, tiktokTitle(resolvedName), resolvedBody)
             }
+            val finalBody = resolvedBody ?: "Neue Nachricht"
+            TikTokPushStore.remember(appContext, convId, resolvedName.orEmpty(), finalBody)
+            if (resolvedName != null) {
+                val peer = convId.split(':')
+                    .lastOrNull { it.length >= 5 && it != TikTokDmClient.currentSelfId() }
+                    .orEmpty()
+                TikTokPushStore.reportName(appContext, convId, peer, resolvedName)
+            }
+            postTikTokNotification(appContext, convId, tiktokTitle(resolvedName), finalBody)
         }
+    }
+
+    private fun isAppInForeground(): Boolean = try {
+        val manager = getSystemService(android.app.ActivityManager::class.java)
+        val processes = manager?.runningAppProcesses.orEmpty()
+        processes.any {
+            it.processName == packageName &&
+                it.importance == android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
+        }
+    } catch (_: Exception) {
+        false
     }
 
     private suspend fun resolvePeerName(appContext: android.content.Context, convId: String): String? {
@@ -218,8 +234,13 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle(title)
             .setContentText(body)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .setGroup("SSN").setSilent(false)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .setGroup(TIKTOK_PUSH_GROUP)
+            .setOnlyAlertOnce(true)
+            .setWhen(System.currentTimeMillis())
+            .setShowWhen(true)
+            .setSilent(false)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
