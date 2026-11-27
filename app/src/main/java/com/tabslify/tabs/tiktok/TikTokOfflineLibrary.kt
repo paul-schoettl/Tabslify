@@ -45,6 +45,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
@@ -67,36 +68,38 @@ private const val TAG = "TikTokOffline"
 
 @Composable
 fun OfflineLibraryScreen(
-    onZurueck: () -> Unit,
+    onBack: () -> Unit,
     onAbspielen: (String) -> Unit
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val videos by TikTokOfflineStore.videos.collectAsState()
-    val fortschritt by TikTokOfflineStore.fortschritt.collectAsState()
-    val kandidaten by TikTokOfflineStore.kandidaten.collectAsState()
-    var loeschenZiel by remember { mutableStateOf<OfflineVideo?>(null) }
-    var feedLaeuft by remember { mutableStateOf(false) }
+    val progress by TikTokOfflineStore.progress.collectAsState()
+    val candidates by TikTokOfflineStore.candidates.collectAsState()
+    var deleteTarget by remember { mutableStateOf<OfflineVideo?>(null) }
+    var feedRunning by remember { mutableStateOf(false) }
     var feedFehler by remember { mutableStateOf<String?>(null) }
-    val frei = remember(videos) { TikTokOfflineStore.frei(context) }
+    var seen by remember { mutableStateOf(TikTokOfflineStore.seen(context)) }
+    val free = remember(videos) { TikTokOfflineStore.free(context) }
 
-    LaunchedEffect(Unit) { TikTokOfflineStore.lade(context) }
+    LaunchedEffect(Unit) { TikTokOfflineStore.loadStore(context) }
+    LaunchedEffect(videos) { seen = TikTokOfflineStore.seen(context) }
 
-    val fertig = videos.filter { it.state == TikTokOfflineStore.STATE_DONE }
-    val genutzt = TikTokOfflineStore.summeBytes(videos)
-    val grenze = TikTokOfflineStore.maxBytes(context)
+    val finished = videos.filter { it.state == TikTokOfflineStore.STATE_DONE }
+    val used = TikTokOfflineStore.totalBytes(videos)
+    val limitBytes = TikTokOfflineStore.maxBytes(context)
 
     Column(modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            TextButton(onClick = onZurueck) { Text("‹ Chats") }
+            TextButton(onClick = onBack) { Text("‹ Chats") }
             Column(modifier = Modifier.weight(1f)) {
                 Text("Offline-Videos", style = MaterialTheme.typography.titleLarge)
                 Text(
-                    text = "${fertig.size}/${TikTokOfflineStore.MAX_VIDEOS} Videos · " +
-                        "${mb(genutzt)} von ${mb(grenze)} · frei ${mb(frei)}",
+                    text = "${finished.size}/${TikTokOfflineStore.MAX_VIDEOS} Videos · " +
+                        "${formatMb(used)} von ${formatMb(limitBytes)} · frei ${formatMb(free)}",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -111,23 +114,62 @@ fun OfflineLibraryScreen(
             Text("Feed", style = MaterialTheme.typography.labelLarge)
             Button(
                 onClick = {
-                    feedLaeuft = true
+                    feedRunning = true
                     feedFehler = null
                     scope.launch {
                         runCatching { TikTokFeedApi.feed(context) }
-                            .onSuccess { treffer ->
-                                TikTokOfflineStore.setzeKandidaten(treffer)
-                                if (treffer.isEmpty()) feedFehler = "Keine Videos erhalten"
+                            .onSuccess { matches ->
+                                TikTokOfflineStore.setCandidates(matches)
+                                if (matches.isEmpty()) feedFehler = "Keine Videos erhalten"
                             }
                             .onFailure {
                                 feedFehler = it.message ?: "Feed nicht erreichbar"
                                 Log.w(TAG, "Feed fehlgeschlagen: ${it.message}")
                             }
-                        feedLaeuft = false
+                        feedRunning = false
                     }
                 },
-                enabled = !feedLaeuft
-            ) { Text(if (feedLaeuft) "lädt…" else "Feed laden") }
+                enabled = !feedRunning
+            ) { Text(if (feedRunning) "lädt…" else "Feed laden") }
+        }
+        if (candidates.isNotEmpty()) {
+            val offen = candidates.count { k -> videos.none { it.videoId == k.videoId } }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "$offen von ${candidates.size} noch nicht geladen",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Button(
+                    onClick = {
+                        scope.launch {
+                            for (candidate in candidates) {
+                                if (videos.any { it.videoId == candidate.videoId }) continue
+                                runCatching {
+                                    TikTokOfflineDownloader.enqueue(
+                                        context,
+                                        OfflineAntrag(
+                                            videoId = candidate.videoId,
+                                            title = candidate.title,
+                                            author = candidate.author,
+                                            coverUrl = candidate.coverUrl,
+                                            durationMs = candidate.durationMillis,
+                                            urls = candidate.urls
+                                        )
+                                    )
+                                }.onFailure {
+                                    Log.w(TAG, "Alle laden: ${candidate.videoId} ${it.message}")
+                                }
+                            }
+                        }
+                    },
+                    enabled = offen > 0
+                ) { Text("Alle laden ($offen)") }
+            }
         }
         feedFehler?.let {
             Text(
@@ -137,11 +179,11 @@ fun OfflineLibraryScreen(
             )
         }
 
-        AutoZeile(context)
+        AutoLimitRow(context)
 
         Spacer(Modifier.height(4.dp))
 
-        if (videos.isEmpty() && kandidaten.isEmpty()) {
+        if (videos.isEmpty() && candidates.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
                     text = "Noch keine Videos.\n„Feed laden“ holt Vorschläge, im Chat\nkannst du Videos direkt sichern.",
@@ -154,22 +196,22 @@ fun OfflineLibraryScreen(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                items(kandidaten, key = { "k" + it.videoId }) { kandidat ->
-                    KandidatZeile(
-                        kandidat = kandidat,
-                        geladen = videos.any { it.videoId == kandidat.videoId },
+                items(candidates, key = { "k" + it.videoId }) { candidate ->
+                    CandidateRow(
+                        candidate = candidate,
+                        loaded = videos.any { it.videoId == candidate.videoId },
                         onLaden = {
                             scope.launch {
                                 runCatching {
                                     TikTokOfflineDownloader.enqueue(
                                         context,
                                         OfflineAntrag(
-                                            videoId = kandidat.videoId,
-                                            title = kandidat.titel,
-                                            author = kandidat.autor,
-                                            coverUrl = kandidat.coverUrl,
-                                            durationMs = kandidat.dauerMillis,
-                                            urls = kandidat.urls
+                                            videoId = candidate.videoId,
+                                            title = candidate.title,
+                                            author = candidate.author,
+                                            coverUrl = candidate.coverUrl,
+                                            durationMs = candidate.durationMillis,
+                                            urls = candidate.urls
                                         )
                                     )
                                 }.onFailure { Log.w(TAG, "Laden fehlgeschlagen: ${it.message}") }
@@ -178,43 +220,97 @@ fun OfflineLibraryScreen(
                     )
                 }
                 items(videos, key = { it.videoId }) { video ->
-                    OfflineZeile(
+                    OfflineRow(
                         video = video,
-                        prozent = fortschritt[video.videoId] ?: -1,
-                        onAbspielen = { onAbspielen(video.videoId) },
-                        onLoeschen = { loeschenZiel = video },
-                        onWiederholen = {
+                        percent = progress[video.videoId] ?: -1,
+                        onAbspielen = {
+                            TikTokOfflineStore.markSeen(context, video.videoId)
+                            seen = TikTokOfflineStore.seen(context)
+                            onAbspielen(video.videoId)
+                        },
+                        onDelete = { deleteTarget = video },
+                        onRetry = {
                             scope.launch {
                                 runCatching { TikTokOfflineDownloader.enqueue(context, antragAus(video)) }
                                     .onFailure { Log.w(TAG, "Wiederholung fehlgeschlagen: ${it.message}") }
                             }
                         },
-                        onAbbrechen = { TikTokOfflineDownloader.abbrechen(video.videoId) }
+                        onCancel = { TikTokOfflineDownloader.cancel(video.videoId) }
                     )
+                }
+                if (seen.isNotEmpty()) {
+                    item(key = "gesehen-kopf") {
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            text = "Gesehen (${seen.size})",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    items(seen.toList(), key = { "g$it" }) { videoId ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 2.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = videoId,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.weight(1f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            TextButton(
+                                onClick = {
+                                    scope.launch {
+                                        runCatching {
+                                            val detail = TikTokFeedApi.detail(context, videoId)
+                                            val matches = detail.firstOrNull() ?: return@launch
+                                            TikTokOfflineDownloader.enqueue(
+                                                context,
+                                                OfflineAntrag(
+                                                    videoId = matches.videoId,
+                                                    title = matches.title,
+                                                    author = matches.author,
+                                                    coverUrl = matches.coverUrl,
+                                                    durationMs = matches.durationMillis,
+                                                    urls = matches.urls
+                                                )
+                                            )
+                                        }.onFailure {
+                                            Log.w(TAG, "Erneut laden fehlgeschlagen: ${it.message}")
+                                        }
+                                    }
+                                }
+                            ) { Text("↻") }
+                        }
+                    }
                 }
             }
         }
     }
 
-    loeschenZiel?.let { ziel ->
+    deleteTarget?.let { target ->
         AlertDialogTabslify(
             title = "Video löschen?",
-            text = "${ziel.title}\nDie Datei wird vom Gerät entfernt.",
+            text = "${target.title}\nDie Datei wird vom Gerät entfernt.",
             confirmText = "Löschen",
             onConfirm = {
-                loeschenZiel = null
-                scope.launch { TikTokOfflineStore.loesche(context, ziel.videoId) }
+                deleteTarget = null
+                scope.launch { TikTokOfflineStore.deleteItem(context, target.videoId) }
             },
-            onDismiss = { loeschenZiel = null }
+            onDismiss = { deleteTarget = null }
         )
     }
 }
 
 @Composable
-private fun AutoZeile(context: android.content.Context) {
-    var auto by remember { mutableStateOf(TikTokOfflineStore.autoAktiv(context)) }
+private fun AutoLimitRow(context: android.content.Context) {
+    var auto by remember { mutableStateOf(TikTokOfflineStore.isAutoActive(context)) }
     var limit by remember { mutableIntStateOf(TikTokOfflineStore.autoLimit(context)) }
-    var grenze by remember { mutableLongStateOf(TikTokOfflineStore.maxBytes(context)) }
+    var limitBytes by remember { mutableLongStateOf(TikTokOfflineStore.maxBytes(context)) }
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -225,7 +321,7 @@ private fun AutoZeile(context: android.content.Context) {
             TextButton(
                 onClick = {
                     auto = !auto
-                    TikTokOfflineStore.setzeAutoAktiv(context, auto)
+                    TikTokOfflineStore.setAutoActive(context, auto)
                     if (auto) TikTokOfflineDownloader.starteAutoKontrolle(context)
                 }
             ) {
@@ -236,27 +332,27 @@ private fun AutoZeile(context: android.content.Context) {
                 )
             }
         }
-        StepperZeile(
+        StepperRow(
             text = "Warteschlange: $limit Videos",
-            weniger = {
+            less = {
                 limit = (limit - 1).coerceAtLeast(0)
-                TikTokOfflineStore.setzeAutoLimit(context, limit)
+                TikTokOfflineStore.setAutoLimit(context, limit)
             },
-            mehr = {
+            more = {
                 limit = (limit + 1).coerceAtMost(TikTokOfflineStore.MAX_AUTO_LIMIT)
-                TikTokOfflineStore.setzeAutoLimit(context, limit)
+                TikTokOfflineStore.setAutoLimit(context, limit)
             }
         )
-        StepperZeile(
-            text = "Platzgrenze: ${mb(grenze)}",
-            weniger = {
-                grenze = (grenze - TikTokOfflineStore.SCHRITT_BYTES)
+        StepperRow(
+            text = "Platzgrenze: ${formatMb(limitBytes)}",
+            less = {
+                limitBytes = (limitBytes - TikTokOfflineStore.SCHRITT_BYTES)
                     .coerceAtLeast(TikTokOfflineStore.SCHRITT_BYTES)
-                TikTokOfflineStore.setzeMaxBytes(context, grenze)
+                TikTokOfflineStore.setMaxBytes(context, limitBytes)
             },
-            mehr = {
-                grenze += TikTokOfflineStore.SCHRITT_BYTES
-                TikTokOfflineStore.setzeMaxBytes(context, grenze)
+            more = {
+                limitBytes += TikTokOfflineStore.SCHRITT_BYTES
+                TikTokOfflineStore.setMaxBytes(context, limitBytes)
             }
         )
         TextButton(
@@ -267,7 +363,7 @@ private fun AutoZeile(context: android.content.Context) {
 }
 
 @Composable
-private fun StepperZeile(text: String, weniger: () -> Unit, mehr: () -> Unit) {
+private fun StepperRow(text: String, less: () -> Unit, more: () -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -275,16 +371,16 @@ private fun StepperZeile(text: String, weniger: () -> Unit, mehr: () -> Unit) {
     ) {
         Text(text, style = MaterialTheme.typography.labelMedium)
         Row {
-            TextButton(onClick = weniger) { Text("−") }
-            TextButton(onClick = mehr) { Text("+") }
+            TextButton(onClick = less) { Text("−") }
+            TextButton(onClick = more) { Text("+") }
         }
     }
 }
 
 @Composable
-private fun KandidatZeile(
-    kandidat: TikTokFeedVideo,
-    geladen: Boolean,
+private fun CandidateRow(
+    candidate: TikTokFeedVideo,
+    loaded: Boolean,
     onLaden: () -> Unit
 ) {
     Row(
@@ -297,12 +393,12 @@ private fun KandidatZeile(
     ) {
         Cover(
             OfflineVideo(
-                videoId = kandidat.videoId,
-                title = kandidat.titel,
-                author = kandidat.autor,
-                coverUrl = kandidat.coverUrl,
+                videoId = candidate.videoId,
+                title = candidate.title,
+                author = candidate.author,
+                coverUrl = candidate.coverUrl,
                 streamUrl = "",
-                durationMs = kandidat.dauerMillis,
+                durationMs = candidate.durationMillis,
                 sizeBytes = 0L,
                 fileName = "",
                 state = "",
@@ -316,16 +412,16 @@ private fun KandidatZeile(
         Spacer(Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = kandidat.titel,
+                text = candidate.title,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium,
                 maxLines = 2
             )
             Text(
                 text = listOf(
-                    kandidat.autor,
-                    if (kandidat.dauerMillis > 0L) dauerText(kandidat.dauerMillis) else "",
-                    "${kandidat.urls.size} Qualitäten"
+                    candidate.author,
+                    if (candidate.durationMillis > 0L) durationText(candidate.durationMillis) else "",
+                    "${candidate.urls.size} Qualitäten"
                 ).filter { it.isNotEmpty() }.joinToString(" · "),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -333,7 +429,7 @@ private fun KandidatZeile(
             )
         }
         Spacer(Modifier.width(6.dp))
-        if (geladen) {
+        if (loaded) {
             Text("✓", style = MaterialTheme.typography.titleMedium)
         } else {
             TextButton(onClick = onLaden) { Text("⤓") }
@@ -342,13 +438,13 @@ private fun KandidatZeile(
 }
 
 @Composable
-private fun OfflineZeile(
+private fun OfflineRow(
     video: OfflineVideo,
-    prozent: Int,
+    percent: Int,
     onAbspielen: () -> Unit,
-    onLoeschen: () -> Unit,
-    onWiederholen: () -> Unit,
-    onAbbrechen: () -> Unit
+    onDelete: () -> Unit,
+    onRetry: () -> Unit,
+    onCancel: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -379,7 +475,7 @@ private fun OfflineZeile(
                 maxLines = 1
             )
             Text(
-                text = zustandText(video, prozent),
+                text = stateText(video, percent),
                 style = MaterialTheme.typography.labelSmall,
                 color = if (video.state == TikTokOfflineStore.STATE_ERROR) {
                     MaterialTheme.colorScheme.error
@@ -389,7 +485,7 @@ private fun OfflineZeile(
             )
             if (video.state == TikTokOfflineStore.STATE_DOWNLOADING) {
                 LinearProgressIndicator(
-                    progress = { prozent.coerceIn(0, 100) / 100f },
+                    progress = { percent.coerceIn(0, 100) / 100f },
                     modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
                 )
             }
@@ -397,9 +493,9 @@ private fun OfflineZeile(
         Spacer(Modifier.width(6.dp))
         when (video.state) {
             TikTokOfflineStore.STATE_DONE -> TextButton(onClick = onAbspielen) { Text("▶") }
-            TikTokOfflineStore.STATE_DOWNLOADING -> TextButton(onClick = onAbbrechen) { Text("⏹") }
-            TikTokOfflineStore.STATE_ERROR -> TextButton(onClick = onWiederholen) { Text("↻") }
-            else -> TextButton(onClick = onLoeschen) { Text("✕") }
+            TikTokOfflineStore.STATE_DOWNLOADING -> TextButton(onClick = onCancel) { Text("⏹") }
+            TikTokOfflineStore.STATE_ERROR -> TextButton(onClick = onRetry) { Text("↻") }
+            else -> TextButton(onClick = onDelete) { Text("✕") }
         }
     }
 }
@@ -427,23 +523,27 @@ private fun Cover(video: OfflineVideo, modifier: Modifier) {
 @Composable
 fun OfflinePlayerOverlay(
     startId: String,
-    onZurueck: () -> Unit
+    onBack: () -> Unit
 ) {
     val videos by TikTokOfflineStore.videos.collectAsState()
-    val liste = remember(videos) {
+    val context = LocalContext.current
+    LaunchedEffect(startId) {
+        TikTokOfflineStore.markSeen(context, startId)
+    }
+    val list = remember(videos) {
         videos.filter { it.state == TikTokOfflineStore.STATE_DONE }
     }
-    val startIndex = remember(liste, startId) {
-        liste.indexOfFirst { it.videoId == startId }.coerceAtLeast(0)
+    val startIndex = remember(list, startId) {
+        list.indexOfFirst { it.videoId == startId }.coerceAtLeast(0)
     }
     val listState = rememberLazyListState(startIndex)
-    var aktuell by remember { mutableIntStateOf(startIndex) }
+    var current by remember { mutableIntStateOf(startIndex) }
 
-    LaunchedEffect(listState, liste) {
-        snapshotFlow { listState.firstVisibleItemIndex }.collect { aktuell = it }
+    LaunchedEffect(listState, list) {
+        snapshotFlow { listState.firstVisibleItemIndex }.collect { current = it }
     }
 
-    BackHandler(enabled = true, onBack = onZurueck)
+    BackHandler(enabled = true, onBack = onBack)
 
     Box(
         modifier = Modifier
@@ -454,9 +554,9 @@ fun OfflinePlayerOverlay(
             state = listState,
             modifier = Modifier.fillMaxSize()
         ) {
-            itemsIndexed(liste, key = { _, video -> video.videoId }) { index, video ->
+            itemsIndexed(list, key = { _, video -> video.videoId }) { index, video ->
                 Box(modifier = Modifier.fillMaxWidth().fillMaxHeight()) {
-                    if (index == aktuell) {
+                    if (index == current) {
                         OfflinePlayer(video)
                     } else {
                         Cover(
@@ -485,12 +585,12 @@ fun OfflinePlayerOverlay(
             }
         }
         TextButton(
-            onClick = onZurueck,
+            onClick = onBack,
             modifier = Modifier.align(Alignment.TopStart).padding(8.dp)
         ) { Text("✕", color = Color.White, style = MaterialTheme.typography.titleLarge) }
-        if (liste.size > 1) {
+        if (list.size > 1) {
             Text(
-                text = "${aktuell + 1}/${liste.size}",
+                text = "${current + 1}/${list.size}",
                 color = Color.White.copy(alpha = 0.7f),
                 style = MaterialTheme.typography.labelSmall,
                 modifier = Modifier.align(Alignment.TopEnd).padding(14.dp)
@@ -503,16 +603,16 @@ fun OfflinePlayerOverlay(
 @androidx.annotation.OptIn(markerClass = [UnstableApi::class])
 private fun OfflinePlayer(video: OfflineVideo) {
     val context = LocalContext.current
-    val datei = remember(video.videoId, video.sizeBytes) {
-        File(TikTokOfflineStore.ordner(context), video.fileName)
+    val file = remember(video.videoId, video.sizeBytes) {
+        File(TikTokOfflineStore.folder(context), video.fileName)
     }
     val exo = remember(video.videoId) {
-        if (!datei.exists()) {
-            Log.w(TAG, "Offline-Datei fehlt ${video.videoId} ${datei.absolutePath}")
+        if (!file.exists()) {
+            Log.w(TAG, "Offline-Datei fehlt ${video.videoId} ${file.absolutePath}")
             null
         } else {
             ExoPlayer.Builder(context).build().apply {
-                setMediaItem(MediaItem.fromUri(datei.absolutePath))
+                setMediaItem(MediaItem.fromUri(file.absolutePath))
                 repeatMode = Player.REPEAT_MODE_ONE
                 prepare()
                 seekTo(video.positionMs.coerceAtLeast(0L))
@@ -522,7 +622,7 @@ private fun OfflinePlayer(video: OfflineVideo) {
     }
     LaunchedEffect(video.videoId) {
         while (true) {
-            TikTokOfflineStore.speicherePosition(context, video.videoId, exo?.currentPosition ?: 0L)
+            TikTokOfflineStore.savePosition(context, video.videoId, exo?.currentPosition ?: 0L)
             delay(2000)
         }
     }
@@ -557,25 +657,25 @@ fun antragAus(video: OfflineVideo) = OfflineAntrag(
     urls = listOf(video.streamUrl)
 )
 
-private fun zustandText(video: OfflineVideo, prozent: Int): String {
-    val groesse = if (video.sizeBytes > 0L) " · ${mb(video.sizeBytes)}" else ""
-    val dauer = if (video.durationMs > 0L) " · ${dauerText(video.durationMs)}" else ""
+private fun stateText(video: OfflineVideo, percent: Int): String {
+    val sizeBytes = if (video.sizeBytes > 0L) " · ${formatMb(video.sizeBytes)}" else ""
+    val duration = if (video.durationMs > 0L) " · ${durationText(video.durationMs)}" else ""
     return when (video.state) {
-        TikTokOfflineStore.STATE_DONE -> "$groesse$dauer"
+        TikTokOfflineStore.STATE_DONE -> "$sizeBytes$duration"
         TikTokOfflineStore.STATE_DOWNLOADING ->
-            if (prozent >= 0) "lädt $prozent %$groesse" else "lädt$groesse"
+            if (percent >= 0) "lädt $percent %$sizeBytes" else "lädt$sizeBytes"
         TikTokOfflineStore.STATE_PENDING -> "wartet auf WLAN"
         TikTokOfflineStore.STATE_ERROR -> "fehlgeschlagen: ${video.error}"
         else -> "wartet"
     }
 }
 
-fun dauerText(ms: Long): String {
+fun durationText(ms: Long): String {
     val sekunden = (ms / 1000L).coerceAtLeast(0L)
     return "${sekunden / 60L}:${String.format(Locale.GERMANY, "%02d", sekunden % 60L)}"
 }
 
-fun mb(bytes: Long): String = if (bytes >= 1024L * 1024L * 1024L) {
+fun formatMb(bytes: Long): String = if (bytes >= 1024L * 1024L * 1024L) {
     String.format(Locale.GERMANY, "%.1f GB", bytes / (1024.0 * 1024.0 * 1024.0))
 } else if (bytes >= 1024L * 1024L) {
     String.format(Locale.GERMANY, "%.0f MB", bytes / (1024.0 * 1024.0))
