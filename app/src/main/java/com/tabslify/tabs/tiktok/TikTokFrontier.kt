@@ -27,6 +27,7 @@ object TikTokFrontier {
 
     private const val TAG = "TikTokTab"
     private const val RECONNECT_DELAY_MS = 5000L
+    private const val RECONNECT_DELAY_MAX_MS = 60_000L
 
     private val _connected = MutableStateFlow(false)
     val connected: StateFlow<Boolean> = _connected.asStateFlow()
@@ -44,17 +45,25 @@ object TikTokFrontier {
         val app = context.applicationContext
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         loop = scope?.launch {
+            var delayMs = RECONNECT_DELAY_MS
             while (isActive) {
-                try {
+                val connectedFor = runCatching {
+                    val startAt = System.currentTimeMillis()
                     connect(app)
-                } catch (e: Exception) {
-                    Log.w(TAG, "Frontier getrennt: ${e.message}")
-                }
+                    System.currentTimeMillis() - startAt
+                }.onFailure {
+                    Log.w(TAG, "Frontier getrennt: ${it.message}")
+                }.getOrDefault(0L)
                 _connected.value = false
-                delay(RECONNECT_DELAY_MS)
+                if (connectedFor > 30_000L) {
+                    delayMs = RECONNECT_DELAY_MS
+                } else {
+                    delayMs = (delayMs * 2).coerceAtMost(RECONNECT_DELAY_MAX_MS)
+                }
+                delay(delayMs)
             }
         }
-        Log.i(TAG, "Frontier-Client gestartet")
+        Log.i(TAG, "Frontier client started")
     }
 
     fun stop() {
@@ -83,14 +92,14 @@ object TikTokFrontier {
             ) {
                 val now = System.currentTimeMillis()
                 val auth = TikTokProto.buildFrontierAuth(userId, now)
-                TikTokDump.schreibe(context, "frontier", "anfrage-auth", auth)
+                TikTokDump.write(context, "frontier", "anfrage-auth", auth)
                 send(Frame.Binary(true, auth))
                 runCatching {
                     val register = TikTokProto.buildFrontierDeviceRegister(
                         TikTokDmClient.frontierParams(session),
                         now + 1
                     )
-                    TikTokDump.schreibe(context, "frontier", "anfrage-geraet", register)
+                    TikTokDump.write(context, "frontier", "anfrage-device", register)
                     send(Frame.Binary(true, register))
                 }.onFailure { Log.w(TAG, "Frontier Geraete-Anmeldung fehlgeschlagen: ${it.message}") }
                 runCatching {
@@ -99,7 +108,7 @@ object TikTokFrontier {
                         TikTokDmClient.frontierIndices(),
                         now + 2
                     )
-                    TikTokDump.schreibe(context, "frontier", "anfrage-index", register)
+                    TikTokDump.write(context, "frontier", "anfrage-index", register)
                     send(Frame.Binary(true, register))
                 }.onFailure { Log.w(TAG, "Frontier Index-Anmeldung fehlgeschlagen: ${it.message}") }
                 _connected.value = true
@@ -109,13 +118,28 @@ object TikTokFrontier {
                     val bytes = runCatching { binary.readBytes() }.getOrNull() ?: continue
                     val reactions = TikTokProto.parseFrontierReactions(bytes)
                     val pushes = TikTokProto.parseFrontierStreaks(bytes)
-                    TikTokDump.schreibe(context, "frontier", "antwort", bytes)
-                    if (reactions.isEmpty() && pushes.isEmpty()) {
+                    val messages = TikTokProto.parseFrontierMessages(
+                        bytes,
+                        TikTokDmClient.currentSelfId()
+                    )
+                    TikTokDump.write(context, "frontier", "antwort", bytes)
+                    if (reactions.isEmpty() && pushes.isEmpty() && messages.isEmpty()) {
                         Log.i(
                             TAG,
-                            "Frontier-Frame ohne bekannte Nutzlast ${bytes.size}B:\n" +
-                                TikTokProto.beschreibeFrame(bytes).take(2500)
+                            "Frontier frame without known payload ${bytes.size}B:\n" +
+                                TikTokProto.describeFrame(bytes).take(2500)
                         )
+                        TikTokDump.write(context, "frontier", "unbekannt", bytes)
+                    }
+                    if (messages.isNotEmpty()) {
+                        _lastPush.value = System.currentTimeMillis()
+                        TikTokDmClient.applyFrontierMessages(messages)
+                        val betroffen = messages.map { it.convId }.distinct()
+                        for (convId in betroffen) {
+                            if (convId == TikTokDmClient.openConversationId()) {
+                                TikTokDmClient.refreshOpenConversationSoon(convId)
+                            }
+                        }
                     }
                     for (reaction in reactions) {
                         Log.i(
