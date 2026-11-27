@@ -15,7 +15,13 @@ data class CachedConversation(
     val streakValue: Int,
     val streakActive: Boolean,
     val streakRestorable: Boolean,
-    val updatedAt: Long
+    val updatedAt: Long,
+    val maxIndex: Long = 0L,
+    val readIndex: Long = 0L,
+    val avatarUrl: String = "",
+    val handle: String = "",
+    val lastKind: String = "",
+    val lastIsOwn: Boolean = false
 )
 
 @Entity(
@@ -38,5 +44,11 @@ data class CachedMessage(
     val mediaStream: String = "",
     val mediaDuration: Long = 0L,
     val mediaWave: String = "",
-    val mediaVid: String = ""
+    val mediaVid: String = "",
+    val unknownType: String = "",
+    val myReaction: String = "",
+    val peerReaction: String = "",
+    val replyToId: String = "",
+    val replyToText: String = "",
+    val replyToQuote: String = ""
 )
