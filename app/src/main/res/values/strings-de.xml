@@ -3167,6 +3167,7 @@
     <string name="commandcode_widget_blocked">Server blockiert die Anfrage</string>
     <string name="commandcode_widget_loading">Lade …</string>
     <string name="lamp_widget_label">Lampe</string>
+    <string name="lamp_widget_label_gaming">Lampe (Gaming-Modus)</string>
     <string name="widget_chevron" translatable="false">›</string>
     <string name="hose_widget_label">Lichtschläuche</string>
     <string name="home_bar_widget_label">CommandCode + Lampe</string>

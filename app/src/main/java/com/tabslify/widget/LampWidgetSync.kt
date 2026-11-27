@@ -134,12 +134,15 @@ object LampWidgetSync {
     }
 
     private fun applyRecord(appContext: Context, record: String) {
-        val on = runCatching {
-            val json = JSONObject(record)
-            if (json.has("is_on") && !json.isNull("is_on")) json.optBoolean("is_on") else null
-        }.getOrNull() ?: return
-        val changed = HandyLampClient.applyRemoteState(appContext, on)
-        if (changed) updateIcon(appContext)
+        val json = runCatching { JSONObject(record) }.getOrNull() ?: return
+        if (json.has("is_on") && !json.isNull("is_on")) {
+            val on = json.optBoolean("is_on")
+            if (HandyLampClient.applyRemoteState(appContext, on)) updateIcon(appContext)
+        }
+        if (json.has("gaming_look") && !json.isNull("gaming_look")) {
+            val gaming = json.optBoolean("gaming_look")
+            if (HandyLampClient.applyRemoteGamingLook(appContext, gaming)) updateIcon(appContext)
+        }
     }
 
     private fun applyHoseRecord(appContext: Context, record: String) {

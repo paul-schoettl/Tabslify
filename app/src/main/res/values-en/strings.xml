@@ -2463,6 +2463,7 @@
     <string name="commandcode_widget_blocked">Server blocked the request</string>
     <string name="commandcode_widget_loading">Loading …</string>
     <string name="lamp_widget_label">Lamp</string>
+    <string name="lamp_widget_label_gaming">Lamp (gaming mode)</string>
     <string name="hose_widget_label">Light hoses</string>
     <string name="home_bar_widget_label">CommandCode + lamp</string>
     <string name="home_bar_widget_description">Bar with CommandCode usage and lamp switch</string>

@@ -36,6 +36,7 @@ object HandyLampClient {
     private const val KEY_PC_HOST = "pc_host"
     private const val STATE_PREFS = "lamp_widget"
     private const val KEY_ON = "on"
+    private const val KEY_GAMING_LOOK = "gaming"
     private const val API_PORT = 8886
     private const val TOGGLE_ENDPOINT = "/api/switch/toggle?device=lampe"
     private const val STATE_ENDPOINT = "/api/switch/state?device=lampe"
@@ -68,14 +69,36 @@ object HandyLampClient {
 
     enum class HoseResult { DONE, QUEUED, IGNORED }
 
+    data class LampState(val on: Boolean, val gamingLook: Boolean)
+
     fun cachedOn(context: Context): Boolean? {
         val prefs = context.getSharedPreferences(STATE_PREFS, Context.MODE_PRIVATE)
         return if (prefs.contains(KEY_ON)) prefs.getBoolean(KEY_ON, false) else null
     }
 
+    fun cachedGamingLook(context: Context): Boolean =
+        context.getSharedPreferences(STATE_PREFS, Context.MODE_PRIVATE)
+            .getBoolean(KEY_GAMING_LOOK, false)
+
+    fun storeGamingLook(context: Context, active: Boolean) {
+        context.getSharedPreferences(STATE_PREFS, Context.MODE_PRIVATE)
+            .edit {putBoolean(KEY_GAMING_LOOK, active)}
+    }
+
+    fun applyRemoteGamingLook(context: Context, active: Boolean): Boolean {
+        val previous = cachedGamingLook(context)
+        storeGamingLook(context, active)
+        return previous != active
+    }
+
     fun storeOn(context: Context, on: Boolean) {
         context.getSharedPreferences(STATE_PREFS, Context.MODE_PRIVATE)
             .edit {putBoolean(KEY_ON, on)}
+    }
+
+    private fun storeLampState(context: Context, state: LampState) {
+        storeOn(context, state.on)
+        storeGamingLook(context, state.gamingLook)
     }
 
     fun cachedHoses(context: Context): HoseState {
@@ -125,6 +148,21 @@ object HandyLampClient {
             val row = JSONArray(result).optJSONObject(0) ?: return@runCatching null
             if (!row.has("is_on") || row.isNull("is_on")) return@runCatching null
             row.optBoolean("is_on")
+        }.getOrNull()
+    }
+
+    suspend fun readSupabaseGamingLook(): Boolean? {
+        return runCatching {
+            val result = Config.safeCall {
+                Config.client
+                    .from(SB_TABLE)
+                    .select(columns = Columns.list("gaming_look")) {
+                        filter { eq("id", SB_ROW_ID) }
+                    }.data
+            }
+            val row = JSONArray(result).optJSONObject(0) ?: return@runCatching null
+            if (!row.has("gaming_look") || row.isNull("gaming_look")) return@runCatching null
+            row.optBoolean("gaming_look")
         }.getOrNull()
     }
 
@@ -187,25 +225,28 @@ object HandyLampClient {
                 val state = getState(host, network)
                 if (state != null) {
                     rememberHost(context, host)
-                    storeOn(context, state)
-                    writeSupabaseState(state, "lan_refresh")
-                    return state
+                    storeLampState(context, state)
+                    writeSupabaseState(state.on, "lan_refresh")
+                    return state.on
                 }
             }
             val prefix = localIpv4()?.substringBeforeLast('.')
             if (prefix != null) {
                 val hit = scanSubnet(prefix, network)
                 if (hit != null) {
-                    getState(hit, network)?.let {
+                    val state = getState(hit, network)
+                    if (state != null) {
                         rememberHost(context, hit)
-                        storeOn(context, it)
-                        writeSupabaseState(it, "lan_refresh")
-                        return it
+                        storeLampState(context, state)
+                        writeSupabaseState(state.on, "lan_refresh")
+                        return state.on
                     }
                 }
             }
         }
         val remote = readSupabaseState()
+        val remoteGaming = readSupabaseGamingLook()
+        if (remoteGaming != null) storeGamingLook(context, remoteGaming)
         if (remote != null) {
             storeOn(context, remote)
             return remote
@@ -307,9 +348,9 @@ object HandyLampClient {
                 val result = postToggle(host, network = network)
                 if (result.ok) {
                     rememberHost(context, host)
-                    val state = result.state ?: getState(host, network) ?: desired ?: true
-                    storeOn(context, state)
-                    writeSupabaseState(state, source)
+                    storeToggleResult(context, result, desired)
+                    val on = cachedOn(context) ?: (desired ?: true)
+                    writeSupabaseState(on, source)
                     return true
                 }
             }
@@ -320,17 +361,17 @@ object HandyLampClient {
                     val result = postToggle(hit, network = network)
                     if (result.ok) {
                         rememberHost(context, hit)
-                        val state = result.state ?: getState(hit, network) ?: desired ?: true
-                        storeOn(context, state)
-                        writeSupabaseState(state, source)
+                        storeToggleResult(context, result, desired)
+                        val on = cachedOn(context) ?: (desired ?: true)
+                        writeSupabaseState(on, source)
                         return true
                     }
                 }
             }
             val readBack = readLampState(context, network)
-            if (readBack != null && desired != null && readBack == desired) {
-                storeOn(context, readBack)
-                writeSupabaseState(readBack, source)
+            if (readBack != null && desired != null && readBack.on == desired) {
+                storeLampState(context, readBack)
+                writeSupabaseState(readBack.on, source)
                 return true
             }
             Log.w(TAG, "Lampen-LAN fehlgeschlagen, nutze Supabase-Fallback")
@@ -339,13 +380,21 @@ object HandyLampClient {
         }
         val fallback = readSupabaseState()?.let { !it } ?: cachedOn(context)?.let { !it } ?: true
         storeOn(context, fallback)
+        storeGamingLook(context, false)
         writeSupabaseState(fallback, source)
         PcCommands.queueLampState(fallback, source)
         return false
     }
 
+    private fun storeToggleResult(context: Context, result: ToggleResult, desired: Boolean?) {
+        val on = result.state ?: desired ?: !(cachedOn(context) ?: false)
+        storeOn(context, on)
+        storeGamingLook(context, result.gamingLook ?: false)
+    }
+
     suspend fun reportExplicitState(context: Context, on: Boolean, source: String) {
         storeOn(context, on)
+        storeGamingLook(context, false)
         writeSupabaseState(on, source)
         PcCommands.queueLampState(on, source)
     }
@@ -358,7 +407,7 @@ object HandyLampClient {
             val state = getState(host, network)
             if (state != null) {
                 rememberHost(context, host)
-                storeOn(context, state)
+                storeLampState(context, state)
                 return
             }
         }
@@ -366,11 +415,11 @@ object HandyLampClient {
         val hit = scanSubnet(prefix, network) ?: return
         getState(hit, network)?.let {
             rememberHost(context, hit)
-            storeOn(context, it)
+            storeLampState(context, it)
         }
     }
 
-    private fun readLampState(context: Context, network: Network?): Boolean? {
+    private fun readLampState(context: Context, network: Network?): LampState? {
         for (host in priorityHosts(context)) {
             getState(host, network)?.let { return it }
         }
@@ -484,7 +533,7 @@ object HandyLampClient {
         }
     }
 
-    private data class ToggleResult(val ok: Boolean, val state: Boolean?)
+    private data class ToggleResult(val ok: Boolean, val state: Boolean?, val gamingLook: Boolean? = null)
 
     private fun postToggle(
         host: String,
@@ -513,7 +562,7 @@ object HandyLampClient {
                 return ToggleResult(false, null)
             }
             val body = connection.inputStream.bufferedReader().use { it.readText() }
-            ToggleResult(true, parseToggleState(body))
+            ToggleResult(true, parseToggleState(body), parseToggleGamingLook(body))
         } catch (e: Exception) {
             Log.w(TAG, "Toggle an $host fehlgeschlagen: ${e.message}")
             ToggleResult(false, null)
@@ -527,11 +576,16 @@ object HandyLampClient {
         if (json.has("state") && !json.isNull("state")) json.optBoolean("state") else null
     }.getOrNull()
 
+    private fun parseToggleGamingLook(body: String): Boolean? = runCatching {
+        val json = JSONObject(body)
+        if (json.has("gaming_look") && !json.isNull("gaming_look")) json.optBoolean("gaming_look") else null
+    }.getOrNull()
+
     private fun getState(
         host: String,
         network: Network? = null,
         endpoint: String = STATE_ENDPOINT
-    ): Boolean? {
+    ): LampState? {
         val connection = openConnection("http://$host:$API_PORT$endpoint", network)
         return try {
             connection.requestMethod = "GET"
@@ -548,13 +602,19 @@ object HandyLampClient {
         }
     }
 
-    private fun parseStateBody(body: String): Boolean? = runCatching {
-        val devices = JSONObject(body).optJSONArray("devices") ?: return null
+    private fun parseStateBody(body: String): LampState? = runCatching {
+        val json = JSONObject(body)
+        val devices = json.optJSONArray("devices") ?: return null
+        var on: Boolean? = null
         for (index in 0 until devices.length()) {
             val device = devices.optJSONObject(index) ?: continue
-            if (device.has("state") && !device.isNull("state")) return device.optBoolean("state")
+            if (device.has("state") && !device.isNull("state")) {
+                on = device.optBoolean("state")
+                break
+            }
         }
-        null
+        if (on == null) return null
+        LampState(on, json.optBoolean("gaming_look", false))
     }.getOrNull()
 
     private fun getHoseState(host: String, network: Network? = null): HoseState? {

@@ -41,6 +41,13 @@ object CommandCodeWidgetRenderer {
         views.setOnClickPendingIntent(R.id.home_bar_usage, refreshPendingIntent(context))
         views.setOnClickPendingIntent(R.id.home_bar_lamp, lampPendingIntent(context))
         views.setImageViewResource(R.id.lamp_widget_icon, lampIcon(context))
+        views.setContentDescription(
+            R.id.lamp_widget_icon,
+            context.getString(
+                if (HandyLampClient.cachedGamingLook(context)) R.string.lamp_widget_label_gaming
+                else R.string.lamp_widget_label
+            )
+        )
         views.setInt(
             R.id.lamp_widget_icon,
             "setAlpha",
@@ -111,12 +118,11 @@ object CommandCodeWidgetRenderer {
         PaceState.ERROR -> context.getString(R.string.commandcode_widget_error)
     }
 
-    private fun lampIcon(context: Context): Int =
-        if (HandyLampClient.cachedOn(context) == true) {
-            R.drawable.ic_lightbulb_on
-        } else {
-            R.drawable.ic_lightbulb_off
-        }
+    private fun lampIcon(context: Context): Int = when {
+        HandyLampClient.cachedGamingLook(context) -> R.drawable.ic_lightbulb_gaming
+        HandyLampClient.cachedOn(context) == true -> R.drawable.ic_lightbulb_on
+        else -> R.drawable.ic_lightbulb_off
+    }
 
     private fun hoseIcon(context: Context): Int = when (HandyLampClient.cachedHoses(context)) {
         HandyLampClient.HoseState.ON -> R.drawable.ic_hose_on
