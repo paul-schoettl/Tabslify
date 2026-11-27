@@ -2,8 +2,6 @@ package com.tabslify.tabs.school.lexicon
 
 import android.content.Context
 import com.tabslify.R
-import org.json.JSONArray
-import org.json.JSONObject
 import java.io.File
 
 object LexiconStore {
@@ -56,10 +54,7 @@ object LexiconStore {
         val stored = try {
             val file = indexFile(context)
             if (!file.exists()) return rebuildIndex(context)
-            val array = JSONArray(file.readText())
-            (0 until array.length()).mapNotNull { index ->
-                array.optJSONObject(index)?.let(VocabularyMeta::fromJson)
-            }
+            decodeCatalog(file.readText()) ?: return rebuildIndex(context)
         } catch (_: Exception) {
             return rebuildIndex(context)
         }
@@ -70,14 +65,14 @@ object LexiconStore {
 
     fun rebuildIndex(context: Context): List<VocabularyMeta> {
         val metas = existingFiles(context).mapNotNull { file ->
-            runCatching { Vocabulary.fromJson(JSONObject(file.readText())).meta() }.getOrNull()
+            runCatching { decodeVocabulary(file.readText())?.meta() }.getOrNull()
         }.sortedByDescending { it.createdAt }
         writeIndex(context, metas)
         return metas
     }
 
     fun loadVocabulary(context: Context, id: String): Vocabulary? = runCatching {
-        Vocabulary.fromJson(JSONObject(fileFor(context, id).readText()))
+        decodeVocabulary(fileFor(context, id).readText())
     }.getOrNull()
 
     fun loadAll(context: Context): List<Vocabulary> =
@@ -86,7 +81,7 @@ object LexiconStore {
     fun save(context: Context, vocabulary: Vocabulary): List<VocabularyMeta> {
         val target = fileFor(context, vocabulary.id)
         val temp = File(target.parentFile, "${target.name}.tmp")
-        temp.writeText(vocabulary.toJson().toString())
+        temp.writeText(encodeVocabulary(vocabulary))
         if (!temp.renameTo(target)) {
             target.writeText(temp.readText())
             temp.delete()
@@ -187,7 +182,7 @@ object LexiconStore {
     private fun writeIndex(context: Context, metas: List<VocabularyMeta>) {
         val target = indexFile(context)
         val temp = File(target.parentFile, "${target.name}.tmp")
-        temp.writeText(JSONArray().apply { metas.forEach { put(it.toJson()) } }.toString())
+        temp.writeText(encodeCatalog(metas))
         if (!temp.renameTo(target)) {
             target.writeText(temp.readText())
             temp.delete()

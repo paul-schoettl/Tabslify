@@ -865,11 +865,6 @@ suspend fun callVisionRawJpeg(
             } catch (z: Exception) {
                 false
             }
-            android.util.Log.i(
-                "LexiconFallback",
-                "isDev=${BuildConfig.IS_DEV} auth=$angemeldet bild=${klein.size}B"
-            )
-
             val nvidiaAntwort = try {
                 sendAiRequest(
                     context = context,
@@ -880,7 +875,12 @@ suspend fun callVisionRawJpeg(
                     provider = AiProvider.NVIDIA,
                     systemPrompt = systemPrompt,
                     maxTokens = 2048,
-                    onToken = { }
+                    onToken = { teil ->
+                        sb.append(teil)
+                        Handler(Looper.getMainLooper()).post {
+                            onProgress(sb.toString())
+                        }
+                    }
                 )
             } catch (z: Exception) {
                 if (z is kotlinx.coroutines.CancellationException) throw z
@@ -890,26 +890,31 @@ suspend fun callVisionRawJpeg(
 
             var ans: String? = null
             if (!istBrauchbar(nvidiaAntwort) && angemeldet) {
-                repeat(2) { versuch ->
-                    if (!istBrauchbar(ans)) {
-                        if (versuch > 0) delay(1500)
-                        ans = try {
-                            sendCommandCodeMessage(
-                                context = context,
-                                userMessage = prompt,
-                                systemPrompt = systemPrompt,
-                                model = COMMANDCODE_DEFAULT_MODEL,
-                                pic = base64Klein,
-                                maxTokens = 0,
-                                reasoningEffort = "medium",
-                                directTimeoutMs = 180_000
-                            )
-                        } catch (z: Exception) {
-                            if (z is kotlinx.coroutines.CancellationException) throw z
-                            logError("vision_commandcode", z)
-                            null
-                        }
+                sb.setLength(0)
+                for (versuch in 1..2) {
+                    if (versuch > 1) delay(1500)
+                    val strom = StringBuilder()
+                    ans = try {
+                        sendCommandCodeMessage(
+                            context = context,
+                            userMessage = prompt,
+                            systemPrompt = systemPrompt,
+                            model = COMMANDCODE_DEFAULT_MODEL,
+                            pic = base64Klein,
+                            maxTokens = 0,
+                            reasoningEffort = "medium",
+                            directTimeoutMs = 180_000,
+                            onToken = { teil ->
+                                strom.append(teil)
+                                onProgress(strom.toString())
+                            }
+                        )
+                    } catch (z: Exception) {
+                        if (z is kotlinx.coroutines.CancellationException) throw z
+                        logError("vision_commandcode", z)
+                        null
                     }
+                    if (istBrauchbar(ans)) break
                 }
             }
 

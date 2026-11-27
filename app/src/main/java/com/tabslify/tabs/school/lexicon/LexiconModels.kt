@@ -1,10 +1,30 @@
 package com.tabslify.tabs.school.lexicon
 
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonDecoder
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNames
+import kotlinx.serialization.json.JsonPrimitive
 import org.json.JSONArray
 import org.json.JSONObject
 
 const val DEFAULT_LANGUAGE = "Latein"
 const val DEFAULT_TARGET_LANGUAGE = "Deutsch"
+
+val lexiconJson = Json {
+    ignoreUnknownKeys = true
+    encodeDefaults = true
+    coerceInputValues = true
+    explicitNulls = false
+}
 
 enum class VocabularyType(val key: String, val legacyKey: String) {
     REGISTER("register", "register"),
@@ -16,81 +36,74 @@ enum class VocabularyType(val key: String, val legacyKey: String) {
     }
 }
 
+internal object VocabularyTypeSerializer : KSerializer<VocabularyType> {
+    override val descriptor: SerialDescriptor =
+        PrimitiveSerialDescriptor("VocabularyType", PrimitiveKind.STRING)
+
+    override fun deserialize(decoder: Decoder): VocabularyType {
+        val jsonDecoder = decoder as? JsonDecoder
+            ?: return VocabularyType.fromKey(decoder.decodeString())
+        val text = (jsonDecoder.decodeJsonElement() as? JsonPrimitive)?.content
+        return VocabularyType.fromKey(text?.trim()?.takeIf { it.isNotEmpty() })
+    }
+
+    override fun serialize(encoder: Encoder, value: VocabularyType) {
+        encoder.encodeString(value.key)
+    }
+}
+
+@Serializable
 data class LexiconEntry(
-    val id: Int,
-    val headword: String,
+    val id: Int = 0,
+    @JsonNames("stichwort")
+    val headword: String = "",
+    @JsonNames("bedeutungen")
     val meanings: List<String> = emptyList(),
+    @JsonNames("wortart")
     val partOfSpeech: String? = null,
+    @JsonNames("formen")
     val forms: List<String> = emptyList(),
+    @JsonNames("verwandtschaften")
     val relatedWords: List<String> = emptyList(),
+    @JsonNames("kapitel")
     val chapter: String? = null,
+    @JsonNames("quelle")
     val source: String? = null,
+    @JsonNames("seite")
     val page: Int? = null
-) {
-    fun toJson(): JSONObject = JSONObject().apply {
-        put("id", id)
-        put("headword", headword)
-        put("meanings", JSONArray(meanings))
-        if (partOfSpeech != null) put("partOfSpeech", partOfSpeech)
-        put("forms", JSONArray(forms))
-        put("relatedWords", JSONArray(relatedWords))
-        if (chapter != null) put("chapter", chapter)
-        if (source != null) put("source", source)
-        if (page != null) put("page", page)
-    }
+)
 
-    companion object {
-        fun fromJson(o: JSONObject): LexiconEntry = LexiconEntry(
-            id = o.optInt("id", 0),
-            headword = (o.textCompat("headword", "stichwort") ?: "").trim(),
-            meanings = o.listCompat("meanings", "bedeutungen"),
-            partOfSpeech = o.textCompat("partOfSpeech", "wortart"),
-            forms = o.listCompat("forms", "formen"),
-            relatedWords = o.listCompat("relatedWords", "verwandtschaften"),
-            chapter = o.textCompat("chapter", "kapitel"),
-            source = o.textCompat("source", "quelle"),
-            page = o.intCompat("page", "seite")
-        )
-    }
-}
-
+@Serializable
 data class VocabularyMeta(
-    val id: String,
-    val name: String,
-    val type: VocabularyType,
-    val count: Int,
-    val createdAt: Long,
-    val language: String
-) {
-    fun toJson(): JSONObject = JSONObject().apply {
-        put("id", id)
-        put("name", name)
-        put("type", type.key)
-        put("count", count)
-        put("createdAt", createdAt)
-        put("language", language)
-    }
+    val id: String = "",
+    val name: String = "",
+    @Serializable(with = VocabularyTypeSerializer::class)
+    @JsonNames("typ")
+    val type: VocabularyType = VocabularyType.REGISTER,
+    @JsonNames("anzahl")
+    val count: Int = 0,
+    @JsonNames("angelegt")
+    val createdAt: Long = 0L,
+    @JsonNames("sprache")
+    val language: String = DEFAULT_LANGUAGE
+)
 
-    companion object {
-        fun fromJson(o: JSONObject): VocabularyMeta = VocabularyMeta(
-            id = o.optString("id"),
-            name = o.optString("name"),
-            type = VocabularyType.fromKey(o.textCompat("type", "typ")),
-            count = o.intCompat("count", "anzahl") ?: 0,
-            createdAt = o.intCompatLong("createdAt", "angelegt") ?: 0L,
-            language = o.textCompat("language", "sprache") ?: DEFAULT_LANGUAGE
-        )
-    }
-}
-
+@Serializable
 data class Vocabulary(
-    val id: String,
-    val name: String,
-    val type: VocabularyType,
+    val id: String = "",
+    val name: String = "",
+    @Serializable(with = VocabularyTypeSerializer::class)
+    @JsonNames("typ")
+    val type: VocabularyType = VocabularyType.REGISTER,
+    @JsonNames("sprache")
     val language: String = DEFAULT_LANGUAGE,
+    @JsonNames("zielsprache")
     val targetLanguage: String = DEFAULT_TARGET_LANGUAGE,
-    val createdAt: Long = System.currentTimeMillis(),
+    @JsonNames("angelegt")
+    val createdAt: Long = 0L,
+    @JsonNames("eintraege")
     val entries: List<LexiconEntry> = emptyList(),
+    @JsonNames("auffaelligkeiten")
     val notices: List<String> = emptyList()
 ) {
     fun meta(): VocabularyMeta = VocabularyMeta(
@@ -101,36 +114,28 @@ data class Vocabulary(
         createdAt = createdAt,
         language = language
     )
-
-    fun toJson(): JSONObject = JSONObject().apply {
-        put("id", id)
-        put("name", name)
-        put("type", type.key)
-        put("language", language)
-        put("targetLanguage", targetLanguage)
-        put("createdAt", createdAt)
-        put("entries", JSONArray().apply { entries.forEach { put(it.toJson()) } })
-        put("notices", JSONArray(notices))
-    }
-
-    companion object {
-        fun fromJson(o: JSONObject): Vocabulary = Vocabulary(
-            id = o.optString("id"),
-            name = o.optString("name"),
-            type = VocabularyType.fromKey(o.textCompat("type", "typ")),
-            language = o.textCompat("language", "sprache") ?: DEFAULT_LANGUAGE,
-            targetLanguage = o.textCompat("targetLanguage", "zielsprache") ?: DEFAULT_TARGET_LANGUAGE,
-            createdAt = o.intCompatLong("createdAt", "angelegt") ?: 0L,
-            entries = (o.optJSONArray("entries") ?: o.optJSONArray("eintraege") ?: JSONArray()).let { array ->
-                (0 until array.length()).mapNotNull { index ->
-                    array.optJSONObject(index)?.let(LexiconEntry::fromJson)
-                }
-            },
-            notices = (o.optJSONArray("notices") ?: o.optJSONArray("auffaelligkeiten"))?.toStringList()
-                ?: emptyList()
-        )
-    }
 }
+
+fun decodeLexiconEntry(raw: String): LexiconEntry? =
+    runCatching { lexiconJson.decodeFromString<LexiconEntry>(raw) }.getOrNull()
+
+fun decodeVocabulary(raw: String): Vocabulary? =
+    runCatching { lexiconJson.decodeFromString<Vocabulary>(raw) }.getOrNull()
+
+fun decodeCatalog(raw: String): List<VocabularyMeta>? = runCatching {
+    val elements = lexiconJson.decodeFromString<List<JsonElement>>(raw)
+    elements.mapNotNull { element ->
+        runCatching {
+            lexiconJson.decodeFromJsonElement(VocabularyMeta.serializer(), element)
+        }.getOrNull()
+    }
+}.getOrNull()
+
+fun encodeVocabulary(vocabulary: Vocabulary): String =
+    lexiconJson.encodeToString(Vocabulary.serializer(), vocabulary)
+
+fun encodeCatalog(metas: List<VocabularyMeta>): String =
+    lexiconJson.encodeToString(ListSerializer(VocabularyMeta.serializer()), metas)
 
 fun JSONArray.toStringList(): List<String> = (0 until length()).mapNotNull { index ->
     val value = optString(index).trim()
@@ -147,23 +152,3 @@ fun JSONObject.textList(key: String): List<String> = when (val value = opt(key))
 
 fun JSONObject.optText(key: String): String? =
     optString(key).trim().takeIf { it.isNotEmpty() }
-
-private fun JSONObject.textCompat(primary: String, legacy: String): String? =
-    optText(primary) ?: optText(legacy)
-
-private fun JSONObject.listCompat(primary: String, legacy: String): List<String> {
-    val list = textList(primary)
-    return if (list.isNotEmpty()) list else textList(legacy)
-}
-
-private fun JSONObject.intCompat(primary: String, legacy: String): Int? =
-    existingKey(primary, legacy)?.let { optInt(it) }
-
-private fun JSONObject.intCompatLong(primary: String, legacy: String): Long? =
-    existingKey(primary, legacy)?.let { optLong(it) }
-
-private fun JSONObject.existingKey(primary: String, legacy: String): String? = when {
-    has(primary) && !isNull(primary) -> primary
-    has(legacy) && !isNull(legacy) -> legacy
-    else -> null
-}

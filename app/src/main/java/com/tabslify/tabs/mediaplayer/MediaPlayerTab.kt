@@ -107,9 +107,6 @@ import androidx.core.content.edit
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.google.gson.Gson
-import com.google.gson.GsonBuilder
-import com.google.gson.reflect.TypeToken
 import com.tabslify.R
 import com.tabslify.core.functions.SongHashtags
 import com.tabslify.core.ui.Accent
@@ -143,6 +140,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.net.URLDecoder
@@ -2884,11 +2885,12 @@ private fun generateBarAccentColor(seed: String): Color {
     return Color.hsl(hue, 0.7f, 0.55f)
 }
 
+@Serializable
 data class ListenSession(
-    val label: String,
-    val type: String,
-    val listenedMs: Long,
-    val startedAt: Long,
+    val label: String = "",
+    val type: String = "music",
+    val listenedMs: Long = 0L,
+    val startedAt: Long = 0L,
     val repeatCount: Int = 1,
     val source: String = "local"
 )
@@ -2902,8 +2904,28 @@ object MediaAnalyticsManager {
     const val KEY_SESSIONS = "sessions"
     private const val KEY_ANALYTICS_ENABLED = "analytics_enabled"
 
-    val gson: Gson = GsonBuilder().create()
     var prefs: SharedPreferences? = null
+
+    private val analyticsJson = Json {
+        ignoreUnknownKeys = true
+        encodeDefaults = true
+        coerceInputValues = true
+    }
+
+    private fun saveSessions(sessions: List<ListenSession>) {
+        val encoded = runCatching { analyticsJson.encodeToString(sessions) }.getOrDefault("[]")
+        prefs?.edit { putString(KEY_SESSIONS, encoded) }
+    }
+
+    private fun readSessions(): List<ListenSession> {
+        val raw = prefs?.getString(KEY_SESSIONS, null) ?: return emptyList()
+        val elements = runCatching {
+            analyticsJson.decodeFromString<List<JsonElement>>(raw)
+        }.getOrNull() ?: return emptyList()
+        return elements.mapNotNull { element ->
+            runCatching { analyticsJson.decodeFromJsonElement<ListenSession>(element) }.getOrNull()
+        }
+    }
 
     fun init(context: Context) {
         prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -2926,16 +2948,7 @@ object MediaAnalyticsManager {
         insertDeduped(session)
     }
 
-    fun getSessions(): List<ListenSession> {
-        val json = prefs?.getString(KEY_SESSIONS, null) ?: return emptyList()
-        return try {
-            val type = object : TypeToken<List<ListenSession>>() {}.type
-            val raw: List<ListenSession>? = gson.fromJson(json, type)
-            (raw ?: emptyList()).map { sanitize(it) }
-        } catch (_: Exception) {
-            emptyList()
-        }
-    }
+    fun getSessions(): List<ListenSession> = readSessions().map { sanitize(it) }
 
     fun clearAll() {
         prefs?.edit { remove(KEY_SESSIONS) }
@@ -2980,7 +2993,7 @@ object MediaAnalyticsManager {
             .sumOf { it.listenedMs }
 
     fun rebuildSessions(sessions: List<ListenSession>) {
-        prefs?.edit { putString(KEY_SESSIONS, gson.toJson(sessions)) }
+        saveSessions(sessions)
     }
 
     fun mergeSessions(incoming: List<ListenSession>): Int {
@@ -3003,7 +3016,7 @@ object MediaAnalyticsManager {
             }
         }
         if (changed) {
-            prefs?.edit { putString(KEY_SESSIONS, gson.toJson(existing)) }
+            saveSessions(existing)
         }
         return added
     }
@@ -3044,12 +3057,12 @@ object MediaAnalyticsManager {
         for (i in existing.indices) {
             if (isSamePlayback(existing[i], session)) {
                 existing[i] = mergedPlayback(existing[i], session)
-                prefs?.edit { putString(KEY_SESSIONS, gson.toJson(existing)) }
+                saveSessions(existing)
                 return false
             }
         }
         existing.add(session)
-        prefs?.edit { putString(KEY_SESSIONS, gson.toJson(existing)) }
+        saveSessions(existing)
         return true
     }
 
@@ -3101,7 +3114,7 @@ object MediaAnalyticsManager {
         if (existing.isEmpty()) return 0
         val deduped = dedupForStats(existing)
         if (deduped == existing) return 0
-        prefs?.edit { putString(KEY_SESSIONS, gson.toJson(deduped)) }
+        saveSessions(deduped)
         return existing.size - deduped.size
     }
 }

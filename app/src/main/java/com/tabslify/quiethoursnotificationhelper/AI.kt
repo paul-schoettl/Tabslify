@@ -370,6 +370,7 @@ private suspend fun sendChatCompletionsMessage(
 
             if (onToken != null) {
                 val sb = StringBuilder()
+                val denk = StringBuilder()
                 var apiError: String? = null
                 connection.inputStream.bufferedReader().useLines { lines ->
                     for (line in lines) {
@@ -386,21 +387,25 @@ private suspend fun sendChatCompletionsMessage(
                                 break
                             }
 
-                            val delta = jsonObj
+                            val teil = jsonObj
                                 .getJSONArray("choices")
                                 .getJSONObject(0)
                                 .getJSONObject("delta")
-                                .optString("content", "")
+                            val delta = teil.optString("content", "")
+                            val gedanke = teil.optString("reasoning_content", "")
                             if (delta.isNotEmpty()) {
                                 sb.append(delta)
                                 withContext(Dispatchers.Main) { onToken(delta) }
+                            } else if (gedanke.isNotEmpty()) {
+                                denk.append(gedanke)
                             }
                         } catch (_: Exception) {
                         }
                     }
                 }
                 if (apiError != null) return@withContext "[!ERROR] $apiError"
-                sb.toString().ifBlank { "Stream returned 200 OK but was empty." }
+                if (sb.isNotEmpty()) sb.toString()
+                else denk.toString().ifBlank { "Stream returned 200 OK but was empty." }
             } else {
                 val nachricht = JSONObject(connection.inputStream.bufferedReader().readText())
                     .getJSONArray("choices").getJSONObject(0)

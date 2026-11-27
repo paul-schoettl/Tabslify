@@ -11,13 +11,62 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.buildJsonArray
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+
+@Serializable
+private data class UsageLogRow(
+    val id: String,
+    @SerialName("package_name") val packageName: String,
+    val category: String,
+    val date: String,
+    @SerialName("session_start") val sessionStart: Long,
+    @SerialName("session_end") val sessionEnd: Long,
+    @SerialName("duration_ms") val durationMs: Long,
+    val synced: Boolean = true
+)
+
+@Serializable
+private data class RestrictionRuleRow(
+    val id: String,
+    val category: String,
+    @SerialName("start_minute") val startMinute: Int,
+    @SerialName("end_minute") val endMinute: Int,
+    @SerialName("days_of_week_mask") val daysOfWeekMask: Int,
+    val enabled: Boolean
+)
+
+@Serializable
+private data class SleepRecordRow(
+    val id: String,
+    val date: String,
+    val bedtime: Long,
+    val wake: Long,
+    @SerialName("duration_ms") val durationMs: Long
+)
+
+@Serializable
+private data class StudyGoalRow(
+    val id: String,
+    val date: String,
+    @SerialName("target_count") val targetCount: Int,
+    @SerialName("completed_count") val completedCount: Int,
+    val deadline: Long? = null,
+    @SerialName("reminder_interval_min") val reminderIntervalMin: Int,
+    @SerialName("last_reminder_at") val lastReminderAt: Long? = null
+)
+
+@Serializable
+private data class UserAchievementRow(
+    val id: String,
+    val type: String,
+    @SerialName("earned_at") val earnedAt: Long,
+    val points: Int,
+    val meta: String? = null
+)
 
 object FocusGuardRepository {
     private lateinit var db: FocusGuardDatabase
@@ -228,16 +277,12 @@ object FocusGuardRepository {
                 if (!prvt()) return@runCatching
                 val logs = db.appUsageLogDao().unsynced()
                 if (logs.isNotEmpty()) {
-                    Config.client.from("app_usage_logs").upsert(
-                        buildJsonArray { logs.forEach { add(usageLogToJson(it)) } }
-                    )
+                    Config.client.from("app_usage_logs").upsert(logs.map { usageLogToJson(it) })
                     db.appUsageLogDao().markSynced(logs.map { it.id })
                 }
                 val rules = db.restrictionRuleDao().unsynced()
                 if (rules.isNotEmpty()) {
-                    Config.client.from("restriction_rules").upsert(
-                        buildJsonArray { rules.forEach { add(ruleToJson(it)) } }
-                    )
+                    Config.client.from("restriction_rules").upsert(rules.map { ruleToJson(it) })
                     db.restrictionRuleDao().markSynced(rules.map { it.id })
                 }
                 db.sleepRecordDao().deleteDuplicates()
@@ -248,7 +293,7 @@ object FocusGuardRepository {
                             .thenByDescending { it.bedtimeMs }
                     ).distinctBy { it.date }
                     Config.client.from("sleep_records").upsert(
-                        buildJsonArray { uniqueSleeps.forEach { add(sleepToJson(it)) } }
+                        uniqueSleeps.map { sleepToJson(it) }
                     ) { onConflict = "date" }
                     db.sleepRecordDao().markSynced(uniqueSleeps.map { it.id })
                 }
@@ -256,15 +301,13 @@ object FocusGuardRepository {
                 if (goals.isNotEmpty()) {
                     val uniqueGoals = goals.distinctBy { it.date }
                     Config.client.from("study_goals").upsert(
-                        buildJsonArray { uniqueGoals.forEach { add(goalToJson(it)) } }
+                        uniqueGoals.map { goalToJson(it) }
                     ) { onConflict = "date" }
                     db.studyGoalDao().markSynced(uniqueGoals.map { it.id })
                 }
                 val achievements = db.userAchievementDao().unsynced()
                 if (achievements.isNotEmpty()) {
-                    Config.client.from("user_achievements").upsert(
-                        buildJsonArray { achievements.forEach { add(achievementToJson(it)) } }
-                    )
+                    Config.client.from("user_achievements").upsert(achievements.map { achievementToJson(it) })
                     db.userAchievementDao().markSynced(achievements.map { it.id })
                 }
             }
@@ -282,49 +325,49 @@ object FocusGuardRepository {
         }
     }
 
-    private fun usageLogToJson(log: AppUsageLog): JsonObject = buildJsonObject {
-        put("id", log.id)
-        put("package_name", log.packageName)
-        put("category", log.category)
-        put("date", log.date)
-        put("session_start", log.sessionStartMs)
-        put("session_end", log.sessionEndMs)
-        put("duration_ms", log.durationMs)
-        put("synced", true)
-    }
+    private fun usageLogToJson(log: AppUsageLog): UsageLogRow = UsageLogRow(
+        id = log.id,
+        packageName = log.packageName,
+        category = log.category,
+        date = log.date,
+        sessionStart = log.sessionStartMs,
+        sessionEnd = log.sessionEndMs,
+        durationMs = log.durationMs,
+        synced = true
+    )
 
-    private fun ruleToJson(rule: RestrictionRule): JsonObject = buildJsonObject {
-        put("id", rule.id)
-        put("category", rule.category)
-        put("start_minute", rule.startMinute)
-        put("end_minute", rule.endMinute)
-        put("days_of_week_mask", rule.daysOfWeekMask)
-        put("enabled", rule.enabled)
-    }
+    private fun ruleToJson(rule: RestrictionRule): RestrictionRuleRow = RestrictionRuleRow(
+        id = rule.id,
+        category = rule.category,
+        startMinute = rule.startMinute,
+        endMinute = rule.endMinute,
+        daysOfWeekMask = rule.daysOfWeekMask,
+        enabled = rule.enabled
+    )
 
-    private fun sleepToJson(record: SleepRecord): JsonObject = buildJsonObject {
-        put("id", record.id)
-        put("date", record.date)
-        put("bedtime", record.bedtimeMs)
-        put("wake", record.wakeMs)
-        put("duration_ms", record.durationMs)
-    }
+    private fun sleepToJson(record: SleepRecord): SleepRecordRow = SleepRecordRow(
+        id = record.id,
+        date = record.date,
+        bedtime = record.bedtimeMs,
+        wake = record.wakeMs,
+        durationMs = record.durationMs
+    )
 
-    private fun goalToJson(goal: StudyGoal): JsonObject = buildJsonObject {
-        put("id", goal.id)
-        put("date", goal.date)
-        put("target_count", goal.targetCount)
-        put("completed_count", goal.completedCount)
-        goal.deadlineMs?.let { put("deadline", it) }
-        put("reminder_interval_min", goal.reminderIntervalMin)
-        goal.lastReminderAtMs?.let { put("last_reminder_at", it) }
-    }
+    private fun goalToJson(goal: StudyGoal): StudyGoalRow = StudyGoalRow(
+        id = goal.id,
+        date = goal.date,
+        targetCount = goal.targetCount,
+        completedCount = goal.completedCount,
+        deadline = goal.deadlineMs,
+        reminderIntervalMin = goal.reminderIntervalMin,
+        lastReminderAt = goal.lastReminderAtMs
+    )
 
-    private fun achievementToJson(achievement: UserAchievement): JsonObject = buildJsonObject {
-        put("id", achievement.id)
-        put("type", achievement.type)
-        put("earned_at", achievement.earnedAtMs)
-        put("points", achievement.points)
-        achievement.meta?.let { put("meta", it) }
-    }
+    private fun achievementToJson(achievement: UserAchievement): UserAchievementRow = UserAchievementRow(
+        id = achievement.id,
+        type = achievement.type,
+        earnedAt = achievement.earnedAtMs,
+        points = achievement.points,
+        meta = achievement.meta
+    )
 }

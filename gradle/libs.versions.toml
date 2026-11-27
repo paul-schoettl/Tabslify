@@ -12,7 +12,6 @@ firebaseBom = "35.2.0"
 firebaseMessaging = "26.0.2"
 firebasePlayintegrity = "20.1.0"
 foundation = "1.13.0"
-gson = "2.15.0"
 haze1 = "2.1.0"
 healthConnect = "1.1.0"
 kotlin = "2.4.21"
@@ -70,7 +69,6 @@ firebase-appcheck-debug = { module = "com.google.firebase:firebase-appcheck-debu
 firebase-appcheck-playintegrity = { module = "com.google.firebase:firebase-appcheck-playintegrity", version.ref = "firebasePlayintegrity" }
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
 firebase-messaging = { module = "com.google.firebase:firebase-messaging", version.ref = "firebaseMessaging" }
-gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
 haze = { module = "dev.chrisbanes.haze:haze", version.ref = "haze1" }
 haze-blur = { module = "dev.chrisbanes.haze:haze-blur", version.ref = "haze1" }
 androidx-health-connect-client = { module = "androidx.health.connect:connect-client", version.ref = "healthConnect" }

@@ -2,17 +2,20 @@ package com.tabslify.tabs
 
 import android.content.Context
 import androidx.core.content.edit
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import com.tabslify.quiethoursnotificationhelper.laptopName
 import com.tabslify.quiethoursnotificationhelper.resolveSyncSecret
 import com.tabslify.tabs.authenticator.TotpGenerator
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.decodeFromJsonElement
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.Socket
 
+@Serializable
 data class StreamProfil(
     val name: String = "",
     val host: String = "192.168.178.72",
@@ -28,19 +31,27 @@ data class StreamProfil(
     val gueltig: Boolean get() = host.isNotBlank() && port in 1..65535
 }
 
+private val profileJson = Json {
+    ignoreUnknownKeys = true
+    encodeDefaults = true
+}
+
 object StreamdProfile {
 
     private const val DATEI = "stream_profile"
     private const val KEY_LISTE = "liste"
     private const val KEY_AUSWAHL = "auswahl"
 
-    private val typ = object : TypeToken<List<StreamProfil>>() {}.type
-
     fun laden(context: Context): List<StreamProfil> {
         val roh = context.getSharedPreferences(DATEI, Context.MODE_PRIVATE).getString(KEY_LISTE, null)
             ?: return listOf(StreamProfil())
-        val liste = runCatching { Gson().fromJson<List<StreamProfil>>(roh, typ) }.getOrNull()
-        return if (liste.isNullOrEmpty()) listOf(StreamProfil()) else liste
+        val elements = runCatching {
+            profileJson.decodeFromString<List<JsonElement>>(roh)
+        }.getOrNull().orEmpty()
+        val liste = elements.mapNotNull { element ->
+            runCatching { profileJson.decodeFromJsonElement<StreamProfil>(element) }.getOrNull()
+        }
+        return if (liste.isEmpty()) listOf(StreamProfil()) else liste
     }
 
     fun auswahl(context: Context): Int {
@@ -50,8 +61,9 @@ object StreamdProfile {
     }
 
     fun speichern(context: Context, liste: List<StreamProfil>, auswahl: Int) {
+        val encoded = runCatching { profileJson.encodeToString(liste) }.getOrDefault("[]")
         context.getSharedPreferences(DATEI, Context.MODE_PRIVATE).edit {
-            putString(KEY_LISTE, Gson().toJson(liste))
+            putString(KEY_LISTE, encoded)
             putInt(KEY_AUSWAHL, auswahl.coerceAtLeast(0))
         }
     }

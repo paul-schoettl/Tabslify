@@ -573,6 +573,8 @@ fun LexiconImportScreen(
     var job by remember { mutableStateOf<Job?>(null) }
     var importId by remember { mutableStateOf<String?>(null) }
     var notices by remember { mutableStateOf<List<String>>(emptyList()) }
+    var livePage by remember { mutableStateOf(0) }
+    var liveText by remember { mutableStateOf("") }
     var cameraFile by remember { mutableStateOf<File?>(null) }
 
     val pickerLauncher = rememberLauncherForActivityResult(
@@ -602,6 +604,8 @@ fun LexiconImportScreen(
         error = null
         finished = null
         notices = emptyList()
+        livePage = 0
+        liveText = ""
         currentPage = 0
         running = true
         job = scope.launch {
@@ -624,7 +628,10 @@ fun LexiconImportScreen(
                         notice = "Seite $pageNumber: Bild nicht lesbar"
                     } else {
                         val text = try {
-                            ocrLexiconPage(context, jpeg, pageNumber, hint) { }
+                            ocrLexiconPage(context, jpeg, pageNumber, hint) { stand ->
+                                livePage = pageNumber
+                                liveText = stand.takeLast(600)
+                            }
                         } catch (e: CancellationException) {
                             throw e
                         } catch (e: Exception) {
@@ -922,6 +929,30 @@ fun LexiconImportScreen(
                             stringResource(R.string.vocabulary_progress, currentPage, pages.size),
                             color = TextSecondary,
                             fontSize = 13.sp
+                        )
+                    }
+                }
+            }
+
+            if (running && liveText.isNotBlank()) {
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(BgCard)
+                            .padding(12.dp)
+                    ) {
+                        Text(
+                            "Seite $livePage",
+                            color = TextTertiary,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            liveText,
+                            color = TextTertiary,
+                            fontSize = 11.sp
                         )
                     }
                 }
