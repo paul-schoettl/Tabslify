@@ -29,6 +29,8 @@ object TikTokCookieRepository {
     private const val KEY_DEVICE_ID = "device_id"
     private const val KEY_FROM_PC = "cookie_from_pc"
     private const val KEY_PC_HOST = "pc_host"
+    private const val KEY_FETCHED_AT = "cookie_fetched_at"
+    private const val SESSION_MAX_AGE_MS = 30L * 24L * 60L * 60L * 1000L
     private const val API_PORT = 8886
     private const val COOKIE_ENDPOINT = "/tiktok/cookie"
     private const val SCAN_THREADS = 64
@@ -36,7 +38,8 @@ object TikTokCookieRepository {
 
     suspend fun session(context: Context): TikTokSession = withContext(Dispatchers.IO) {
         var cached = readSession(context)
-        if (cached.cookie.isEmpty() || !isFromPc(context)) {
+        val stale = System.currentTimeMillis() - fetchedAt(context) > SESSION_MAX_AGE_MS
+        if (!hasAppSession(cached.cookie) || !isFromPc(context) || stale) {
             val fresh = fetchFromPc(context)
             if (fresh != null) {
                 writeSession(context, fresh)
@@ -49,6 +52,16 @@ object TikTokCookieRepository {
         cached
     }
 
+    fun sessionAgeMinutes(context: Context): Long {
+        val fetched = fetchedAt(context)
+        if (fetched <= 0L) return -1L
+        return (System.currentTimeMillis() - fetched) / 60_000L
+    }
+
+    private fun fetchedAt(context: Context): Long =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getLong(KEY_FETCHED_AT, 0L)
+
     suspend fun refresh(context: Context): TikTokSession? = withContext(Dispatchers.IO) {
         val fresh = fetchFromPc(context) ?: return@withContext null
         writeSession(context, fresh)
@@ -60,6 +73,9 @@ object TikTokCookieRepository {
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             .getString(KEY_COOKIE, "")
             .orEmpty()
+
+    fun hasCachedAppSession(context: Context): Boolean =
+        hasAppSession(cachedCookie(context))
 
     private fun isFromPc(context: Context): Boolean =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -87,12 +103,12 @@ object TikTokCookieRepository {
         val prefix = localIpv4()?.substringBeforeLast('.') ?: return@withContext null
         val hit = scanSubnet(prefix)
         if (hit != null) {
-            Log.i(TAG, "PC per Netzwerkscan gefunden: $hit")
+            Log.i(TAG, "PC per Netzwerkscan found: $hit")
             val session = requestSession(hit, secret)
             if (session != null) rememberHost(context, hit)
             return@withContext session
         }
-        Log.w(TAG, "Kein PC mit Port $API_PORT im Netz $prefix.0/24 gefunden")
+        Log.w(TAG, "Kein PC mit Port $API_PORT im Netz $prefix.0/24 found")
         null
     }
 
@@ -227,7 +243,20 @@ object TikTokCookieRepository {
             .edit {
                 putString(KEY_COOKIE, sanitizeCookie(session.cookie))
                     .putString(KEY_DEVICE_ID, session.deviceId)
+                    .putLong(KEY_FETCHED_AT, System.currentTimeMillis())
             }
+    }
+
+    private fun hasAppSession(cookie: String): Boolean {
+        if (cookie.isEmpty()) return false
+        val names = cookie.split(';').mapNotNull { part ->
+            val index = part.indexOf('=')
+            if (index <= 0) null else part.substring(0, index).trim()
+        }.toSet()
+        return names.contains("tt_ticket_guard_has_set_public_key") ||
+            names.contains("BUYER_TOKEN") ||
+            names.contains("passport_csrf_token") ||
+            (names.contains("tt_session_tlb_tag") && !names.contains("ttwid"))
     }
 
     private fun sanitizeCookie(raw: String): String {
