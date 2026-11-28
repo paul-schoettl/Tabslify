@@ -1,5 +1,6 @@
 package com.tabslify.core.ui
 
+import android.Manifest
 import android.content.Context
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
@@ -790,7 +791,7 @@ private fun NotificationPermissionEffect(isActive: Boolean) {
     LaunchedEffect(isActive) {
         if (isActive && !requested) {
             requested = true
-            Config.requestAllDeclaredRuntimePermissions(context, launcher)
+            launcher.launch(arrayOf(Manifest.permission.POST_NOTIFICATIONS))
         }
     }
 }
